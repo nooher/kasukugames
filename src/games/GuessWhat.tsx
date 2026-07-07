@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Users, Sparkles, Eye, EyeOff, ChevronRight, Heart, Star, Crown, Check, X, UserCircle, Lock, RotateCcw, Zap } from 'lucide-react';
 import { COLOR, RADIUS, MOTION, solidBtn } from '../lib/design';
-import { sfxTap, sfxCorrect, sfxWrong, sfxReveal } from '../lib/sfx';
+import { sfxTap, sfxCorrect, sfxReveal } from '../lib/sfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */

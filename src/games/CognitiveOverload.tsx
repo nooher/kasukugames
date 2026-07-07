@@ -4,8 +4,8 @@ import {
   Flame, Stethoscope, Shield, Truck, CloudLightning,
   Zap as Power, Droplets, Radio, AlertTriangle,
 } from 'lucide-react';
-import { sfxTap, sfxCorrect, sfxWrong, sfxCombo, sfxLevelUp, sfxGameOver, sfxScore } from '../lib/sfx';
-import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
+import { sfxTap, sfxCorrect, sfxWrong, sfxCombo, sfxLevelUp, sfxGameOver } from '../lib/sfx';
+import { type Particle, type ScorePop, correctBurst, wrongBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */

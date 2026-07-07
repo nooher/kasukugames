@@ -12,7 +12,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { sfxTap, sfxScore, sfxWrong, sfxLevelUp, sfxGameOver, sfxTimer } from '../lib/sfx';
-import { Particle, ScorePop, correctBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
+import { type Particle, type ScorePop, correctBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */

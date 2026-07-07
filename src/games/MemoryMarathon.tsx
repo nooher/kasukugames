@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Brain, Trophy, Clock, Zap, RotateCcw, ChevronRight } from 'lucide-react';
 import { sfxReveal, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxTap, sfxScore } from '../lib/sfx';
 import {
-  Particle, ScorePop,
+  type Particle, type ScorePop,
   correctBurst, wrongBurst, confettiBurst,
   tickParticles, renderParticleStyle,
   createScorePop, tickScorePops, scorePopStyle,

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { COLOR, RADIUS, MOTION, solidBtn } from '../lib/design'
 import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver } from '../lib/sfx'
-import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
+import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
 
 /* ─── types ─── */
 type Category = 'Cardiology' | 'Respiratory' | 'GI' | 'Neuro' | 'Infectious' | 'Endocrine'

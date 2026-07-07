@@ -2,7 +2,7 @@ import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Eye, Scissors } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxCombo } from '../lib/sfx'
-import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx'
+import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */

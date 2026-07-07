@@ -11,7 +11,7 @@ import {
   Flame,
   Target,
 } from 'lucide-react';
-import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxScore, sfxTimer } from '../lib/sfx';
+import { sfxTap, sfxWrong, sfxLevelUp, sfxGameOver, sfxScore, sfxTimer } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
@@ -530,12 +530,6 @@ export default function WordForge({ onBack }: Props) {
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
   }, [vfxActive]);
-
-  const getRelativePos = (e: React.MouseEvent) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  };
 
   // Get grid position for connecting lines
   const getTileCenter = (index: number) => {
