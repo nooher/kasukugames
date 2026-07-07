@@ -26,19 +26,71 @@ const T = {
 } as const;
 
 /* ------------------------------------------------------------------ */
-/*  Level configs                                                      */
+/*  SVG shape renderers (15 distinct geometric shapes)                  */
 /* ------------------------------------------------------------------ */
-const LEVELS: { cols: number; rows: number; pairs: number }[] = [
-  { cols: 4, rows: 3, pairs: 6 },
-  { cols: 4, rows: 4, pairs: 8 },
-  { cols: 5, rows: 4, pairs: 10 },
-  { cols: 6, rows: 4, pairs: 12 },
-  { cols: 6, rows: 5, pairs: 15 },
+type ShapeRenderer = (sz: number, color: string) => React.ReactElement;
+
+const SHAPES: ShapeRenderer[] = [
+  /* 0  circle   */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13" fill={c} /></svg>,
+  /* 1  square   */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="24" height="24" rx="3" fill={c} /></svg>,
+  /* 2  triangle */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="16,3 29,28 3,28" fill={c} /></svg>,
+  /* 3  diamond  */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="16,2 30,16 16,30 2,16" fill={c} /></svg>,
+  /* 4  star     */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="16,2 20,12 30,12 22,19 25,29 16,23 7,29 10,19 2,12 12,12" fill={c} /></svg>,
+  /* 5  hexagon  */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="16,2 28,9 28,23 16,30 4,23 4,9" fill={c} /></svg>,
+  /* 6  pentagon */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="16,2 30,12 25,28 7,28 2,12" fill={c} /></svg>,
+  /* 7  cross    */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M12,4 h8 v8 h8 v8 h-8 v8 h-8 v-8 h-8 v-8 h8z" fill={c} /></svg>,
+  /* 8  heart    */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,28 C6,20 2,14 2,9 C2,5 5,2 9,2 C12,2 14,4 16,6 C18,4 20,2 23,2 C27,2 30,5 30,9 C30,14 26,20 16,28Z" fill={c} /></svg>,
+  /* 9  crescent */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M20,2 A14,14 0 1,0 20,30 A10,10 0 1,1 20,2Z" fill={c} /></svg>,
+  /* 10 arrow    */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="16,2 28,18 22,18 22,30 10,30 10,18 4,18" fill={c} /></svg>,
+  /* 11 bolt     */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="18,2 8,18 14,18 12,30 24,14 18,14 20,2" fill={c} /></svg>,
+  /* 12 droplet  */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><path d="M16,2 C16,2 6,16 6,22 C6,27 10,30 16,30 C22,30 26,27 26,22 C26,16 16,2 16,2Z" fill={c} /></svg>,
+  /* 13 octagon  */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><polygon points="11,2 21,2 30,11 30,21 21,30 11,30 2,21 2,11" fill={c} /></svg>,
+  /* 14 ring     */ (sz, c) => <svg width={sz} height={sz} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="11" fill="none" stroke={c} strokeWidth="5" /></svg>,
 ];
 
-const SYMBOLS = ['🧠', '🎯', '⚡', '🔥', '💎', '🌟', '🎵', '🌊', '🦁', '🌺', '🎨', '🔮', '🏆', '🌙', '🍀'];
+const COLORS = [
+  '#f43f5e', // rose
+  '#3b82f6', // blue
+  '#00c97b', // green
+  '#f59e0b', // amber
+  '#7b2ff7', // purple
+  '#06b6d4', // teal
+  '#ec4899', // pink
+  '#ef4444', // red
+  '#6366f1', // indigo
+  '#10b981', // emerald
+  '#f97316', // orange
+  '#8b5cf6', // violet
+  '#14b8a6', // cyan
+  '#eab308', // yellow
+  '#a855f7', // fuchsia
+];
 
-const MAX_TIME = 180; // 3 minutes
+/* ------------------------------------------------------------------ */
+/*  Memory types                                                       */
+/* ------------------------------------------------------------------ */
+type MemoryType = 'standard' | 'colorOnly' | 'shapeOnly' | 'sequence';
+
+const MEMORY_TYPE_LABELS: Record<MemoryType, string> = {
+  standard: 'Memorize the cards...',
+  colorOnly: 'Match by COLOR (ignore shape)...',
+  shapeOnly: 'Match by SHAPE (ignore color)...',
+  sequence: 'Memorize the ORDER of pairs...',
+};
+
+/* ------------------------------------------------------------------ */
+/*  Level configs                                                      */
+/* ------------------------------------------------------------------ */
+const LEVELS: { cols: number; rows: number; pairs: number; memoryType: MemoryType }[] = [
+  { cols: 4, rows: 3, pairs: 6,  memoryType: 'standard' },
+  { cols: 4, rows: 4, pairs: 8,  memoryType: 'standard' },
+  { cols: 5, rows: 4, pairs: 10, memoryType: 'colorOnly' },
+  { cols: 6, rows: 4, pairs: 12, memoryType: 'shapeOnly' },
+  { cols: 6, rows: 5, pairs: 15, memoryType: 'sequence' },
+  { cols: 6, rows: 6, pairs: 18, memoryType: 'standard' },
+];
+
+const MAX_TIME = 240; // 4 minutes
 
 function peekTime(level: number): number {
   return Math.max(1, 3 - level * 0.3);
@@ -49,8 +101,11 @@ function peekTime(level: number): number {
 /* ------------------------------------------------------------------ */
 interface Card {
   id: number;
-  symbol: string;
+  shapeIdx: number;
+  colorIdx: number;
+  matchKey: string;
   matched: boolean;
+  seqOrder?: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -68,14 +123,67 @@ function shuffle<T>(arr: T[]): T[] {
 /* ------------------------------------------------------------------ */
 /*  Build deck                                                         */
 /* ------------------------------------------------------------------ */
-function buildDeck(pairs: number): Card[] {
-  const chosen = shuffle(SYMBOLS).slice(0, pairs);
+function buildDeck(pairs: number, memoryType: MemoryType): Card[] {
   const cards: Card[] = [];
-  chosen.forEach((s, i) => {
-    cards.push({ id: i * 2, symbol: s, matched: false });
-    cards.push({ id: i * 2 + 1, symbol: s, matched: false });
-  });
-  return shuffle(cards);
+
+  if (memoryType === 'colorOnly') {
+    // Pairs share the same color but have different shapes
+    const colorPool = shuffle([...Array(COLORS.length).keys()]).slice(0, pairs);
+    const shapePool = shuffle([...Array(SHAPES.length).keys()]);
+    colorPool.forEach((cIdx, i) => {
+      const s1 = shapePool[i % shapePool.length];
+      const s2 = shapePool[(i + pairs) % shapePool.length !== s1 ? (i + pairs) % shapePool.length : (i + pairs + 1) % shapePool.length];
+      const key = `color-${cIdx}`;
+      cards.push({ id: i * 2, shapeIdx: s1, colorIdx: cIdx, matchKey: key, matched: false });
+      cards.push({ id: i * 2 + 1, shapeIdx: s2 === s1 ? (s2 + 1) % SHAPES.length : s2, colorIdx: cIdx, matchKey: key, matched: false });
+    });
+  } else if (memoryType === 'shapeOnly') {
+    // Pairs share the same shape but have different colors
+    const shapePool = shuffle([...Array(SHAPES.length).keys()]).slice(0, pairs);
+    const colorPool = shuffle([...Array(COLORS.length).keys()]);
+    shapePool.forEach((sIdx, i) => {
+      const c1 = colorPool[i % colorPool.length];
+      const c2raw = colorPool[(i + pairs) % colorPool.length];
+      const c2 = c2raw === c1 ? colorPool[(i + pairs + 1) % colorPool.length] : c2raw;
+      const key = `shape-${sIdx}`;
+      cards.push({ id: i * 2, shapeIdx: sIdx, colorIdx: c1, matchKey: key, matched: false });
+      cards.push({ id: i * 2 + 1, shapeIdx: sIdx, colorIdx: c2, matchKey: key, matched: false });
+    });
+  } else {
+    // standard or sequence: identical shape+color pairs
+    const symbolPool: Array<[number, number]> = [];
+    for (let i = 0; i < Math.min(SHAPES.length, COLORS.length); i++) {
+      symbolPool.push([i, i]);
+    }
+    // extra combos beyond 15 if needed
+    for (let i = 0; i < SHAPES.length && symbolPool.length < pairs + 5; i++) {
+      for (let j = 0; j < COLORS.length && symbolPool.length < pairs + 5; j++) {
+        if (i !== j) symbolPool.push([i, j]);
+      }
+    }
+    const chosen = shuffle(symbolPool).slice(0, pairs);
+    chosen.forEach(([sIdx, cIdx], i) => {
+      const key = `${sIdx}-${cIdx}`;
+      cards.push({ id: i * 2, shapeIdx: sIdx, colorIdx: cIdx, matchKey: key, matched: false });
+      cards.push({ id: i * 2 + 1, shapeIdx: sIdx, colorIdx: cIdx, matchKey: key, matched: false });
+    });
+  }
+
+  const shuffled = shuffle(cards);
+
+  if (memoryType === 'sequence') {
+    // Assign sequence order based on first appearance of each matchKey
+    const seen = new Map<string, number>();
+    let seq = 0;
+    shuffled.forEach(card => {
+      if (!seen.has(card.matchKey)) {
+        seen.set(card.matchKey, seq++);
+      }
+      card.seqOrder = seen.get(card.matchKey)!;
+    });
+  }
+
+  return shuffled;
 }
 
 /* ------------------------------------------------------------------ */
@@ -85,6 +193,22 @@ function fmt(s: number): string {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Personal best                                                      */
+/* ------------------------------------------------------------------ */
+const HS_KEY = 'memoryMarathon_hs';
+
+function loadBest(): number {
+  try {
+    const v = localStorage.getItem(HS_KEY);
+    return v ? parseInt(v, 10) || 0 : 0;
+  } catch { return 0; }
+}
+
+function saveBest(score: number): void {
+  try { localStorage.setItem(HS_KEY, String(score)); } catch { /* noop */ }
 }
 
 /* ------------------------------------------------------------------ */
@@ -126,12 +250,13 @@ function ensureKeyframes() {
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void;
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-export default function MemoryMarathon({ onBack }: Props) {
+export default function MemoryMarathon({ onBack, onGameEnd }: Props) {
   const [level, setLevel] = useState(0);
   const [deck, setDeck] = useState<Card[]>([]);
   const [flipped, setFlipped] = useState<number[]>([]);
@@ -142,6 +267,12 @@ export default function MemoryMarathon({ onBack }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [streak, setStreak] = useState(0);
   const [locked, setLocked] = useState(false);
+  const [bestScore, setBestScore] = useState(loadBest);
+  const [isNewBest, setIsNewBest] = useState(false);
+  const [nextSeq, setNextSeq] = useState(0);
+  const matchesRef = useRef(0);
+  const mismatchesRef = useRef(0);
+  const gameStartRef = useRef(Date.now());
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const peekRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -203,10 +334,20 @@ export default function MemoryMarathon({ onBack }: Props) {
   /* inject keyframes */
   useEffect(() => { ensureKeyframes(); }, []);
 
+  /* ---------- check personal best on game end ---------- */
+  const checkBest = useCallback((finalScore: number) => {
+    const prev = loadBest();
+    if (finalScore > prev) {
+      saveBest(finalScore);
+      setBestScore(finalScore);
+      setIsNewBest(true);
+    }
+  }, []);
+
   /* ---------- start level ---------- */
   const startLevel = useCallback((lvl: number) => {
     const cfg = LEVELS[lvl];
-    const newDeck = buildDeck(cfg.pairs);
+    const newDeck = buildDeck(cfg.pairs, cfg.memoryType);
     setDeck(newDeck);
     setFlipped([]);
     setMatchesFound(0);
@@ -214,6 +355,7 @@ export default function MemoryMarathon({ onBack }: Props) {
     setStreak(0);
     setLocked(true);
     setPhase('peek');
+    setNextSeq(0);
 
     // peek: show all cards briefly
     peekRef.current = setTimeout(() => {
@@ -253,6 +395,15 @@ export default function MemoryMarathon({ onBack }: Props) {
     }
   }, [phase]);
 
+  // Report score when game ends
+  useEffect(() => {
+    if (phase === 'victory' || phase === 'timeUp') {
+      const total = matchesRef.current + mismatchesRef.current;
+      checkBest(score);
+      onGameEnd?.({ score, accuracy: total > 0 ? matchesRef.current / total : 0, level: level + 1, timeMs: elapsed * 1000 });
+    }
+  }, [phase, score, level, elapsed, onGameEnd, checkBest]);
+
   /* ---------- card click ---------- */
   const lastClickPos = useRef<{ x: number; y: number }>({ x: 200, y: 200 });
 
@@ -273,8 +424,15 @@ export default function MemoryMarathon({ onBack }: Props) {
       setMoves(m => m + 1);
       const [a, b] = next;
       const pos = lastClickPos.current;
-      if (deck[a].symbol === deck[b].symbol) {
+      const keysMatch = deck[a].matchKey === deck[b].matchKey;
+      const cfg = LEVELS[level];
+
+      // Sequence mode: must match in order
+      const seqValid = cfg.memoryType !== 'sequence' || deck[a].seqOrder === nextSeq;
+
+      if (keysMatch && seqValid) {
         // match
+        matchesRef.current++;
         const newStreak = streak + 1;
         setStreak(newStreak);
         const bonus = newStreak > 1 ? 20 : 0;
@@ -285,6 +443,7 @@ export default function MemoryMarathon({ onBack }: Props) {
         if (newStreak > 1) sfxCombo(newStreak);
         const newMatches = matchesFound + 1;
         setMatchesFound(newMatches);
+        if (cfg.memoryType === 'sequence') setNextSeq(ns => ns + 1);
 
         // VFX: correct burst + score pop
         spawnCorrectVfx(pos.x, pos.y, points);
@@ -295,29 +454,26 @@ export default function MemoryMarathon({ onBack }: Props) {
           setLocked(false);
 
           // check level complete
-          const cfg = LEVELS[level];
           if (newMatches >= cfg.pairs) {
             if (level >= LEVELS.length - 1) {
               sfxGameOver();
               setPhase('victory');
               setLocked(true);
-              // VFX: big confetti for victory
               spawnConfettiCenter(true);
             } else {
               sfxLevelUp();
               setPhase('levelComplete');
               setLocked(true);
-              // VFX: confetti for level complete
               spawnConfettiCenter(false);
             }
           }
         }, 500);
       } else {
-        // mismatch
+        // mismatch (or wrong sequence)
+        mismatchesRef.current++;
         sfxWrong();
         setStreak(0);
         setScore(s => Math.max(0, s - 10));
-        // VFX: wrong burst
         spawnWrongVfx(pos.x, pos.y);
         setTimeout(() => {
           setFlipped([]);
@@ -338,10 +494,15 @@ export default function MemoryMarathon({ onBack }: Props) {
   /* ---------- restart ---------- */
   const restart = () => {
     sfxTap();
+    matchesRef.current = 0;
+    mismatchesRef.current = 0;
+    gameStartRef.current = Date.now();
     setLevel(0);
     setScore(0);
     setElapsed(0);
     setPhase('peek');
+    setIsNewBest(false);
+    setNextSeq(0);
     startLevel(0);
     // restart timer
     if (timerRef.current) clearInterval(timerRef.current);
@@ -360,6 +521,7 @@ export default function MemoryMarathon({ onBack }: Props) {
   /* ---------- derived ---------- */
   const cfg = LEVELS[level];
   const isRevealed = (idx: number) => phase === 'peek' || flipped.includes(idx) || deck[idx]?.matched;
+  const iconSize = cfg.pairs > 12 ? 26 : cfg.pairs > 8 ? 28 : 32;
 
   /* ================================================================ */
   /*  Styles                                                           */
@@ -412,7 +574,7 @@ export default function MemoryMarathon({ onBack }: Props) {
       gridTemplateColumns: `repeat(${cfg.cols}, 1fr)`,
       gap: 10,
       padding: '0 20px 20px',
-      maxWidth: 560,
+      maxWidth: cfg.cols >= 6 ? 620 : 560,
       width: '100%',
     },
     cardOuter: {
@@ -472,7 +634,7 @@ export default function MemoryMarathon({ onBack }: Props) {
       borderRadius: T.pill,
       padding: '12px 28px',
       fontSize: 15,
-      fontWeight: 700,
+      fontWeight: 600,
       cursor: 'pointer',
       display: 'inline-flex',
       alignItems: 'center',
@@ -502,13 +664,19 @@ export default function MemoryMarathon({ onBack }: Props) {
         <div style={s.stat}>
           {matchesFound}/{cfg.pairs}
         </div>
-        <div style={{ ...s.stat, color: elapsed >= 150 ? T.error : T.text }}>
+        <div style={{ ...s.stat, color: elapsed >= 200 ? T.error : T.text }}>
           <Clock size={14} />
           {fmt(elapsed)}
         </div>
+        {bestScore > 0 && (
+          <div style={{ ...s.stat, color: T.muted, fontSize: 12 }}>
+            <Trophy size={12} color={T.muted} />
+            Best: {bestScore}
+          </div>
+        )}
       </div>
 
-      {/* --- Peek banner --- */}
+      {/* --- Peek / mode banner --- */}
       {phase === 'peek' && (
         <div style={{
           color: T.accent,
@@ -518,7 +686,19 @@ export default function MemoryMarathon({ onBack }: Props) {
           animation: 'mm-pulse 1s infinite',
           borderRadius: T.pill,
         }}>
-          Memorize the cards...
+          {MEMORY_TYPE_LABELS[cfg.memoryType]}
+        </div>
+      )}
+
+      {/* --- Sequence indicator --- */}
+      {phase === 'play' && cfg.memoryType === 'sequence' && (
+        <div style={{
+          color: T.accent,
+          fontSize: 13,
+          fontWeight: 600,
+          padding: '4px 16px 8px',
+        }}>
+          Find pair #{nextSeq + 1} of {cfg.pairs}
         </div>
       )}
 
@@ -535,8 +715,8 @@ export default function MemoryMarathon({ onBack }: Props) {
                 </div>
                 {/* Front face (face-up, rotated 180) */}
                 <div style={{ ...s.cardFace, ...s.cardFront(card.matched) }}>
-                  <span style={{ fontSize: cfg.pairs > 10 ? 26 : 32, userSelect: 'none' }}>
-                    {card.symbol}
+                  <span style={{ userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {SHAPES[card.shapeIdx](iconSize, COLORS[card.colorIdx])}
                   </span>
                 </div>
               </div>
@@ -550,7 +730,7 @@ export default function MemoryMarathon({ onBack }: Props) {
         <div style={s.overlay}>
           <div style={s.modal}>
             <Trophy size={48} color={T.success} style={{ marginBottom: 12 }} />
-            <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Level {level + 1} Complete</h2>
+            <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 600 }}>Level {level + 1} Complete</h2>
             <p style={{ color: T.muted, margin: '0 0 6px', fontSize: 14 }}>
               {moves} moves &middot; Score: {score}
             </p>
@@ -569,14 +749,20 @@ export default function MemoryMarathon({ onBack }: Props) {
         <div style={s.overlay}>
           <div style={s.modal}>
             <Trophy size={56} color="#f5c542" style={{ marginBottom: 12 }} />
-            <h2 style={{ margin: '0 0 4px', fontSize: 24 }}>Memory Marathon Complete</h2>
+            <h2 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 600 }}>Memory Marathon Complete</h2>
+            {isNewBest && (
+              <p style={{ color: '#f5c542', fontWeight: 600, fontSize: 14, margin: '6px 0 0' }}>
+                New Best!
+              </p>
+            )}
             <p style={{ color: T.success, fontWeight: 700, fontSize: 28, margin: '8px 0' }}>
               {score} pts
             </p>
             <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
               <div>Time: {fmt(elapsed)}</div>
               <div>Total Moves: {moves}</div>
-              <div>All 5 levels cleared</div>
+              <div>All {LEVELS.length} levels cleared</div>
+              {bestScore > 0 && !isNewBest && <div>Personal Best: {bestScore}</div>}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button style={s.btn(T.surface)} onClick={onBack}>
@@ -595,13 +781,24 @@ export default function MemoryMarathon({ onBack }: Props) {
         <div style={s.overlay}>
           <div style={s.modal}>
             <Clock size={48} color={T.error} style={{ marginBottom: 12 }} />
-            <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Time's Up</h2>
+            <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 600 }}>Time's Up</h2>
+            {isNewBest && (
+              <p style={{ color: '#f5c542', fontWeight: 600, fontSize: 14, margin: '0 0 6px' }}>
+                New Best!
+              </p>
+            )}
             <p style={{ color: T.muted, margin: '0 0 6px', fontSize: 14 }}>
               Reached Level {level + 1} &middot; Score: {score}
             </p>
-            <p style={{ color: T.muted, margin: '0 0 20px', fontSize: 13 }}>
-              Complete all levels within 3 minutes to win
+            <p style={{ color: T.muted, margin: '0 0 6px', fontSize: 13 }}>
+              Complete all levels within 4 minutes to win
             </p>
+            {bestScore > 0 && !isNewBest && (
+              <p style={{ color: T.muted, margin: '0 0 20px', fontSize: 13 }}>
+                Personal Best: {bestScore}
+              </p>
+            )}
+            {(isNewBest || bestScore === 0) && <div style={{ marginBottom: 20 }} />}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button style={s.btn(T.surface)} onClick={onBack}>
                 <ArrowLeft size={14} /> Exit

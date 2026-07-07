@@ -65,6 +65,7 @@ interface Puzzle {
 
 interface Props {
   onBack: () => void
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void
 }
 
 /* ------------------------------------------------------------------ */
@@ -150,6 +151,69 @@ function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+/* --- Close-decoy generator --- */
+
+function generateCloseDecoys(sequence: number[], _rule: PuzzleRule, gen: string): PuzzleRule[] {
+  const diffs: number[] = []
+  for (let i = 1; i < sequence.length; i++) diffs.push(sequence[i] - sequence[i - 1])
+  const ratios: number[] = []
+  for (let i = 1; i < sequence.length; i++) {
+    if (sequence[i - 1] !== 0) ratios.push(sequence[i] / sequence[i - 1])
+  }
+
+  switch (gen) {
+    case 'arith': {
+      const step = diffs[0]
+      const absStep = Math.abs(step)
+      const dir = step > 0 ? 'Add' : 'Subtract'
+      return [
+        { label: `${dir} ${absStep + 1}`, description: `Each term ${step > 0 ? 'increases' : 'decreases'} by ${absStep + 1}` },
+        { label: `${dir} ${Math.max(1, absStep - 1)}`, description: `Each term ${step > 0 ? 'increases' : 'decreases'} by ${Math.max(1, absStep - 1)}` },
+        { label: `Multiply by ${absStep}`, description: `Each term is multiplied by ${absStep}` },
+      ]
+    }
+    case 'geo': {
+      const ratio = ratios[0] ?? 2
+      const addMatch = diffs[0]
+      return [
+        { label: `Add ${addMatch}`, description: `Each term increases by ${addMatch} (matches first gap)` },
+        { label: `Power of ${ratio}`, description: `Each term is ${ratio} raised to a power` },
+        { label: `Multiply by ${ratio + 1}`, description: `Each term is ${ratio + 1}x the previous` },
+      ]
+    }
+    case 'fib': {
+      const approxRatio = ratios.length > 1 ? +(ratios[ratios.length - 1].toFixed(2)) : 1.5
+      return [
+        { label: `Multiply by ~${approxRatio}`, description: `Each term is roughly ${approxRatio}x the previous` },
+        { label: 'Multiply previous two', description: 'Each term = product of two preceding terms' },
+        { label: 'Add increasing step', description: 'Step size grows by 1 each time' },
+      ]
+    }
+    case 'primes': {
+      return [
+        { label: 'Odd numbers', description: 'Each term is the next odd number (shares 3, 5, 7, 11...)' },
+        { label: 'Add increasing step', description: 'Differences increase by 1 each time' },
+        { label: 'Numbers ending in 1, 3, 7, 9', description: 'Cycle through digits that primes can end with' },
+      ]
+    }
+    case 'squares': {
+      const secondDiff = diffs.length > 1 ? diffs[1] - diffs[0] : 2
+      return [
+        { label: `Add ${diffs[0]}, then +${secondDiff} each step`, description: 'Differences grow by a constant (matches pattern)' },
+        { label: 'Triangular numbers', description: 'Each term is a triangular number' },
+        { label: 'Prime numbers', description: 'Each term is the next prime' },
+      ]
+    }
+    default: {
+      return [
+        { label: 'Fibonacci-like', description: 'Sum of previous two terms' },
+        { label: `Add ${diffs[0] ?? 3}`, description: `Each term increases by ${diffs[0] ?? 3}` },
+        { label: 'Multiply by 2', description: 'Each term doubles' },
+      ]
+    }
+  }
+}
+
 /* --- Number sequence generators --- */
 
 function genArithmetic(len: number): { seq: number[]; step: number; start: number } {
@@ -223,6 +287,37 @@ function genArithmeticWithException(len: number): { seq: number[]; step: number;
   return { seq, step, exceptionIndex }
 }
 
+function genDiffOfDiff(len: number): { seq: number[]; secondDiff: number } {
+  const secondDiff = pick([1, 2, 3])
+  const firstDiff = pick([1, 2, 3])
+  const start = randInt(1, 5)
+  const seq: number[] = [start]
+  let diff = firstDiff
+  for (let i = 1; i < len; i++) {
+    seq.push(seq[i - 1] + diff)
+    diff += secondDiff
+  }
+  return { seq, secondDiff }
+}
+
+function genModularInterleave(len: number): { seq: number[]; modBase: number; step: number } {
+  const modBase = pick([2, 3])
+  const step = pick([1, 2])
+  const streams: number[][] = []
+  for (let s = 0; s < modBase; s++) {
+    const base = randInt(1, 5) + s * 3
+    streams.push(Array.from({ length: Math.ceil(len / modBase) + 1 }, (_, i) => base + i * step))
+  }
+  const seq: number[] = []
+  for (let i = 0; seq.length < len; i++) {
+    for (let s = 0; s < modBase && seq.length < len; s++) {
+      seq.push(streams[s][Math.floor(i)])
+    }
+  }
+  // compute next from the pattern
+  return { seq, modBase, step }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Build puzzle for given level                                      */
 /* ------------------------------------------------------------------ */
@@ -245,11 +340,12 @@ function buildPuzzle(level: number): Puzzle {
 
 function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
   // Pick a generator based on difficulty
-  type GenType = 'arith' | 'geo' | 'fib' | 'squares' | 'primes' | 'alt' | 'tri' | 'arithExc'
+  type GenType = 'arith' | 'geo' | 'fib' | 'squares' | 'primes' | 'alt' | 'tri' | 'arithExc' | 'diffOfDiff' | 'modular'
   const easyPool: GenType[] = ['arith', 'geo']
   const midPool: GenType[] = ['arith', 'geo', 'fib', 'squares', 'primes']
   const hardPool: GenType[] = ['fib', 'squares', 'primes', 'alt', 'tri', 'arithExc']
-  const pool = difficulty < 2 ? easyPool : difficulty < 4 ? midPool : hardPool
+  const expertPool: GenType[] = ['diffOfDiff', 'modular', 'primes', 'alt', 'arithExc']
+  const pool = difficulty < 2 ? easyPool : difficulty < 3 ? midPool : difficulty < 4 ? hardPool : expertPool
   const gen = pick(pool)
 
   let sequence: number[]
@@ -264,11 +360,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       nextVal = seq[len]
       const dir = step > 0 ? 'Add' : 'Subtract'
       rule = { label: `${dir} ${Math.abs(step)}`, description: `Each term ${step > 0 ? 'increases' : 'decreases'} by ${Math.abs(step)}` }
-      decoyRules = [
-        { label: `Multiply by ${Math.abs(step)}`, description: `Each term is multiplied by ${Math.abs(step)}` },
-        { label: `Add ${Math.abs(step) + 1}`, description: `Each term increases by ${Math.abs(step) + 1}` },
-        { label: 'Fibonacci-like sum', description: 'Each term is the sum of the two before it' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'arith')
       break
     }
     case 'geo': {
@@ -276,11 +368,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       sequence = seq.slice(0, len)
       nextVal = seq[len]
       rule = { label: `Multiply by ${ratio}`, description: `Each term is ${ratio}x the previous` }
-      decoyRules = [
-        { label: `Add ${ratio}`, description: `Each term increases by ${ratio}` },
-        { label: `Power of ${ratio}`, description: `Each term is ${ratio} raised to a power` },
-        { label: 'Doubling then halving', description: 'Alternates between doubling and halving' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'geo')
       break
     }
     case 'fib': {
@@ -288,11 +376,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       sequence = seq.slice(0, len)
       nextVal = seq[len]
       rule = { label: 'Sum of previous two', description: 'Each term = sum of two preceding terms' }
-      decoyRules = [
-        { label: 'Multiply previous two', description: 'Each term = product of two preceding terms' },
-        { label: 'Add increasing step', description: 'Step size grows by 1 each time' },
-        { label: 'Double previous', description: 'Each term is double the previous' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'fib')
       break
     }
     case 'squares': {
@@ -300,11 +384,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       sequence = seq.slice(0, len)
       nextVal = seq[len]
       rule = { label: 'Perfect squares', description: `Sequence of consecutive perfect squares (starting at ${offset}^2)` }
-      decoyRules = [
-        { label: 'Triangular numbers', description: 'Each term is a triangular number' },
-        { label: 'Add increasing step', description: 'Differences increase by a constant' },
-        { label: 'Prime numbers', description: 'Each term is the next prime' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'squares')
       break
     }
     case 'primes': {
@@ -312,11 +392,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       sequence = allP.slice(0, len)
       nextVal = allP[len]
       rule = { label: 'Prime numbers', description: 'Each term is the next prime number' }
-      decoyRules = [
-        { label: 'Odd numbers', description: 'Each term is the next odd number' },
-        { label: 'Add increasing step', description: 'Differences increase by 1 each time' },
-        { label: 'Perfect squares', description: 'Each term is a perfect square' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'primes')
       break
     }
     case 'alt': {
@@ -324,11 +400,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       sequence = seq.slice(0, len)
       nextVal = seq[len]
       rule = { label: `Two interleaved sequences`, description: `Odd positions +${stepA}, even positions +${stepB}` }
-      decoyRules = [
-        { label: `Add ${stepA + stepB}`, description: `Each term increases by ${stepA + stepB}` },
-        { label: 'Fibonacci-like', description: 'Sum of previous two terms' },
-        { label: `Multiply by 2`, description: 'Each term doubles' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'alt')
       break
     }
     case 'tri': {
@@ -336,11 +408,7 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
       sequence = allT.slice(0, len)
       nextVal = allT[len]
       rule = { label: 'Triangular numbers', description: 'n*(n+1)/2 for consecutive n' }
-      decoyRules = [
-        { label: 'Perfect squares', description: 'Consecutive perfect squares' },
-        { label: 'Add increasing step', description: 'Step grows by 1' },
-        { label: 'Fibonacci sums', description: 'Each is sum of previous two' },
-      ]
+      decoyRules = generateCloseDecoys(sequence, rule, 'tri')
       break
     }
     case 'arithExc': {
@@ -352,6 +420,30 @@ function buildNumberPuzzle(len: number, difficulty: number): Puzzle {
         { label: `Add ${step}`, description: `Simple +${step} sequence` },
         { label: 'Two interleaved sequences', description: 'Alternating between two progressions' },
         { label: 'Fibonacci-like', description: 'Sum of previous two terms' },
+      ]
+      break
+    }
+    case 'diffOfDiff': {
+      const { seq, secondDiff } = genDiffOfDiff(len + 1)
+      sequence = seq.slice(0, len)
+      nextVal = seq[len]
+      rule = { label: 'Constant second differences', description: `Differences between terms grow by ${secondDiff} each step` }
+      decoyRules = [
+        { label: 'Perfect squares', description: 'Consecutive perfect squares' },
+        { label: `Add ${seq[1] - seq[0]}`, description: `Each term increases by ${seq[1] - seq[0]}` },
+        { label: 'Fibonacci-like', description: 'Sum of previous two terms' },
+      ]
+      break
+    }
+    case 'modular': {
+      const { seq, modBase, step } = genModularInterleave(len + 1)
+      sequence = seq.slice(0, len)
+      nextVal = seq[len]
+      rule = { label: `${modBase} interleaved +${step} streams`, description: `${modBase} separate sequences each adding ${step}, woven together` }
+      decoyRules = [
+        { label: `Add ${step}`, description: `Simple +${step} sequence` },
+        { label: 'Random sequence', description: 'No discernible pattern' },
+        { label: 'Modulo cycle', description: `Values repeat modulo ${modBase + 2}` },
       ]
       break
     }
@@ -422,7 +514,7 @@ function buildColorPuzzle(len: number): Puzzle {
 /* ------------------------------------------------------------------ */
 /*  Component                                                         */
 /* ------------------------------------------------------------------ */
-export default function PatternHunter({ onBack }: Props) {
+export default function PatternHunter({ onBack, onGameEnd }: Props) {
   const [level, setLevel] = useState(1)
   const [lives, setLives] = useState(3)
   const [score, setScore] = useState(0)
@@ -439,7 +531,13 @@ export default function PatternHunter({ onBack }: Props) {
   const [resultMsg, setResultMsg] = useState('')
   const [resultOk, setResultOk] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [highScore, setHighScore] = useState(0)
+  const [highScore, setHighScore] = useState(() => {
+    try { return Number(localStorage.getItem('patternHunter_hs')) || 0 } catch { return 0 }
+  })
+  const [revealedCount, setRevealedCount] = useState(0)
+  const [eurekaVisible, setEurekaVisible] = useState(false)
+  const [eurekaOpacity, setEurekaOpacity] = useState(0)
+  const [eurekaScale, setEurekaScale] = useState(0.8)
 
   /* VFX state */
   const [particles, setParticles] = useState<Particle[]>([])
@@ -447,6 +545,9 @@ export default function PatternHunter({ onBack }: Props) {
   const [shakeIntensity, setShakeIntensity] = useState(0)
   const vfxFrameRef = useRef<number>(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const correctRef = useRef(0)
+  const attemptsRef = useRef(0)
+  const gameStartRef = useRef(Date.now())
 
   // VFX animation loop — runs whenever there are active particles, pops, or shake
   const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01
@@ -468,6 +569,26 @@ export default function PatternHunter({ onBack }: Props) {
     if (!rect) return { x: 200, y: 300 }
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
+
+  // Sequence reveal animation
+  useEffect(() => {
+    if (phase !== 'rule') return
+    setRevealedCount(0)
+    const total = puzzle.sequence.length + 1 // +1 for the "?" placeholder
+    let i = 0
+    const step = () => {
+      i++
+      setRevealedCount(i)
+      if (i < total) revealTimer = setTimeout(step, 200)
+    }
+    let revealTimer = setTimeout(step, 200)
+    return () => clearTimeout(revealTimer)
+  }, [phase, puzzle])
+
+  // Persist high score to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('patternHunter_hs', String(highScore)) } catch { /* noop */ }
+  }, [highScore])
 
   // Build shuffled options when puzzle changes
   useEffect(() => {
@@ -507,6 +628,7 @@ export default function PatternHunter({ onBack }: Props) {
     if (timer === 0 && (phase === 'rule' || phase === 'predict')) {
       stopTimer()
       sfxWrong()
+      attemptsRef.current++
       // Burst at center of container on timeout
       const cx = containerRef.current ? containerRef.current.clientWidth / 2 : 200
       const cy = containerRef.current ? containerRef.current.clientHeight / 2 : 300
@@ -547,6 +669,8 @@ export default function PatternHunter({ onBack }: Props) {
 
     if (correct) {
       sfxCorrect()
+      correctRef.current++
+      attemptsRef.current++
       setRuleCorrect(true)
       setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)])
       setShakeIntensity(3)
@@ -582,13 +706,27 @@ export default function PatternHunter({ onBack }: Props) {
         }
       }
       setPredictionOptions(shuffle([next, ...wrongPredictions.slice(0, 3)]))
+      // Eureka moment animation
+      sfxLevelUp()
+      setEurekaVisible(true)
+      setEurekaOpacity(0.3)
+      setEurekaScale(0.8)
+      // Animate: scale up and fade out over 600ms
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setEurekaOpacity(0)
+          setEurekaScale(1.0)
+        })
+      })
       setTimeout(() => {
+        setEurekaVisible(false)
         setPhase('predict')
         setSelectedRule(null)
         startTimer()
-      }, 800)
+      }, 700)
     } else {
       sfxWrong()
+      attemptsRef.current++
       setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)])
       setShakeIntensity(5)
       const newLives = lives - 1
@@ -619,6 +757,8 @@ export default function PatternHunter({ onBack }: Props) {
 
     if (correct) {
       sfxCorrect()
+      correctRef.current++
+      attemptsRef.current++
       const timeBonus = Math.floor(timer * 2)
       const streakBonus = streak * 5
       const levelPoints = 10 + level * 5 + timeBonus + streakBonus
@@ -633,6 +773,7 @@ export default function PatternHunter({ onBack }: Props) {
       setResultOk(true)
     } else {
       sfxWrong()
+      attemptsRef.current++
       setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)])
       setShakeIntensity(6)
       const newLives = lives - 1
@@ -661,10 +802,15 @@ export default function PatternHunter({ onBack }: Props) {
     setSelectedPrediction(null)
     setPrediction('')
     setRuleCorrect(false)
+    setRevealedCount(0)
+    setEurekaVisible(false)
     setPhase('rule')
   }
 
   const restart = () => {
+    correctRef.current = 0
+    attemptsRef.current = 0
+    gameStartRef.current = Date.now()
     setLevel(1)
     setLives(3)
     setScore(0)
@@ -674,6 +820,8 @@ export default function PatternHunter({ onBack }: Props) {
     setSelectedPrediction(null)
     setPrediction('')
     setRuleCorrect(false)
+    setRevealedCount(0)
+    setEurekaVisible(false)
     setPuzzle(buildPuzzle(1))
   }
 
@@ -734,6 +882,15 @@ export default function PatternHunter({ onBack }: Props) {
   /* ---------------------------------------------------------------- */
   /*  Main render                                                      */
   /* ---------------------------------------------------------------- */
+
+  // Report score when game ends
+  useEffect(() => {
+    if (phase === 'gameover') {
+      const total = attemptsRef.current
+      const correct = correctRef.current
+      onGameEnd?.({ score, accuracy: total > 0 ? correct / total : 0, level, timeMs: Date.now() - gameStartRef.current })
+    }
+  }, [phase, score, level, onGameEnd])
 
   // suppress unused var warning
   void prediction
@@ -813,29 +970,56 @@ export default function PatternHunter({ onBack }: Props) {
               <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>Find the hidden rule</p>
             </div>
 
-            {/* Sequence display */}
+            {/* Sequence display (revealed one by one) */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center',
               padding: 20, background: C.card, borderRadius: RADIUS, border: `1px solid ${C.border}`,
               width: '100%', maxWidth: 520, ...GLASS,
             }}>
               {puzzle.sequence.map((el, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {renderElement(el)}
-                  {i < puzzle.sequence.length - 1 && (
-                    <ChevronRight size={16} color={C.dim} />
-                  )}
-                </div>
+                i < revealedCount ? (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    opacity: 1, transition: 'opacity 200ms ease',
+                  }}>
+                    {renderElement(el)}
+                    {i < puzzle.sequence.length - 1 && (
+                      <ChevronRight size={16} color={C.dim} />
+                    )}
+                  </div>
+                ) : (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    opacity: 0,
+                  }}>
+                    {renderElement(el)}
+                    {i < puzzle.sequence.length - 1 && (
+                      <ChevronRight size={16} color={C.dim} />
+                    )}
+                  </div>
+                )
               ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <ChevronRight size={16} color={C.dim} />
-                <div style={{
-                  width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 8, border: `2px dashed ${C.dim}`, color: C.dim, fontSize: 20, fontWeight: 700,
-                }}>
-                  ?
+              {revealedCount > puzzle.sequence.length ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: 1, transition: 'opacity 200ms ease' }}>
+                  <ChevronRight size={16} color={C.dim} />
+                  <div style={{
+                    width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 8, border: `2px dashed ${C.dim}`, color: C.dim, fontSize: 20, fontWeight: 700,
+                  }}>
+                    ?
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: 0 }}>
+                  <ChevronRight size={16} color={C.dim} />
+                  <div style={{
+                    width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 8, border: `2px dashed ${C.dim}`, color: C.dim, fontSize: 20, fontWeight: 700,
+                  }}>
+                    ?
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Rule options */}
@@ -1010,6 +1194,31 @@ export default function PatternHunter({ onBack }: Props) {
           </div>
         )}
       </div>
+
+      {/* Eureka flash overlay */}
+      {eurekaVisible && (
+        <div style={{
+          position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: C.accent,
+            opacity: eurekaOpacity,
+            transition: 'opacity 600ms ease-out',
+          }} />
+          <div style={{
+            position: 'relative', zIndex: 1,
+            fontSize: 24, fontWeight: 700, color: C.accent,
+            transform: `scale(${eurekaScale})`,
+            opacity: eurekaOpacity > 0 ? 1 : 0,
+            transition: 'transform 600ms ease-out, opacity 500ms ease-out',
+            textShadow: `0 0 20px ${C.accent}`,
+          }}>
+            PATTERN FOUND
+          </div>
+        </div>
+      )}
 
       {/* VFX particles */}
       {particles.map(p => (

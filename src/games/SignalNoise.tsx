@@ -55,6 +55,7 @@ const NON_COLORS = ['run', 'big', 'hot', 'fly', 'old', 'new', 'top', 'low', 'dry
 
 interface Rule {
   label: string;
+  visual?: string;
   generate: (count: number) => { signals: string[]; noise: string[] };
 }
 
@@ -74,6 +75,24 @@ function randInt(min: number, max: number) {
 function pickN<T>(arr: T[], n: number): T[] {
   return shuffle(arr).slice(0, n);
 }
+
+/* ------------------------------------------------------------------ */
+/*  SCENARIOS — intelligence analyst flavor text                       */
+/* ------------------------------------------------------------------ */
+const SCENARIOS = [
+  'INTERCEPT // Satellite uplink detected. Classify the following transmissions.',
+  'SIGINT // Border checkpoint flagged anomalous traffic. Identify targets.',
+  'OSINT // Media scan detected coded messages. Extract the signals.',
+  'HUMINT // Field agent reports incoming. Prioritize actionable intelligence.',
+  'ELINT // Radar signatures captured. Isolate military-grade emissions.',
+  'GEOINT // Aerial imagery processed. Mark objects of interest.',
+  'MASINT // Seismic sensors triggered. Distinguish real events from background.',
+  'COMINT // Encrypted channel intercepted. Identify cleartext fragments.',
+  'TECHINT // Equipment signatures logged. Flag non-standard hardware.',
+  'CYBERINT // Network traffic anomaly detected. Isolate suspicious packets.',
+  'FININT // Transaction logs flagged. Identify structuring patterns.',
+  'IMINT // Reconnaissance sweep complete. Tag high-value indicators.',
+];
 
 const RULES: Rule[] = [
   {
@@ -218,6 +237,65 @@ const RULES: Rule[] = [
       return { signals: pickN(doubles, Math.min(count, doubles.length)), noise: pickN(singles, Math.min(count * 3, singles.length)) };
     },
   },
+  /* ---- VISUAL RULES ---- */
+  {
+    label: 'Find cells with BLUE background',
+    visual: 'blue-bg',
+    generate: (count) => {
+      const all: string[] = [];
+      const used = new Set<number>();
+      while (all.length < count * 4) {
+        const n = randInt(1, 99);
+        if (!used.has(n)) { used.add(n); all.push(String(n)); }
+      }
+      const signals = all.slice(0, count);
+      const noise = all.slice(count);
+      return { signals, noise };
+    },
+  },
+  {
+    label: 'Find cells in the TOP-RIGHT quadrant',
+    visual: 'top-right',
+    generate: (count) => {
+      // All cells get random numbers; signals/noise decided by position at layout time
+      const all: string[] = [];
+      const used = new Set<number>();
+      while (all.length < count * 4) {
+        const n = randInt(1, 99);
+        if (!used.has(n)) { used.add(n); all.push(String(n)); }
+      }
+      return { signals: all.slice(0, count), noise: all.slice(count) };
+    },
+  },
+  {
+    label: 'Find cells that FLASH',
+    visual: 'flash',
+    generate: (count) => {
+      const all: string[] = [];
+      const used = new Set<number>();
+      while (all.length < count * 4) {
+        const n = randInt(1, 99);
+        if (!used.has(n)) { used.add(n); all.push(String(n)); }
+      }
+      return { signals: all.slice(0, count), noise: all.slice(count) };
+    },
+  },
+  {
+    label: 'Find the LARGEST numbers',
+    visual: 'largest',
+    generate: (count) => {
+      const all: number[] = [];
+      const used = new Set<number>();
+      while (all.length < count * 4) {
+        const n = randInt(1, 999);
+        if (!used.has(n)) { used.add(n); all.push(n); }
+      }
+      all.sort((a, b) => b - a);
+      const signals = all.slice(0, count).map(String);
+      const noise = all.slice(count).map(String);
+      return { signals, noise };
+    },
+  },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -229,6 +307,7 @@ interface Cell {
   isSignal: boolean;
   found: boolean;
   wrong: boolean;
+  bgColor?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -241,9 +320,10 @@ type Phase = 'menu' | 'playing' | 'roundEnd' | 'gameOver';
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void;
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void;
 }
 
-export default function SignalNoise({ onBack }: Props) {
+export default function SignalNoise({ onBack, onGameEnd }: Props) {
   const [phase, setPhase] = useState<Phase>('menu');
   const [round, setRound] = useState(1);
   const [score, setScore] = useState(0);
@@ -255,6 +335,8 @@ export default function SignalNoise({ onBack }: Props) {
   const [foundCount, setFoundCount] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [scenario, setScenario] = useState('');
+  const [flashActive, setFlashActive] = useState(false);
   const [highScore, setHighScore] = useState(() => {
     try { return Number(localStorage.getItem('signalnoise_high') ?? 0); } catch { return 0; }
   });
@@ -264,17 +346,22 @@ export default function SignalNoise({ onBack }: Props) {
   const [shakeIntensity, setShakeIntensity] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
+  const correctClicksRef = useRef(0);
+  const wrongClicksRef = useRef(0);
+  const gameStartRef = useRef(Date.now());
 
   /* ---- grid size per round ---- */
   const getGridSize = useCallback((r: number) => {
     if (r <= 2) return 5;
     if (r <= 4) return 6;
-    if (r <= 7) return 7;
-    return 8;
+    if (r <= 6) return 7;
+    if (r <= 9) return 9;
+    return 10;
   }, []);
 
   const getTimeLimit = useCallback((r: number) => {
-    return Math.max(8, 16 - r);
+    const floor = r >= 10 ? 6 : 8;
+    return Math.max(floor, 16 - r);
   }, []);
 
   const getSignalCount = useCallback((r: number, totalCells: number) => {
@@ -289,6 +376,39 @@ export default function SignalNoise({ onBack }: Props) {
     const sigCount = getSignalCount(r, totalCells);
     const chosenRule = RULES[(r - 1) % RULES.length];
     const { signals, noise } = chosenRule.generate(sigCount);
+
+    // Pick a random scenario briefing
+    setScenario(SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)]);
+
+    // Handle the top-right quadrant visual rule specially:
+    // Signals/noise are decided by grid position, not by content
+    if (chosenRule.visual === 'top-right') {
+      const allNums: string[] = [];
+      const used = new Set<number>();
+      while (allNums.length < totalCells) {
+        const n = randInt(1, 99);
+        if (!used.has(n)) { used.add(n); allNums.push(String(n)); }
+      }
+      const halfCol = Math.ceil(size / 2);
+      const halfRow = Math.ceil(size / 2);
+      const newCells: Cell[] = allNums.map((v, i) => {
+        const row = Math.floor(i / size);
+        const col = i % size;
+        const inTopRight = row < halfRow && col >= (size - halfCol);
+        return { id: i, value: v, isSignal: inTopRight, found: false, wrong: false };
+      });
+      setRule(chosenRule);
+      setCells(newCells);
+      setTotalSignals(newCells.filter((c) => c.isSignal).length);
+      setFoundCount(0);
+      setRound(r);
+      setScore(currentScore);
+      setLives(currentLives);
+      setTimeLeft(getTimeLimit(r));
+      setFlashActive(false);
+      setPhase('playing');
+      return;
+    }
 
     const allValues: { value: string; isSignal: boolean }[] = [
       ...signals.map((v) => ({ value: v, isSignal: true })),
@@ -307,6 +427,7 @@ export default function SignalNoise({ onBack }: Props) {
       isSignal: c.isSignal,
       found: false,
       wrong: false,
+      bgColor: chosenRule.visual === 'blue-bg' && c.isSignal ? C.sapphire : undefined,
     }));
 
     setRule(chosenRule);
@@ -318,6 +439,15 @@ export default function SignalNoise({ onBack }: Props) {
     setLives(currentLives);
     const tl = getTimeLimit(r);
     setTimeLeft(tl);
+
+    // Flash visual rule: show flash for 1.5s then hide
+    if (chosenRule.visual === 'flash') {
+      setFlashActive(true);
+      setTimeout(() => setFlashActive(false), 1500);
+    } else {
+      setFlashActive(false);
+    }
+
     setPhase('playing');
   }, [getGridSize, getTimeLimit, getSignalCount]);
 
@@ -365,6 +495,7 @@ export default function SignalNoise({ onBack }: Props) {
         next[id] = { ...cell, found: true };
         sfxCorrect();
         sfxScore();
+        correctClicksRef.current++;
         if (e) {
           const pos = getRelativePos(e);
           setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)]);
@@ -381,6 +512,7 @@ export default function SignalNoise({ onBack }: Props) {
       } else {
         next[id] = { ...cell, wrong: true };
         sfxWrong();
+        wrongClicksRef.current++;
         if (e) {
           const pos = getRelativePos(e);
           setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)]);
@@ -419,6 +551,9 @@ export default function SignalNoise({ onBack }: Props) {
   /* ---- new game ---- */
   const newGame = useCallback(() => {
     sfxTap();
+    correctClicksRef.current = 0;
+    wrongClicksRef.current = 0;
+    gameStartRef.current = Date.now();
     setStreak(0);
     setBestStreak(0);
     startRound(1, 0, 3);
@@ -431,6 +566,14 @@ export default function SignalNoise({ onBack }: Props) {
       try { localStorage.setItem('signalnoise_high', String(score)); } catch { /* */ }
     }
   }, [phase, score, highScore]);
+
+  // Report score when game ends
+  useEffect(() => {
+    if (phase === 'gameOver') {
+      const total = correctClicksRef.current + wrongClicksRef.current;
+      onGameEnd?.({ score, accuracy: total > 0 ? correctClicksRef.current / total : 0, level: round, timeMs: Date.now() - gameStartRef.current });
+    }
+  }, [phase, score, round, onGameEnd]);
 
   const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0;
   useEffect(() => {
@@ -625,6 +768,11 @@ export default function SignalNoise({ onBack }: Props) {
 
       {/* RULE */}
       <div style={{ textAlign: 'center', padding: '14px 16px 10px' }}>
+        {scenario && (
+          <div style={{ color: C.dim, fontSize: 11, fontWeight: 500, letterSpacing: 0.8, marginBottom: 6, fontFamily: "'SF Mono','Fira Code',monospace" }}>
+            {scenario}
+          </div>
+        )}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: C.surface, borderRadius: R.md, padding: '8px 18px', ...GLASS }}>
           <Target size={16} color={C.amber} />
           <span style={{ color: C.white, fontSize: 14, fontWeight: 600 }}>{rule.label}</span>
@@ -658,9 +806,17 @@ export default function SignalNoise({ onBack }: Props) {
           }}
         >
           {cells.map((cell) => {
-            let bg: string = C.slate;
-            let borderColor: string = C.border;
+            let bg: string = cell.bgColor || C.slate;
+            let borderColor: string = cell.bgColor ? cell.bgColor : C.border;
             let textColor: string = C.white;
+
+            // Flash visual: highlight signal cells while flashActive
+            const isFlashHighlight = flashActive && cell.isSignal && rule.visual === 'flash';
+            if (isFlashHighlight) {
+              bg = C.amber;
+              borderColor = C.amber;
+              textColor = C.obsidian;
+            }
 
             if (cell.found) {
               bg = C.emerald;
@@ -683,7 +839,7 @@ export default function SignalNoise({ onBack }: Props) {
                   border: `1px solid ${borderColor}`,
                   borderRadius: R.sm,
                   color: textColor,
-                  fontSize: gridSize <= 6 ? 14 : 12,
+                  fontSize: gridSize <= 6 ? 14 : gridSize <= 8 ? 12 : 11,
                   fontWeight: 600,
                   cursor: cell.found ? 'default' : 'pointer',
                   display: 'flex',

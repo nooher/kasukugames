@@ -241,11 +241,12 @@ const BASELINE: Record<MoralFramework, number> = {
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void;
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void;
 }
 
 type Phase = 'intro' | 'playing' | 'results';
 
-export default function MoralDilemmas({ onBack }: Props) {
+export default function MoralDilemmas({ onBack, onGameEnd }: Props) {
   const [phase, setPhase] = useState<Phase>('intro');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<MoralFramework[]>([]);
@@ -340,6 +341,18 @@ export default function MoralDilemmas({ onBack }: Props) {
     setSelectedChoice(null);
     setTimer(30);
   };
+
+  /* ---- Report score at results ---- */
+  useEffect(() => {
+    if (phase === 'results') {
+      onGameEnd?.({
+        score: answers.length,
+        accuracy: 1.0,
+        level: 1,
+        maxScore: SCENARIOS.length,
+      });
+    }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- Compute results ---- */
   const computeProfile = (): Record<MoralFramework, number> => {

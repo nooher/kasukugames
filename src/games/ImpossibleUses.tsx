@@ -203,9 +203,10 @@ const ROUND_SECONDS = 60;
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void;
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void;
 }
 
-export default function ImpossibleUses({ onBack }: Props) {
+export default function ImpossibleUses({ onBack, onGameEnd }: Props) {
   const [phase, setPhase] = useState<GamePhase>('menu');
   const [objects, setObjects] = useState<string[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
@@ -1055,6 +1056,23 @@ export default function ImpossibleUses({ onBack }: Props) {
       </div>
     );
   }
+
+  /* ---- Report score at game end ---- */
+  useEffect(() => {
+    if (phase === 'gameEnd') {
+      const total = roundResults.reduce((s, r) => {
+        const allCats = new Set(r.uses.flatMap((u) => u.categories));
+        return s + r.totalPoints + allCats.size * 5;
+      }, 0);
+      const catsFound = new Set(roundResults.flatMap((r) => r.uses.flatMap((u) => u.categories))).size;
+      onGameEnd?.({
+        score: total,
+        accuracy: catsFound / 8,
+        level: ROUNDS_PER_GAME,
+        timeMs: ROUNDS_PER_GAME * ROUND_SECONDS * 1000,
+      });
+    }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ================================================================== */
   /*  GAME END                                                           */

@@ -3,6 +3,7 @@ import {
   ArrowLeft, Trophy, RotateCcw, Heart, Zap, Clock,
   Flame, Stethoscope, Shield, Truck, CloudLightning,
   Zap as Power, Droplets, Radio, AlertTriangle,
+  Monitor, AlertOctagon, Plane, Anchor,
 } from 'lucide-react';
 import { sfxTap, sfxCorrect, sfxWrong, sfxCombo, sfxLevelUp, sfxGameOver } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
@@ -64,6 +65,10 @@ const CATEGORIES: Category[] = [
   { name: 'Power', icon: Power },
   { name: 'Water', icon: Droplets },
   { name: 'Comms', icon: Radio },
+  { name: 'Cyber', icon: Monitor },
+  { name: 'Hazmat', icon: AlertOctagon },
+  { name: 'Aviation', icon: Plane },
+  { name: 'Maritime', icon: Anchor },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -78,6 +83,10 @@ const DESCRIPTIONS: Record<string, string[]> = {
   Power: ['Grid failure', 'Transformer fire', 'Blackout zone', 'Overload cascade'],
   Water: ['Pipeline burst', 'Reservoir breach', 'Contamination alert', 'Dam pressure'],
   Comms: ['Tower offline', 'Network saturated', 'Signal jamming', 'Relay failure'],
+  Cyber: ['System intrusion detected', 'Data exfiltration alert', 'Ransomware spreading', 'Unauthorized access'],
+  Hazmat: ['Chemical spill', 'Radiation leak', 'Toxic fumes', 'Biohazard containment breach'],
+  Aviation: ['Engine failure reported', 'Runway obstruction', 'Bird strike damage', 'Cabin depressurization'],
+  Maritime: ['Vessel taking water', 'Cargo shift emergency', 'Man overboard', 'Navigation failure'],
 };
 
 /* ------------------------------------------------------------------ */
@@ -141,6 +150,61 @@ function createItem(now: number): TriageItem {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Secondary tasks                                                    */
+/* ------------------------------------------------------------------ */
+interface MathProblem {
+  a: number;
+  b: number;
+  op: '+' | '-' | 'x';
+  answer: number;
+  options: number[];
+}
+
+function generateMath(): MathProblem {
+  const ops: MathProblem['op'][] = ['+', '-', 'x'];
+  const op = pickRandom(ops);
+  let a: number, b: number, answer: number;
+  if (op === '+') {
+    a = 2 + Math.floor(Math.random() * 48);
+    b = 2 + Math.floor(Math.random() * 48);
+    answer = a + b;
+  } else if (op === '-') {
+    a = 10 + Math.floor(Math.random() * 90);
+    b = 2 + Math.floor(Math.random() * (a - 2));
+    answer = a - b;
+  } else {
+    a = 2 + Math.floor(Math.random() * 12);
+    b = 2 + Math.floor(Math.random() * 12);
+    answer = a * b;
+  }
+  const wrong1 = answer + (Math.random() < 0.5 ? 1 : -1) * (1 + Math.floor(Math.random() * 5));
+  let wrong2 = answer + (Math.random() < 0.5 ? 2 : -2) * (1 + Math.floor(Math.random() * 3));
+  if (wrong2 === wrong1 || wrong2 === answer) wrong2 = answer + 7;
+  const options = [answer, wrong1, wrong2].sort(() => Math.random() - 0.5);
+  return { a, b, op, answer, options };
+}
+
+interface WordQuestion {
+  word: string;
+  category: string;
+  isAnimal: boolean;
+}
+
+const ANIMALS = ['TIGER', 'EAGLE', 'SHARK', 'PYTHON', 'FALCON', 'DOLPHIN', 'COBRA', 'PANTHER', 'HAWK', 'WOLF'];
+const NON_ANIMALS = ['HAMMER', 'BRIDGE', 'ROCKET', 'CANYON', 'MARBLE', 'SUMMIT', 'BEACON', 'PRISM', 'VAULT', 'CIPHER'];
+
+function generateWord(): WordQuestion {
+  const isAnimal = Math.random() < 0.5;
+  const word = pickRandom(isAnimal ? ANIMALS : NON_ANIMALS);
+  return { word, category: 'animal', isAnimal };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Level progression thresholds                                       */
+/* ------------------------------------------------------------------ */
+const LEVEL_THRESHOLDS = [0, 8, 20, 40];
+
+/* ------------------------------------------------------------------ */
 /*  Keyframe injection (runs once)                                     */
 /* ------------------------------------------------------------------ */
 const STYLE_ID = 'cognitive-overload-keyframes';
@@ -183,11 +247,12 @@ function ensureKeyframes() {
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void;
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void;
 }
 
 type Phase = 'menu' | 'playing' | 'gameover';
 
-export default function CognitiveOverload({ onBack }: Props) {
+export default function CognitiveOverload({ onBack, onGameEnd }: Props) {
   const [phase, setPhase] = useState<Phase>('menu');
   const [items, setItems] = useState<TriageItem[]>([]);
   const [score, setScore] = useState(0);
@@ -197,6 +262,11 @@ export default function CognitiveOverload({ onBack }: Props) {
   const [triaged, setTriaged] = useState(0);
   const [animating, setAnimating] = useState<Record<number, 'correct' | 'wrong' | 'expire'>>({});
   const [feedback, setFeedback] = useState<{ text: string; color: string } | null>(null);
+  const [expired, setExpired] = useState(0);
+  const [mathProblem, setMathProblem] = useState<MathProblem | null>(null);
+  const [wordQuestion, setWordQuestion] = useState<WordQuestion | null>(null);
+  const [mathAnswered, setMathAnswered] = useState(false);
+  const [wordAnswered, setWordAnswered] = useState(false);
 
   const tickRef = useRef<number>(0);
   const spawnRef = useRef<number>(0);
@@ -205,6 +275,10 @@ export default function CognitiveOverload({ onBack }: Props) {
   const levelRef = useRef(level);
   const triagedRef = useRef(triaged);
   const feedbackTimer = useRef<number>(0);
+  const mathTimerRef = useRef<number>(0);
+  const wordTimerRef = useRef<number>(0);
+  const expiredRef = useRef(expired);
+  expiredRef.current = expired;
   const [particles, setParticles] = useState<Particle[]>([]);
   const [scorePops, setScorePops] = useState<ScorePop[]>([]);
   const [shakeIntensity, setShakeIntensity] = useState(0);
@@ -217,6 +291,19 @@ export default function CognitiveOverload({ onBack }: Props) {
   triagedRef.current = triaged;
 
   useEffect(() => { ensureKeyframes(); }, []);
+
+  /* ---- Report score at game over ---- */
+  useEffect(() => {
+    if (phase === 'gameover') {
+      const total = triaged + expired;
+      const efficiency = total > 0 ? triaged / total : 0;
+      onGameEnd?.({
+        score,
+        accuracy: efficiency,
+        level,
+      });
+    }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- Level progression ---- */
   useEffect(() => {
@@ -260,10 +347,12 @@ export default function CognitiveOverload({ onBack }: Props) {
     setItems(prev => {
       const next: TriageItem[] = [];
       let lostLife = false;
+      let expiredThisTick = 0;
 
       for (const item of prev) {
         const timeLeft = Math.max(0, (item.expiresAt - now) / 1000);
         if (timeLeft <= 0) {
+          expiredThisTick++;
           if (item.priority === 'critical' || item.priority === 'high') {
             lostLife = true;
           }
@@ -275,6 +364,10 @@ export default function CognitiveOverload({ onBack }: Props) {
           continue;
         }
         next.push({ ...item, timeLeft });
+      }
+
+      if (expiredThisTick > 0) {
+        setExpired(e => e + expiredThisTick);
       }
 
       if (lostLife) {
@@ -329,6 +422,63 @@ export default function CognitiveOverload({ onBack }: Props) {
     spawnRef.current = window.setInterval(spawnLoop, cfg.spawnInterval);
     return () => clearInterval(spawnRef.current);
   }, [level, phase, spawnLoop]);
+
+  /* ---- Secondary task: math ticker (level 2+) ---- */
+  useEffect(() => {
+    if (phase !== 'playing' || level < 1) {
+      setMathProblem(null);
+      clearInterval(mathTimerRef.current);
+      return;
+    }
+    setMathProblem(generateMath());
+    setMathAnswered(false);
+    mathTimerRef.current = window.setInterval(() => {
+      setMathProblem(generateMath());
+      setMathAnswered(false);
+    }, 10000);
+    return () => clearInterval(mathTimerRef.current);
+  }, [phase, level]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---- Secondary task: word verification (level 3+) ---- */
+  useEffect(() => {
+    if (phase !== 'playing' || level < 2) {
+      setWordQuestion(null);
+      clearInterval(wordTimerRef.current);
+      return;
+    }
+    setWordQuestion(generateWord());
+    setWordAnswered(false);
+    wordTimerRef.current = window.setInterval(() => {
+      setWordQuestion(generateWord());
+      setWordAnswered(false);
+    }, 12000);
+    return () => clearInterval(wordTimerRef.current);
+  }, [phase, level]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---- Secondary task handlers ---- */
+  const handleMathAnswer = useCallback((chosen: number) => {
+    if (!mathProblem || mathAnswered) return;
+    sfxTap();
+    setMathAnswered(true);
+    if (chosen === mathProblem.answer) {
+      setScore(s => s + 15);
+      showFeedback('+15 Math', T.sapphire);
+    }
+  }, [mathProblem, mathAnswered, showFeedback]);
+
+  const handleWordAnswer = useCallback((answeredYes: boolean) => {
+    if (!wordQuestion || wordAnswered) return;
+    sfxTap();
+    setWordAnswered(true);
+    const correct = answeredYes === wordQuestion.isAnimal;
+    if (correct) {
+      setScore(s => s + 10);
+      showFeedback('+10 Word', T.teal);
+    } else {
+      setScore(s => Math.max(0, s - 5));
+      showFeedback('-5 Wrong', T.rose);
+    }
+  }, [wordQuestion, wordAnswered, showFeedback]);
 
   /* ---- Handle triage click ---- */
   const handleTriage = useCallback((item: TriageItem, e?: React.MouseEvent) => {
@@ -404,6 +554,11 @@ export default function CognitiveOverload({ onBack }: Props) {
     setItems([]);
     setAnimating({});
     setFeedback(null);
+    setExpired(0);
+    setMathProblem(null);
+    setWordQuestion(null);
+    setMathAnswered(false);
+    setWordAnswered(false);
     setPhase('playing');
   }, []);
 
@@ -505,25 +660,48 @@ export default function CognitiveOverload({ onBack }: Props) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 32 }}>
           <Trophy size={56} color={T.rose} />
           <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Shift Over</h2>
-          <div style={{
-            background: T.surface, borderRadius: T.radius.md, padding: 24, width: '100%', maxWidth: 300,
-            display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'center', ...GLASS,
-          }}>
-            <div>
-              <div style={{ fontSize: 40, fontWeight: 600, color: T.rose }}>{score}</div>
-              <div style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>TOTAL SCORE</div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{triaged}</div>
-                <div style={{ fontSize: 11, color: T.muted }}>Triaged</div>
+          {(() => {
+            const total = triaged + expired;
+            const efficiency = total > 0 ? Math.round((triaged / total) * 100) : 0;
+            const rank = efficiency >= 90 ? 'Elite' : efficiency >= 70 ? 'Proficient' : efficiency >= 50 ? 'Adequate' : 'Needs Training';
+            const rankColor = efficiency >= 90 ? T.emerald : efficiency >= 70 ? T.sapphire : efficiency >= 50 ? T.amber : T.rose;
+            return (
+              <div style={{
+                background: T.surface, borderRadius: T.radius.md, padding: 24, width: '100%', maxWidth: 300,
+                display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'center', ...GLASS,
+              }}>
+                <div>
+                  <div style={{ fontSize: 40, fontWeight: 600, color: T.rose }}>{score}</div>
+                  <div style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>TOTAL SCORE</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>{triaged}</div>
+                    <div style={{ fontSize: 11, color: T.muted }}>Triaged</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>{expired}</div>
+                    <div style={{ fontSize: 11, color: T.muted }}>Expired</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>{LEVELS[level].name.split(' ')[0]}</div>
+                    <div style={{ fontSize: 11, color: T.muted }}>Rank</div>
+                  </div>
+                </div>
+                {/* Efficiency bar */}
+                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: T.muted, fontWeight: 600 }}>TRIAGE EFFICIENCY</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: rankColor }}>{efficiency}%</span>
+                  </div>
+                  <div style={{ height: 6, background: T.border, borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ width: `${efficiency}%`, height: '100%', background: rankColor, borderRadius: 3 }} />
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: rankColor }}>{rank}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{LEVELS[level].name.split(' ')[0]}</div>
-                <div style={{ fontSize: 11, color: T.muted }}>Rank</div>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           <div style={{ display: 'flex', gap: 12 }}>
             <button onClick={startGame} style={btnStyle(T.rose)}>
@@ -601,12 +779,105 @@ export default function CognitiveOverload({ onBack }: Props) {
         </div>
       )}
 
+      {/* ---- Level progress bar ---- */}
+      {(() => {
+        const currentThreshold = LEVEL_THRESHOLDS[level] ?? 0;
+        const nextThreshold = LEVEL_THRESHOLDS[level + 1] ?? null;
+        const progressPct = nextThreshold !== null
+          ? Math.min(100, ((triaged - currentThreshold) / (nextThreshold - currentThreshold)) * 100)
+          : 100;
+        const nextName = level < LEVELS.length - 1 ? LEVELS[level + 1].name : null;
+        return (
+          <div style={{
+            padding: '4px 16px 6px', background: T.carbon, borderBottom: `1px solid ${T.border}`,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ fontSize: 10, color: T.muted, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              {nextName ? `Next: ${nextName}` : 'MAX RANK'}
+            </span>
+            <div style={{ flex: 1, height: 4, background: T.border, borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{
+                width: `${progressPct}%`, height: '100%',
+                background: T.violet, borderRadius: 2, transition: 'width 300ms ease',
+              }} />
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: T.violet, whiteSpace: 'nowrap' }}>
+              {triaged}/{nextThreshold ?? triaged}
+            </span>
+          </div>
+        );
+      })()}
+
+      {/* ---- Secondary tasks strip ---- */}
+      {mathProblem && level >= 1 && (
+        <div style={{
+          padding: '6px 16px', background: T.ink, borderBottom: `1px solid ${T.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 13, color: T.sapphire, fontWeight: 600, letterSpacing: 0.3 }}>
+            {mathProblem.a} {mathProblem.op} {mathProblem.b} = ?
+          </span>
+          {mathAnswered ? (
+            <span style={{ fontSize: 12, color: T.muted, fontWeight: 600 }}>Answered</span>
+          ) : (
+            mathProblem.options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleMathAnswer(opt)}
+                style={{
+                  background: T.slate, border: `1px solid ${T.sapphire}40`, borderRadius: T.radius.sm,
+                  color: T.white, padding: '3px 14px', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', minWidth: 40,
+                }}
+              >
+                {opt}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {wordQuestion && level >= 2 && (
+        <div style={{
+          padding: '6px 16px', background: T.ink, borderBottom: `1px solid ${T.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 13, color: T.teal, fontWeight: 600 }}>
+            Is {wordQuestion.word} an {wordQuestion.category}?
+          </span>
+          {wordAnswered ? (
+            <span style={{ fontSize: 12, color: T.muted, fontWeight: 600 }}>Answered</span>
+          ) : (
+            <>
+              <button
+                onClick={() => handleWordAnswer(true)}
+                style={{
+                  background: T.slate, border: `1px solid ${T.emerald}40`, borderRadius: T.radius.sm,
+                  color: T.emerald, padding: '3px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                YES
+              </button>
+              <button
+                onClick={() => handleWordAnswer(false)}
+                style={{
+                  background: T.slate, border: `1px solid ${T.rose}40`, borderRadius: T.radius.sm,
+                  color: T.rose, padding: '3px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                NO
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ---- Instructions bar ---- */}
       <div style={{
-        padding: '8px 16px', background: T.carbon, fontSize: 12, color: T.muted,
+        padding: '6px 16px', background: T.carbon, fontSize: 11, color: T.muted,
         textAlign: 'center', borderBottom: `1px solid ${T.border}`,
       }}>
-        Click items in priority order: <span style={{ color: T.rose, fontWeight: 700 }}>CRITICAL</span> first
+        Triage by priority: <span style={{ color: T.rose, fontWeight: 600 }}>CRITICAL</span> first
       </div>
 
       {/* ---- Grid ---- */}

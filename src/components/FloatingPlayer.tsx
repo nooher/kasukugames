@@ -10,6 +10,8 @@ import {
   BUILT_IN_TRACKS, formatTime, getLocalTracks, addLocalTrack,
   type AudioTrack, type PlayerState, initialPlayerState,
 } from '../lib/audio'
+import { createMusicEngine, type MusicEngine } from '../lib/music-engine'
+import { t } from '../lib/i18n'
 
 interface Props {
   visible: boolean
@@ -27,8 +29,13 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   const [dragPos, setDragPos] = useState({ x: 20, y: -1 })
   const [dragging, setDragging] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const engineRef = useRef<MusicEngine | null>(null)
   const dragStart = useRef({ x: 0, y: 0, px: 0, py: 0 })
-  const playerRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef(0)
+  const timerRef = useRef(0)
+  const startTimeRef = useRef(0)
+
+  if (!engineRef.current) engineRef.current = createMusicEngine()
 
   useEffect(() => {
     if (dragPos.y === -1) {
@@ -38,31 +45,88 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
 
   const allTracks = [...BUILT_IN_TRACKS, ...getLocalTracks()]
 
+  const isGenerative = (track: AudioTrack) => !track.src
+
   const playTrack = useCallback((track: AudioTrack, queue?: AudioTrack[]) => {
     const q = queue || allTracks
     const idx = q.findIndex(t => t.id === track.id)
-    setState(s => ({ ...s, track, playing: true, queue: q, queueIndex: idx, currentTime: 0 }))
-    if (track.src && audioRef.current) {
-      audioRef.current.src = track.src
-      audioRef.current.play().catch(() => {})
+    const dur = engineRef.current?.getDuration(track.id) || 300
+
+    if (isGenerative(track)) {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = '' }
+      engineRef.current?.play(track.id, state.volume)
+      startTimeRef.current = Date.now()
+      setState(s => ({ ...s, track, playing: true, queue: q, queueIndex: idx, currentTime: 0, duration: dur }))
+    } else {
+      engineRef.current?.stop()
+      setState(s => ({ ...s, track, playing: true, queue: q, queueIndex: idx, currentTime: 0 }))
+      if (track.src && audioRef.current) {
+        audioRef.current.src = track.src
+        audioRef.current.volume = state.volume
+        audioRef.current.play().catch(() => {})
+      }
     }
-  }, [allTracks])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.volume])
+
+  const nextTrack = useCallback(() => {
+    setState(prev => {
+      const { queue, queueIndex, shuffle } = prev
+      if (queue.length === 0) return prev
+      const next = shuffle ? Math.floor(Math.random() * queue.length) : (queueIndex + 1) % queue.length
+      const track = queue[next]
+      const dur = engineRef.current?.getDuration(track.id) || 300
+
+      if (isGenerative(track)) {
+        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = '' }
+        engineRef.current?.play(track.id, prev.volume)
+        startTimeRef.current = Date.now()
+        return { ...prev, track, playing: true, queueIndex: next, currentTime: 0, duration: dur }
+      } else {
+        engineRef.current?.stop()
+        if (track.src && audioRef.current) {
+          audioRef.current.src = track.src
+          audioRef.current.volume = prev.volume
+          audioRef.current.play().catch(() => {})
+        }
+        return { ...prev, track, playing: true, queueIndex: next, currentTime: 0 }
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    window.clearInterval(timerRef.current)
+    if (state.playing && state.track && isGenerative(state.track)) {
+      const trackId = state.track.id
+      timerRef.current = window.setInterval(() => {
+        const elapsed = (Date.now() - startTimeRef.current) / 1000
+        const dur = engineRef.current?.getDuration(trackId) || 300
+        if (elapsed >= dur) {
+          nextTrack()
+          return
+        }
+        setState(s => ({ ...s, currentTime: elapsed, duration: dur }))
+      }, 250)
+    }
+    return () => window.clearInterval(timerRef.current)
+  }, [state.playing, state.track?.id, nextTrack])
 
   const togglePlay = () => {
-    setState(s => {
+    if (!state.track) return
+    if (isGenerative(state.track)) {
+      if (state.playing) {
+        engineRef.current?.pause()
+      } else {
+        engineRef.current?.resume()
+        startTimeRef.current = Date.now() - state.currentTime * 1000
+      }
+    } else {
       if (audioRef.current) {
-        if (s.playing) audioRef.current.pause()
+        if (state.playing) audioRef.current.pause()
         else audioRef.current.play().catch(() => {})
       }
-      return { ...s, playing: !s.playing }
-    })
-  }
-
-  const nextTrack = () => {
-    const { queue, queueIndex, shuffle } = state
-    if (queue.length === 0) return
-    const next = shuffle ? Math.floor(Math.random() * queue.length) : (queueIndex + 1) % queue.length
-    playTrack(queue[next], queue)
+    }
+    setState(s => ({ ...s, playing: !s.playing }))
   }
 
   const prevTrack = () => {
@@ -92,10 +156,25 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   }
 
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !state.duration) return
+    if (!state.duration) return
     const rect = e.currentTarget.getBoundingClientRect()
     const pct = (e.clientX - rect.left) / rect.width
-    audioRef.current.currentTime = pct * state.duration
+    const time = pct * state.duration
+    if (state.track && isGenerative(state.track)) {
+      startTimeRef.current = Date.now() - time * 1000
+      setState(s => ({ ...s, currentTime: time }))
+    } else if (audioRef.current) {
+      audioRef.current.currentTime = time
+    }
+  }
+
+  const setVolume = (v: number) => {
+    setState(s => ({ ...s, volume: v }))
+    if (state.track && isGenerative(state.track)) {
+      engineRef.current?.setVolume(v)
+    } else if (audioRef.current) {
+      audioRef.current.volume = v
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,6 +195,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   }
 
   const onDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault()
     setDragging(true)
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
@@ -125,19 +205,26 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   useEffect(() => {
     if (!dragging) return
     const onMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault()
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
       const dx = clientX - dragStart.current.x
       const dy = clientY - dragStart.current.y
-      setDragPos({
-        x: Math.max(0, Math.min(window.innerWidth - 320, dragStart.current.px + dx)),
-        y: Math.max(0, Math.min(window.innerHeight - 80, dragStart.current.py + dy)),
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(() => {
+        setDragPos({
+          x: Math.max(0, Math.min(window.innerWidth - 320, dragStart.current.px + dx)),
+          y: Math.max(0, Math.min(window.innerHeight - 80, dragStart.current.py + dy)),
+        })
       })
     }
-    const onUp = () => setDragging(false)
-    window.addEventListener('mousemove', onMove)
+    const onUp = () => {
+      setDragging(false)
+      cancelAnimationFrame(rafRef.current)
+    }
+    window.addEventListener('mousemove', onMove, { passive: false })
     window.addEventListener('mouseup', onUp)
-    window.addEventListener('touchmove', onMove)
+    window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
     return () => {
       window.removeEventListener('mousemove', onMove)
@@ -197,7 +284,6 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     <>
       <audio ref={audioRef} onTimeUpdate={onTimeUpdate} onEnded={onEnded} />
       <div
-        ref={playerRef}
         style={{
           position: 'fixed',
           left: dragPos.x,
@@ -211,8 +297,10 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
             ? '0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)'
             : '0 8px 40px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6)',
           overflow: 'hidden',
-          transition: dragging ? 'none' : `height ${MOTION.med}`,
+          willChange: dragging ? 'left, top' : 'auto',
+          transition: dragging ? 'none' : `width ${MOTION.med}`,
           userSelect: 'none',
+          touchAction: 'none',
         }}
       >
         {/* Drag handle */}
@@ -221,7 +309,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
           onTouchStart={onDragStart}
           style={{
             padding: '8px 12px 6px',
-            cursor: 'grab',
+            cursor: dragging ? 'grabbing' : 'grab',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -244,10 +332,10 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
         {/* Now playing */}
         <div style={{ padding: '4px 14px 10px' }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {state.track?.title || 'Hakuna nyimbo'}
+            {state.track?.title || t('no_track')}
           </div>
           <div style={{ fontSize: 11, color: P.textMuted }}>
-            {state.track?.artist || 'Chagua nyimbo kutoka maktaba'}
+            {state.track?.artist || t('select_from_library')}
           </div>
         </div>
 
@@ -276,7 +364,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
           <button onClick={() => setState(s => ({ ...s, repeat: !s.repeat }))} style={{ ...iconBtn, color: state.repeat ? P.amber : P.textMuted }}>
             <Repeat size={14} />
           </button>
-          <button onClick={() => setState(s => ({ ...s, volume: s.volume > 0 ? 0 : 0.8 }))} style={iconBtn}>
+          <button onClick={() => setVolume(state.volume > 0 ? 0 : 0.8)} style={iconBtn}>
             {state.volume > 0 ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </button>
         </div>
@@ -285,18 +373,18 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
         {expanded && (
           <div style={{ borderTop: `1px solid ${P.border}` }}>
             <div style={{ display: 'flex', gap: 0 }}>
-              {(['library', 'queue'] as const).map(t => (
+              {(['library', 'queue'] as const).map(tb => (
                 <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                  key={tb}
+                  onClick={() => setTab(tb)}
                   style={{
                     flex: 1, padding: '8px 0', background: 'none', border: 'none',
-                    borderBottom: `2px solid ${tab === t ? P.amber : 'transparent'}`,
-                    color: tab === t ? P.text : P.textMuted,
+                    borderBottom: `2px solid ${tab === tb ? P.amber : 'transparent'}`,
+                    color: tab === tb ? P.text : P.textMuted,
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {t === 'library' ? 'Maktaba' : 'Foleni'}
+                  {t(tb === 'library' ? 'library' : 'queue')}
                 </button>
               ))}
             </div>
@@ -305,26 +393,31 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
               {tab === 'library' && (
                 <>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', cursor: 'pointer', color: P.amber, fontSize: 12, fontWeight: 600 }}>
-                    <Upload size={14} /> Pakia muziki wako
+                    <Upload size={14} /> {t('upload_music')}
                     <input type="file" accept="audio/*" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
                   </label>
-                  {allTracks.map(t => (
+                  {allTracks.map(tr => (
                     <button
-                      key={t.id}
-                      onClick={() => playTrack(t)}
+                      key={tr.id}
+                      onClick={() => playTrack(tr)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                        padding: '8px 14px', background: state.track?.id === t.id ? P.surface : 'transparent',
+                        padding: '8px 14px', background: state.track?.id === tr.id ? P.surface : 'transparent',
                         border: 'none', cursor: 'pointer', textAlign: 'left',
                       }}
                     >
-                      <span style={{ width: 24, height: 24, borderRadius: 6, background: catColor(t.category) + '25', display: 'grid', placeItems: 'center', color: catColor(t.category), flexShrink: 0 }}>
-                        {catIcon(t.category)}
+                      <span style={{ width: 24, height: 24, borderRadius: 6, background: catColor(tr.category) + '25', display: 'grid', placeItems: 'center', color: catColor(tr.category), flexShrink: 0 }}>
+                        {catIcon(tr.category)}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: state.track?.id === t.id ? P.amber : P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
-                        <div style={{ fontSize: 10, color: P.textDim }}>{t.artist}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: state.track?.id === tr.id ? P.amber : P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr.title}</div>
+                        <div style={{ fontSize: 10, color: P.textDim }}>{tr.artist}</div>
                       </div>
+                      {state.track?.id === tr.id && state.playing && (
+                        <span style={{ fontSize: 10, color: P.amber }}>
+                          <Waves size={12} />
+                        </span>
+                      )}
                     </button>
                   ))}
                 </>
@@ -333,12 +426,12 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
                 state.queue.length === 0 ? (
                   <div style={{ padding: '20px 14px', textAlign: 'center', color: P.textDim, fontSize: 12 }}>
                     <List size={20} style={{ marginBottom: 6, opacity: 0.4 }} />
-                    <p style={{ margin: 0 }}>Hakuna nyimbo kwenye foleni</p>
+                    <p style={{ margin: 0 }}>{t('empty_queue')}</p>
                   </div>
-                ) : state.queue.map((t, i) => (
+                ) : state.queue.map((tr, i) => (
                   <button
-                    key={t.id + i}
-                    onClick={() => playTrack(t, state.queue)}
+                    key={tr.id + i}
+                    onClick={() => playTrack(tr, state.queue)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                       padding: '8px 14px', background: i === state.queueIndex ? P.surface : 'transparent',
@@ -347,8 +440,8 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
                   >
                     <span style={{ fontSize: 11, color: P.textDim, width: 18 }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: i === state.queueIndex ? P.amber : P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
-                      <div style={{ fontSize: 10, color: P.textDim }}>{t.artist}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: i === state.queueIndex ? P.amber : P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr.title}</div>
+                      <div style={{ fontSize: 10, color: P.textDim }}>{tr.artist}</div>
                     </div>
                   </button>
                 ))

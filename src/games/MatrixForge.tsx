@@ -28,18 +28,21 @@ const PILL = 999
 type Shape = 'circle' | 'square' | 'triangle' | 'diamond'
 type ShapeColor = string
 type ShapeSize = 'sm' | 'md' | 'lg'
+type Rotation = 0 | 90 | 180 | 270
 
 interface CellData {
   shape: Shape
   color: ShapeColor
   size: ShapeSize
   count: number
+  rotation: Rotation
 }
 
 interface Puzzle {
-  grid: (CellData | null)[][] // 3x3, bottom-right is null
+  grid: (CellData | null)[][] // NxN, bottom-right is null
   answer: CellData
   options: CellData[]
+  gridDim: number
 }
 
 /* ------------------------------------------------------------------ */
@@ -49,6 +52,7 @@ const SHAPES: Shape[] = ['circle', 'square', 'triangle', 'diamond']
 const COLORS: ShapeColor[] = [C.accent, C.success, C.error, C.warn, '#a78bfa', '#f97316']
 const SIZES: ShapeSize[] = ['sm', 'md', 'lg']
 const SIZE_PX: Record<ShapeSize, number> = { sm: 14, md: 22, lg: 30 }
+const ROTATIONS: Rotation[] = [0, 90, 180, 270]
 
 const TIMER_SECONDS = 30
 const POINTS_CORRECT = 100
@@ -82,14 +86,14 @@ function wrap<T>(arr: readonly T[], i: number): T {
 }
 
 function cellEq(a: CellData, b: CellData): boolean {
-  return a.shape === b.shape && a.color === b.color && a.size === b.size && a.count === b.count
+  return a.shape === b.shape && a.color === b.color && a.size === b.size && a.count === b.count && a.rotation === b.rotation
 }
 
 /* ------------------------------------------------------------------ */
 /*  Rule engine                                                       */
 /* ------------------------------------------------------------------ */
 type RuleAxis = 'row' | 'col'
-type RuleKind = 'shape' | 'color' | 'size' | 'count'
+type RuleKind = 'shape' | 'color' | 'size' | 'count' | 'rotation'
 
 interface Rule {
   axis: RuleAxis
@@ -111,25 +115,47 @@ function applyRule(base: CellData, rule: Rule, step: number): CellData {
     case 'count':
       out.count = Math.max(1, Math.min(4, base.count + step))
       break
+    case 'rotation':
+      out.rotation = wrap(ROTATIONS, ROTATIONS.indexOf(base.rotation) + step) as Rotation
+      break
   }
   return out
 }
 
+function gridDimForLevel(level: number): number {
+  return level >= 7 ? 4 : 3
+}
+
 function generatePuzzle(level: number): Puzzle {
+  const gridDim = gridDimForLevel(level)
+
   // Decide how many rules based on level
   let numRules: number
   if (level <= 3) numRules = 1
-  else if (level <= 7) numRules = 2
-  else numRules = 3
+  else if (level <= 6) numRules = 3
+  else if (level <= 9) numRules = 3
+  else numRules = 4
 
-  // Pick distinct rule kinds
-  const allKinds: RuleKind[] = shuffle(['shape', 'color', 'size', 'count'] as RuleKind[])
+  // Pick distinct rule kinds (include rotation)
+  const allKinds: RuleKind[] = shuffle(['shape', 'color', 'size', 'count', 'rotation'] as RuleKind[])
   const rules: Rule[] = []
 
   // First rule always on rows
   rules.push({ axis: 'row', kind: allKinds[0] })
   if (numRules >= 2) rules.push({ axis: 'col', kind: allKinds[1] })
   if (numRules >= 3) rules.push({ axis: pick(['row', 'col'] as RuleAxis[]), kind: allKinds[2] })
+  if (numRules >= 4) rules.push({ axis: pick(['row', 'col'] as RuleAxis[]), kind: allKinds[3] })
+
+  // At level 8+, allow combined transformations: a single rule step
+  // may affect two properties at once. We add a "combo" rule that
+  // piggybacks an extra kind on an existing axis.
+  if (level >= 8 && numRules >= 3) {
+    const usedKinds = new Set(rules.map(r => r.kind))
+    const remaining = (['shape', 'color', 'size', 'count', 'rotation'] as RuleKind[]).filter(k => !usedKinds.has(k))
+    if (remaining.length > 0) {
+      rules.push({ axis: rules[0].axis, kind: remaining[0] })
+    }
+  }
 
   // Build base cell for (0,0)
   const base: CellData = {
@@ -137,14 +163,15 @@ function generatePuzzle(level: number): Puzzle {
     color: pick(COLORS),
     size: pick(SIZES),
     count: pick([1, 2, 3]),
+    rotation: pick(ROTATIONS),
   }
 
-  // Build 3x3 grid
+  // Build NxN grid
   const grid: (CellData | null)[][] = []
 
-  for (let r = 0; r < 3; r++) {
+  for (let r = 0; r < gridDim; r++) {
     const row: (CellData | null)[] = []
-    for (let c = 0; c < 3; c++) {
+    for (let c = 0; c < gridDim; c++) {
       let cell = { ...base }
       for (const rule of rules) {
         const step = rule.axis === 'row' ? c : r
@@ -156,8 +183,10 @@ function generatePuzzle(level: number): Puzzle {
   }
 
   // The answer is bottom-right
-  const answer = grid[2][2] as CellData
-  grid[2][2] = null
+  const lastR = gridDim - 1
+  const lastC = gridDim - 1
+  const answer = grid[lastR][lastC] as CellData
+  grid[lastR][lastC] = null
 
   // Generate distractors
   const distractors: CellData[] = []
@@ -167,6 +196,7 @@ function generatePuzzle(level: number): Puzzle {
       color: pick(COLORS),
       size: pick(SIZES),
       count: pick([1, 2, 3, 4]),
+      rotation: pick(ROTATIONS),
     }
     if (!cellEq(d, answer) && !distractors.some(x => cellEq(x, d))) {
       distractors.push(d)
@@ -175,7 +205,7 @@ function generatePuzzle(level: number): Puzzle {
 
   const options = shuffle([answer, ...distractors])
 
-  return { grid, answer, options }
+  return { grid, answer, options, gridDim }
 }
 
 /* ------------------------------------------------------------------ */
@@ -223,9 +253,16 @@ function ShapeSVG({ cell, cellSize }: { cell: CellData; cellSize: number }) {
     }
   }
 
+  const rot = cell.rotation || 0
   return (
     <svg width={cellSize} height={cellSize} viewBox={`0 0 ${cellSize} ${cellSize}`}>
-      {shapes}
+      {rot !== 0 ? (
+        <g transform={`rotate(${rot}, ${cellSize / 2}, ${cellSize / 2})`}>
+          {shapes}
+        </g>
+      ) : (
+        shapes
+      )}
     </svg>
   )
 }
@@ -235,11 +272,12 @@ function ShapeSVG({ cell, cellSize }: { cell: CellData; cellSize: number }) {
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void
 }
 
 type GamePhase = 'playing' | 'correct' | 'wrong' | 'gameover'
 
-export default function MatrixForge({ onBack }: Props) {
+export default function MatrixForge({ onBack, onGameEnd }: Props) {
   const [level, setLevel] = useState(1)
   const [score, setScore] = useState(0)
   const [lives, setLives] = useState(MAX_LIVES)
@@ -251,10 +289,15 @@ export default function MatrixForge({ onBack }: Props) {
   const [particles, setParticles] = useState<Particle[]>([])
   const [scorePops, setScorePops] = useState<ScorePop[]>([])
   const [shakeIntensity, setShakeIntensity] = useState(0)
+  const [speedBonusVisible, setSpeedBonusVisible] = useState(false)
+  const speedBonusTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number>(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef(Date.now())
+  const correctRef = useRef(0)
+  const attemptsRef = useRef(0)
+  const gameStartRef = useRef(Date.now())
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -304,6 +347,15 @@ export default function MatrixForge({ onBack }: Props) {
     return () => cancelAnimationFrame(rafRef.current)
   }, [vfxActive])
 
+  // Report score when game ends
+  useEffect(() => {
+    if (phase === 'gameover') {
+      const total = attemptsRef.current
+      const correct = correctRef.current
+      onGameEnd?.({ score, accuracy: total > 0 ? correct / total : 0, level: highestLevel, timeMs: Date.now() - gameStartRef.current })
+    }
+  }, [phase, score, highestLevel, onGameEnd])
+
   const getRelativePos = (e: React.MouseEvent) => {
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return { x: 0, y: 0 }
@@ -313,6 +365,7 @@ export default function MatrixForge({ onBack }: Props) {
   const handleWrong = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
     sfxWrong()
+    attemptsRef.current++
     setShakeIntensity(4)
     const newLives = lives - 1
     setLives(newLives)
@@ -343,10 +396,17 @@ export default function MatrixForge({ onBack }: Props) {
     const option = puzzle.options[index]
     if (cellEq(option, puzzle.answer)) {
       sfxCorrect()
+      correctRef.current++
+      attemptsRef.current++
       const elapsed = (Date.now() - startTimeRef.current) / 1000
       const speedBonus = elapsed < SPEED_THRESHOLD ? POINTS_SPEED_BONUS : 0
       setScore(prev => prev + POINTS_CORRECT + speedBonus)
       sfxScore()
+      if (speedBonus > 0) {
+        setSpeedBonusVisible(true)
+        if (speedBonusTimer.current) clearTimeout(speedBonusTimer.current)
+        speedBonusTimer.current = setTimeout(() => setSpeedBonusVisible(false), 2000)
+      }
       const pos = getRelativePos(e)
       setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)])
       setScorePops(prev => [...prev, createScorePop(pos.x, pos.y, POINTS_CORRECT + speedBonus, C.success)])
@@ -369,6 +429,9 @@ export default function MatrixForge({ onBack }: Props) {
 
   const resetGame = () => {
     sfxTap()
+    correctRef.current = 0
+    attemptsRef.current = 0
+    gameStartRef.current = Date.now()
     setLevel(1)
     setScore(0)
     setLives(MAX_LIVES)
@@ -448,8 +511,8 @@ export default function MatrixForge({ onBack }: Props) {
       maxWidth: 500,
       aspectRatio: '1',
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
-      gridTemplateRows: 'repeat(3, 1fr)',
+      gridTemplateColumns: `repeat(${puzzle.gridDim}, 1fr)`,
+      gridTemplateRows: `repeat(${puzzle.gridDim}, 1fr)`,
       gap: cellGap,
       marginBottom: 28,
     },
@@ -558,6 +621,7 @@ export default function MatrixForge({ onBack }: Props) {
 
   return (
     <div ref={containerRef} style={{ ...s.root, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity) }}>
+      <style>{`@keyframes sbFade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-12px); } }`}</style>
       {/* Header */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={onBack} aria-label="Back">
@@ -567,9 +631,25 @@ export default function MatrixForge({ onBack }: Props) {
           <Zap size={14} color={C.accent} />
           <span>Level {level}</span>
         </div>
-        <div style={s.chip}>
-          <Trophy size={14} color={C.warn} />
-          <span>{score}</span>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div style={s.chip}>
+            <Trophy size={14} color={C.warn} />
+            <span>{score}</span>
+          </div>
+          {speedBonusVisible && (
+            <span style={{
+              position: 'absolute',
+              left: '100%',
+              marginLeft: 8,
+              color: C.warn,
+              fontSize: 13,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              animation: 'sbFade 2s ease-out forwards',
+            }}>
+              SPEED BONUS +{POINTS_SPEED_BONUS}
+            </span>
+          )}
         </div>
         <div style={{ ...s.chip, marginLeft: 'auto' }}>
           {Array.from({ length: MAX_LIVES }).map((_, i) => (
@@ -603,7 +683,7 @@ export default function MatrixForge({ onBack }: Props) {
       {/* Feedback banner */}
       {phase === 'correct' && (
         <div style={{ ...s.feedbackBanner, color: C.success }}>
-          Correct! {((Date.now() - startTimeRef.current) / 1000) < SPEED_THRESHOLD * 1000 ? '+150 (speed bonus!)' : '+100'}
+          Correct! +100
         </div>
       )}
       {phase === 'wrong' && (

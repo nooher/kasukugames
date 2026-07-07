@@ -44,6 +44,8 @@ interface FloorBlock {
   speedBonus: number
 }
 
+type GameMode = 'pressure' | 'zen'
+
 type GamePhase = 'menu' | 'playing' | 'task_intro' | 'task_active' | 'floor_complete' | 'floor_failed' | 'game_over'
 
 /* ------------------------------------------------------------------ */
@@ -97,7 +99,18 @@ function getTimerForFloor(floor: number): number {
 }
 
 function getDistractorCount(floor: number): number {
-  return Math.min(6, Math.floor(floor / 2) + 1)
+  return Math.min(12, floor + 2)
+}
+
+const FAKE_BUTTON_LABELS = ['SKIP', 'HINT', 'BONUS', 'FREE', 'x2', 'REVEAL', 'HELP', 'PASS']
+
+/** Dark background hues that cycle at higher floors */
+function getFloorBgColor(floor: number, tick: number): string {
+  if (floor < 3) return C.card
+  const hues = [220, 240, 260, 200, 280, 210]
+  const idx = (tick + floor) % hues.length
+  const hue = hues[idx]
+  return `hsl(${hue}, 18%, 10%)`
 }
 
 /* ------------------------------------------------------------------ */
@@ -210,12 +223,16 @@ function generateSequenceMemory(floor: number): SequenceMemoryState {
 /* ------------------------------------------------------------------ */
 /*  Distractor Component                                              */
 /* ------------------------------------------------------------------ */
-function Distractors({ count, containerRef }: { count: number; containerRef: React.RefObject<HTMLDivElement | null> }) {
-  const [positions, setPositions] = useState<{ x: number; y: number; size: number; color: string; opacity: number }[]>([])
+interface DistractorDot { x: number; y: number; size: number; color: string; opacity: number }
+interface FakeBtn { x: number; y: number; label: string; color: string }
+
+function Distractors({ count, containerRef, floor }: { count: number; containerRef: React.RefObject<HTMLDivElement | null>; floor: number }) {
+  const [dots, setDots] = useState<DistractorDot[]>([])
+  const [fakeBtns, setFakeBtns] = useState<FakeBtn[]>([])
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setPositions(
+      setDots(
         Array.from({ length: count }, () => ({
           x: rand(0, 100),
           y: rand(0, 100),
@@ -224,17 +241,27 @@ function Distractors({ count, containerRef }: { count: number; containerRef: Rea
           opacity: Math.random() * 0.3 + 0.1,
         }))
       )
+      // Fake buttons appear from floor 2+, up to 4
+      const btnCount = Math.min(4, Math.max(0, Math.floor((floor - 1) / 2) + 1))
+      setFakeBtns(
+        Array.from({ length: btnCount }, () => ({
+          x: rand(5, 80),
+          y: rand(5, 85),
+          label: pick(FAKE_BUTTON_LABELS),
+          color: pick([C.accent, C.emerald, C.amber, C.sapphire]),
+        }))
+      )
     }, 400)
     return () => clearInterval(interval)
-  }, [count])
+  }, [count, floor])
 
   void containerRef
 
   return (
     <>
-      {positions.map((p, i) => (
+      {dots.map((p, i) => (
         <div
-          key={i}
+          key={`d${i}`}
           style={{
             position: 'absolute',
             left: `${p.x}%`,
@@ -250,6 +277,29 @@ function Distractors({ count, containerRef }: { count: number; containerRef: Rea
           }}
         />
       ))}
+      {fakeBtns.map((btn, i) => (
+        <div
+          key={`fb${i}`}
+          style={{
+            position: 'absolute',
+            left: `${btn.x}%`,
+            top: `${btn.y}%`,
+            padding: '4px 12px',
+            borderRadius: 6,
+            background: btn.color,
+            color: C.ink,
+            fontSize: 10,
+            fontWeight: 600,
+            opacity: 0.55,
+            pointerEvents: 'none',
+            transition: 'all 300ms ease',
+            zIndex: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {btn.label}
+        </div>
+      ))}
     </>
   )
 }
@@ -259,11 +309,13 @@ function Distractors({ count, containerRef }: { count: number; containerRef: Rea
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void
 }
 
-export default function FocusTower({ onBack }: Props) {
+export default function FocusTower({ onBack, onGameEnd }: Props) {
   /* ---- Core state ---- */
   const [phase, setPhase] = useState<GamePhase>('menu')
+  const [gameMode, setGameMode] = useState<GameMode>('pressure')
   const [floor, setFloor] = useState(0)
   const [lives, setLives] = useState(MAX_LIVES)
   const [score, setScore] = useState(0)
@@ -271,6 +323,10 @@ export default function FocusTower({ onBack }: Props) {
   const [highScore, setHighScore] = useState(() => {
     try { return Number(localStorage.getItem('focusTower_hs') ?? 0) } catch { return 0 }
   })
+  const [bgTick, setBgTick] = useState(0)
+  const correctFloorsRef = useRef(0)
+  const totalFloorsRef = useRef(0)
+  const gameStartRef = useRef(Date.now())
 
   /* ---- Task state ---- */
   const [currentTask, setCurrentTask] = useState<TaskType>('color_match')
@@ -318,9 +374,28 @@ export default function FocusTower({ onBack }: Props) {
     return () => cancelAnimationFrame(vfxRafRef.current)
   }, [vfxParticles.length > 0 || vfxPops.length > 0 || shakeIntensity > 0.1])
 
+  /* ---- Background color shift at higher floors ---- */
+  useEffect(() => {
+    if (phase !== 'task_active' || floor < 3) return
+    const interval = setInterval(() => setBgTick(t => t + 1), 2000)
+    return () => clearInterval(interval)
+  }, [phase, floor])
+
+  // Report score when game ends
+  useEffect(() => {
+    if (phase === 'game_over') {
+      const total = totalFloorsRef.current
+      const correct = correctFloorsRef.current
+      onGameEnd?.({ score, accuracy: total > 0 ? correct / total : 0, level: floor + 1, timeMs: Date.now() - gameStartRef.current })
+    }
+  }, [phase, score, floor, onGameEnd])
+
   /* ---- Start a new game ---- */
   const startGame = useCallback(() => {
     sfxTap()
+    correctFloorsRef.current = 0
+    totalFloorsRef.current = 0
+    gameStartRef.current = Date.now()
     setPhase('playing')
     setFloor(0)
     setLives(MAX_LIVES)
@@ -394,24 +469,28 @@ export default function FocusTower({ onBack }: Props) {
       }
     }
 
-    // Start countdown timer
-    timerRef.current = setInterval(() => {
-      setTimer(prev => {
-        const next = Math.max(0, prev - 0.1)
-        if (next <= 0) {
-          clearTimer()
-          handleFailure()
-        }
-        return next
-      })
-    }, 100)
+    // Start countdown timer (pressure mode only)
+    if (gameMode === 'pressure') {
+      timerRef.current = setInterval(() => {
+        setTimer(prev => {
+          const next = Math.max(0, prev - 0.1)
+          if (next <= 0) {
+            clearTimer()
+            handleFailure()
+          }
+          return next
+        })
+      }, 100)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearTimer])
+  }, [clearTimer, gameMode])
 
   /* ---- Floor complete ---- */
   const handleSuccess = useCallback(() => {
     sfxCorrect()
     sfxLevelUp()
+    correctFloorsRef.current++
+    totalFloorsRef.current++
     clearTimer()
     const elapsed = (Date.now() - taskStartRef.current) / 1000
     const speedBonus = elapsed < timerMax * 0.4 ? 50 : elapsed < timerMax * 0.6 ? 25 : 0
@@ -444,7 +523,23 @@ export default function FocusTower({ onBack }: Props) {
 
   /* ---- Floor failed ---- */
   const handleFailure = useCallback(() => {
+    // Zen mode: wrong answer just shakes, no life loss or game over
+    if (gameMode === 'zen') {
+      sfxWrong()
+      totalFloorsRef.current++
+      const rect = containerRef.current?.getBoundingClientRect()
+      const cx = rect ? rect.width / 2 : 200
+      const cy = rect ? rect.height / 2 : 300
+      setVfxParticles(prev => [...prev, ...wrongBurst(cx, cy)])
+      setShakeIntensity(5)
+      // Just retry the same floor
+      setPhase('floor_failed')
+      setTimeout(() => startFloor(floor), 1200)
+      return
+    }
+
     sfxWrong()
+    totalFloorsRef.current++
     clearTimer()
     const rect = containerRef.current?.getBoundingClientRect()
     const cx = rect ? rect.width / 2 : 200
@@ -477,7 +572,7 @@ export default function FocusTower({ onBack }: Props) {
       return next
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearTimer, floor])
+  }, [clearTimer, floor, gameMode])
 
   /* ---- Color match flash distractors ---- */
   useEffect(() => {
@@ -562,6 +657,8 @@ export default function FocusTower({ onBack }: Props) {
     </div>
   )
 
+  const timerPulsing = timer > 0 && timer < 2
+
   const renderTimerBar = () => (
     <div style={{
       width: '100%',
@@ -577,12 +674,24 @@ export default function FocusTower({ onBack }: Props) {
         background: timerColor,
         borderRadius: PILL,
         transition: 'width 100ms linear, background 300ms ease',
+        ...(timerPulsing ? {
+          animation: 'timerThrob 0.4s ease-in-out infinite alternate',
+        } : {}),
       }} />
+      {timerPulsing && (
+        <style>{`
+          @keyframes timerThrob {
+            0% { transform: scaleY(1); opacity: 1; }
+            100% { transform: scaleY(1.8); opacity: 0.7; }
+          }
+        `}</style>
+      )}
     </div>
   )
 
   const renderTower = (maxVisible = 8) => {
     const visible = tower.slice(-maxVisible)
+    const startFloorNum = Math.max(0, tower.length - maxVisible)
     return (
       <div style={{
         display: 'flex',
@@ -591,28 +700,40 @@ export default function FocusTower({ onBack }: Props) {
         gap: 2,
         minHeight: 60,
       }}>
-        {visible.map((block, i) => (
-          <div
-            key={i}
-            style={{
-              width: Math.max(40, 100 - i * 4),
-              height: 18,
-              background: block.color,
-              borderRadius: 4,
-              ...GLASS,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 9, color: C.text, fontWeight: 600, opacity: 0.8 }}>
-              {block.speedBonus > 0 ? '⚡' : ''}
-            </span>
-          </div>
-        ))}
+        {visible.map((block, i) => {
+          const isTop = i === visible.length - 1
+          const BlockIcon = TASK_ICONS[block.taskType]
+          const floorNum = startFloorNum + i + 1
+          return (
+            <div
+              key={i}
+              style={{
+                width: Math.max(60, 120 - i * 3),
+                height: 24,
+                background: block.color,
+                borderRadius: 4,
+                ...GLASS,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                ...(isTop ? {
+                  border: `1.5px solid rgba(255,255,255,0.35)`,
+                  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.5), 0 0 8px ${block.color}66`,
+                } : {}),
+              }}
+            >
+              <BlockIcon size={10} color={C.text} style={{ opacity: 0.7 }} />
+              <span style={{ fontSize: 9, color: C.text, fontWeight: 600, opacity: 0.8 }}>
+                {floorNum}
+              </span>
+              {block.speedBonus > 0 && <Zap size={8} color={C.text} style={{ opacity: 0.7 }} />}
+            </div>
+          )
+        })}
         {/* Foundation */}
         <div style={{
-          width: 120,
+          width: 130,
           height: 8,
           background: C.dim,
           borderRadius: 4,
@@ -935,6 +1056,39 @@ export default function FocusTower({ onBack }: Props) {
             </div>
           )}
 
+          {/* Mode selector */}
+          <div style={{
+            display: 'flex',
+            gap: 0,
+            borderRadius: PILL,
+            overflow: 'hidden',
+            border: `1px solid ${C.border}`,
+          }}>
+            {(['pressure', 'zen'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => { sfxTap(); setGameMode(mode) }}
+                style={{
+                  padding: '10px 24px',
+                  background: gameMode === mode ? C.accent : C.card,
+                  color: gameMode === mode ? C.ink : C.muted,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  transition: 'background 200ms ease, color 200ms ease',
+                }}
+              >
+                {mode === 'pressure' ? 'Pressure' : 'Zen'}
+              </button>
+            ))}
+          </div>
+          <p style={{ color: C.dim, fontSize: 11, textAlign: 'center', maxWidth: 280 }}>
+            {gameMode === 'pressure'
+              ? 'Timer + lives. Miss and lose floors.'
+              : 'No timer, no lives. Build forever.'}
+          </p>
+
           {/* Task preview */}
           <div style={{
             display: 'grid',
@@ -999,7 +1153,7 @@ export default function FocusTower({ onBack }: Props) {
             marginBottom: 12,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {renderLives()}
+              {gameMode === 'pressure' && renderLives()}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1027,8 +1181,8 @@ export default function FocusTower({ onBack }: Props) {
             </div>
           </div>
 
-          {/* Timer */}
-          {phase === 'task_active' && renderTimerBar()}
+          {/* Timer (pressure mode only) */}
+          {phase === 'task_active' && gameMode === 'pressure' && renderTimerBar()}
 
           {/* Tower visualization */}
           <div style={{
@@ -1052,17 +1206,18 @@ export default function FocusTower({ onBack }: Props) {
             <div style={{
               flex: 1,
               padding: 20,
-              background: C.card,
+              background: phase === 'task_active' ? getFloorBgColor(floor, bgTick) : C.card,
               borderRadius: RADIUS,
               border: `1px solid ${C.border}`,
               position: 'relative',
               overflow: 'hidden',
               minHeight: 260,
+              transition: 'background 1.5s ease',
               ...GLASS,
             }}>
               {/* Distractors behind the task */}
               {phase === 'task_active' && (
-                <Distractors count={distractorCount} containerRef={containerRef} />
+                <Distractors count={distractorCount} containerRef={containerRef} floor={floor} />
               )}
 
               <div style={{ position: 'relative', zIndex: 2 }}>
@@ -1083,16 +1238,25 @@ export default function FocusTower({ onBack }: Props) {
                     <p style={{ color: C.muted, fontSize: 13, textAlign: 'center' }}>
                       {TASK_DESCRIPTIONS[currentTask]}
                     </p>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      color: C.dim,
-                      fontSize: 12,
-                    }}>
-                      <Clock size={14} />
-                      <span>{getTimerForFloor(floor).toFixed(1)}s</span>
-                    </div>
+                    {gameMode === 'pressure' ? (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        color: C.dim,
+                        fontSize: 12,
+                      }}>
+                        <Clock size={14} />
+                        <span>{getTimerForFloor(floor).toFixed(1)}s</span>
+                      </div>
+                    ) : (
+                      <div style={{
+                        color: C.dim,
+                        fontSize: 12,
+                      }}>
+                        Zen mode -- take your time
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1156,7 +1320,9 @@ export default function FocusTower({ onBack }: Props) {
                       Tower Crumbles!
                     </h2>
                     <p style={{ color: C.muted, fontSize: 13 }}>
-                      Lost a floor. {lives} {lives === 1 ? 'life' : 'lives'} remaining.
+                      {gameMode === 'zen'
+                        ? 'Try again -- no penalty.'
+                        : `Lost a floor. ${lives} ${lives === 1 ? 'life' : 'lives'} remaining.`}
                     </p>
                   </div>
                 )}

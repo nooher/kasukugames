@@ -49,6 +49,11 @@ export type GameCategory =
   | 'psychological'
   | 'social'
   | 'party'
+  | 'couples'
+  | 'card-games'
+  | 'board-games'
+  | 'fitness'
+  | 'faith'
   | 'mental-endurance'
   | 'medical'
   | 'ai-games'
@@ -61,12 +66,40 @@ export const CATEGORY_META: Record<GameCategory, { label: string; sub: string; c
   'creativity-lab': { label: 'Creativity Lab', sub: 'Divergent thinking', color: '#c89ab8' },
   'psychological': { label: 'Psychological', sub: 'Self-discovery', color: '#c8847a' },
   'social': { label: 'Social Games', sub: 'Human connection', color: '#c8986a' },
-  'party': { label: 'Party', sub: 'Multiplayer & couples', color: '#c89ab8' },
+  'party': { label: 'Party', sub: 'Friends & groups', color: '#c89ab8' },
+  'couples': { label: 'Couples', sub: 'Intimate & romantic', color: '#d45b6a' },
+  'card-games': { label: 'Card Games', sub: 'Strategic card play', color: '#b88a6a' },
+  'board-games': { label: 'Board Games', sub: 'Classic strategy', color: '#8a9ab8' },
+  'fitness': { label: 'Fitness', sub: 'Body & breath', color: '#6ab87a' },
+  'faith': { label: 'Faith', sub: 'Spiritual knowledge', color: '#c8b86a' },
   'mental-endurance': { label: 'Mental Endurance', sub: 'Cognitive marathons', color: '#8ab8c8' },
   'medical': { label: 'Medical', sub: 'Clinical reasoning', color: '#a8b89a' },
   'ai-games': { label: 'AI Games', sub: 'Human vs machine', color: '#b8a0c8' },
   'classic': { label: 'Classic', sub: 'Timeless arcade', color: '#a8a098' },
 }
+
+export interface AgeGate {
+  verified: boolean
+  confirmedAt: number
+}
+
+const AGE_KEY = 'kg_age_verified'
+
+export function isAgeVerified(): boolean {
+  try {
+    const raw = localStorage.getItem(AGE_KEY)
+    if (!raw) return false
+    const gate: AgeGate = JSON.parse(raw)
+    return gate.verified && (Date.now() - gate.confirmedAt) < 365 * 24 * 60 * 60 * 1000
+  } catch { return false }
+}
+
+export function confirmAge(): void {
+  const gate: AgeGate = { verified: true, confirmedAt: Date.now() }
+  localStorage.setItem(AGE_KEY, JSON.stringify(gate))
+}
+
+export const ADULT_CATEGORIES: GameCategory[] = ['couples']
 
 export interface GameDef {
   id: string

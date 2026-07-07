@@ -10,15 +10,19 @@ export interface Muhuri {
 }
 
 export const MUHURI_META: Record<MuhuriType, Muhuri> = {
-  founder:  { type: 'founder',  label: 'Founder',   color: '#c9a96e', sealColor: '#D4A017' },
-  admin:    { type: 'admin',    label: 'Admin',      color: '#8aada8', sealColor: '#33623F' },
-  creator:  { type: 'creator',  label: 'Creator',    color: '#c4a882', sealColor: '#c4a882' },
-  verified: { type: 'verified', label: 'Verified',   color: '#2F6FB0', sealColor: '#2F6FB0' },
-  player:   { type: 'player',   label: 'Player',     color: '#a89a86', sealColor: '#a89a86' },
+  founder:  { type: 'founder',  label: 'Founder',   color: '#C8A850', sealColor: '#C8A850' },
+  admin:    { type: 'admin',    label: 'Admin',      color: '#1A3A5C', sealColor: '#1A3A5C' },
+  creator:  { type: 'creator',  label: 'Creator',    color: '#D45B3F', sealColor: '#D45B3F' },
+  verified: { type: 'verified', label: 'Verified',   color: '#2D8C5E', sealColor: '#2D8C5E' },
+  player:   { type: 'player',   label: 'Player',     color: '#4A5568', sealColor: '#4A5568' },
 }
 
 const BUILTIN_MUHURI: Record<string, MuhuriType> = {
   anaim: 'founder',
+}
+
+const BUILTIN_DISPLAY: Record<string, string> = {
+  anaim: 'NooherMD',
 }
 
 const MUHURI_STORE_KEY = 'kg_muhuri_assignments'
@@ -63,6 +67,12 @@ export function isVerifiedTier(muhuri: MuhuriType): boolean {
   return muhuri === 'founder' || muhuri === 'admin' || muhuri === 'creator' || muhuri === 'verified'
 }
 
+export interface ProfileSocials {
+  whatsapp?: string
+  instagram?: string
+  tiktok?: string
+}
+
 export interface PlayerProfile {
   id: string
   username: string
@@ -83,6 +93,7 @@ export interface PlayerProfile {
   teamId: string | null
   friendIds: string[]
   coupledWith: string | null
+  socials?: ProfileSocials
 }
 
 export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master' | 'legend'
@@ -192,11 +203,18 @@ export function loadProfile(): PlayerProfile | null {
     const data = localStorage.getItem(PROFILE_KEY)
     if (!data) return null
     const p = JSON.parse(data) as PlayerProfile
+    const key = p.username.toLowerCase()
+    let dirty = false
     if (!p.muhuri) {
       p.muhuri = getMuhuri(p.username)
       p.photoUrl = p.photoUrl ?? null
-      saveProfile(p)
+      dirty = true
     }
+    if (BUILTIN_DISPLAY[key] && p.displayName !== BUILTIN_DISPLAY[key]) {
+      p.displayName = BUILTIN_DISPLAY[key]
+      dirty = true
+    }
+    if (dirty) saveProfile(p)
     return p
   } catch { return null }
 }
@@ -206,10 +224,11 @@ export function saveProfile(profile: PlayerProfile) {
 }
 
 export function createProfile(username: string, displayName: string): PlayerProfile {
+  const key = username.toLowerCase()
   const profile: PlayerProfile = {
     id: `p_${Date.now().toString(36)}`,
     username,
-    displayName,
+    displayName: BUILTIN_DISPLAY[key] || displayName,
     avatar: '🧠',
     photoUrl: null,
     muhuri: getMuhuri(username),

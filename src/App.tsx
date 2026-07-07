@@ -1,23 +1,23 @@
-import { useState, lazy, Suspense, useEffect, useCallback, type CSSProperties } from 'react'
+import { useState, useRef, lazy, Suspense, useEffect, useCallback, type CSSProperties } from 'react'
 import {
   Brain, Heart,
   Gamepad2, Trophy, ArrowLeft, Users, PartyPopper,
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
   Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
-  Edit3, Camera, ChevronRight,
+  Edit3, Camera, ChevronRight, Share2, Link, Copy,
 } from 'lucide-react'
 import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, premiumBtn } from './lib/design'
 import { BRAND } from './lib/brand'
 import { t, loadLang, saveLang, type Lang } from './lib/i18n'
 import { loadTheme, saveTheme, getPalette, type Theme } from './lib/theme'
 import { GAMES } from './lib/games'
-import { CATEGORY_META, type GameCategory } from './lib/cognitive'
+import { CATEGORY_META, ADULT_CATEGORIES, isAgeVerified, confirmAge, type GameCategory, saveScore } from './lib/cognitive'
 import {
   loadProfile, createProfile, updateProfileAfterGame, saveProfile,
   xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
   MUHURI_META, isVerifiedTier, setMuhuri, getAllMuhuriAssignments, isFounderOrAdmin,
-  type PlayerProfile, type MuhuriType,
+  type PlayerProfile, type MuhuriType, type ProfileSocials,
 } from './lib/rewards'
 import {
   LEADERBOARD_CATEGORIES, generateDemoLeaderboard,
@@ -26,6 +26,7 @@ import {
   loadWallet, earnTokens, spendTokens, purchaseTokens,
   SHOP, TOKEN_PACKS, TOKEN_EARN_RATES, type TokenWallet,
 } from './lib/tokens'
+import { signInWithKasuku, signUpWithKasuku, syncKasukuToLocal } from './lib/kasuku-bridge'
 import {
   loadNotifications, markAllRead, getUnreadCount,
   requestNotificationPermission, submitScore,
@@ -44,7 +45,7 @@ import {
 import Logo from './components/Logo'
 import FloatingPlayer from './components/FloatingPlayer'
 import LaunchScreen from './components/LaunchScreen'
-import VerifiedBadge from './components/VerifiedBadge'
+import MuhuriBadge from './components/MuhuriBadge'
 
 const MatrixForge = lazy(() => import('./games/MatrixForge'))
 const SequenceCollapse = lazy(() => import('./games/SequenceCollapse'))
@@ -67,8 +68,18 @@ const TruthOrDare = lazy(() => import('./games/TruthOrDare'))
 const NeverHaveIEver = lazy(() => import('./games/NeverHaveIEver'))
 const GuessWhat = lazy(() => import('./games/GuessWhat'))
 const DraftChase = lazy(() => import('./games/DraftChase'))
+const Snake = lazy(() => import('./games/Snake'))
+const LastCard = lazy(() => import('./games/LastCard'))
+const Albastini = lazy(() => import('./games/Albastini'))
+const Monopoly = lazy(() => import('./games/Monopoly'))
+const Calisthenics = lazy(() => import('./games/Calisthenics'))
+const BreathHold = lazy(() => import('./games/BreathHold'))
+const ScriptureQuest = lazy(() => import('./games/ScriptureQuest'))
+const SpinTheBottle = lazy(() => import('./games/SpinTheBottle'))
+const CouplesQuiz = lazy(() => import('./games/CouplesQuiz'))
 
-type GameComp = React.LazyExoticComponent<React.ComponentType<{ onBack: () => void }>>
+export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
+type GameComp = React.LazyExoticComponent<React.ComponentType<{ onBack: () => void; onGameEnd?: (r: GameResult) => void }>>
 const GAME_COMPONENTS: Record<string, GameComp> = {
   'matrix-forge': MatrixForge,
   'sequence-collapse': SequenceCollapse,
@@ -91,6 +102,15 @@ const GAME_COMPONENTS: Record<string, GameComp> = {
   'never-have-i-ever': NeverHaveIEver,
   'guess-what': GuessWhat,
   'draft-chase': DraftChase,
+  'snake': Snake,
+  'last-card': LastCard,
+  'albastini': Albastini,
+  'monopoly': Monopoly,
+  'calisthenics': Calisthenics,
+  'breath-hold': BreathHold,
+  'scripture-quest': ScriptureQuest,
+  'spin-the-bottle': SpinTheBottle,
+  'couples-quiz': CouplesQuiz,
 }
 
 
@@ -118,12 +138,16 @@ export default function App() {
   const [profile, setProfile] = useState<PlayerProfile | null>(loadProfile)
   const [section, setSection] = useState<Section>('home')
   const [activeGame, setActiveGame] = useState<string | null>(null)
+  const lastGameResult = useRef<GameResult | null>(null)
   const [playerVisible, setPlayerVisible] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [loginMode, setLoginMode] = useState<'signin' | 'signup'>('signin')
   const [loginName, setLoginName] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [loginDisplay, setLoginDisplay] = useState('')
   const [loginAvatar, setLoginAvatar] = useState('🧠')
+  const [loginError, setLoginError] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const [wallet, setWallet] = useState<TokenWallet>(loadWallet)
   const [unreadNotifs, setUnreadNotifs] = useState(getUnreadCount)
   const [loginReward, setLoginReward] = useState<{ tokens: number; day: number; isComeback: boolean; comebackBonus: number } | null>(null)
@@ -134,6 +158,8 @@ export default function App() {
   const [lang, setLangState] = useState<Lang>(loadLang)
   const [theme, setThemeState] = useState<Theme>(loadTheme)
   const [launchDone, setLaunchDone] = useState(() => sessionStorage.getItem('kg_launched') === '1')
+  const [showAgeGate, setShowAgeGate] = useState(false)
+  const [pendingAdultGame, setPendingAdultGame] = useState<string | null>(null)
 
   const P = getPalette(theme)
   const isDark = theme === 'dark'
@@ -242,24 +268,45 @@ export default function App() {
   }
 
 
-  const handleLogin = () => {
-    if (!loginName.trim()) return
+  const handleLogin = async () => {
+    if (!loginName.trim() || !loginPassword.trim()) return
     if (loginMode === 'signup' && !loginDisplay.trim()) return
-    const p = createProfile(loginName.trim().toLowerCase().replace(/\s+/g, '_'), loginDisplay.trim() || loginName.trim())
-    if (loginMode === 'signup') {
-      p.avatar = loginAvatar
+    setLoginError('')
+    setLoginLoading(true)
+    try {
+      const handle = loginName.trim().toLowerCase().replace(/\s+/g, '_')
+      const result = loginMode === 'signup'
+        ? await signUpWithKasuku(handle, loginPassword, loginDisplay.trim())
+        : await signInWithKasuku(handle, loginPassword)
+      if (result.error) { setLoginError(result.error); return }
+      const p = createProfile(handle, result.profile?.name || loginDisplay.trim() || loginName.trim())
+      if (loginMode === 'signup') p.avatar = loginAvatar
+      if (result.profile?.avatar_url) p.photoUrl = result.profile.avatar_url
       localStorage.setItem('kg_profile', JSON.stringify(p))
+      if (result.profile) syncKasukuToLocal(result.profile)
+      const synced = loadProfile()
+      setProfile(synced || p)
+      setShowLogin(false)
+      setLoginName('')
+      setLoginPassword('')
+      setLoginDisplay('')
+      setLoginAvatar('🧠')
+      setLoginError('')
+    } finally {
+      setLoginLoading(false)
     }
-    setProfile(p)
-    setShowLogin(false)
-    setLoginName('')
-    setLoginDisplay('')
-    setLoginAvatar('🧠')
   }
 
+  const handleGameEnd = useCallback((r: GameResult) => {
+    lastGameResult.current = r
+  }, [])
+
   const handleGameBack = () => {
-    const score = Math.floor(Math.random() * 500 + 100)
-    const p = updateProfileAfterGame(score, Math.random() * 0.5 + 0.5, Math.floor(Math.random() * 5 + 1))
+    const r = lastGameResult.current
+    const score = r?.score ?? Math.floor(Math.random() * 500 + 100)
+    const accuracy = r?.accuracy ?? (Math.random() * 0.5 + 0.5)
+    const level = r?.level ?? Math.floor(Math.random() * 5 + 1)
+    const p = updateProfileAfterGame(score, accuracy, level)
     if (p) {
       setProfile(p)
       if (activeGame) {
@@ -267,11 +314,45 @@ export default function App() {
         if (game) {
           submitScore(activeGame, game.title, p.id, p.displayName, score)
         }
+        saveScore({
+          gameId: activeGame,
+          score,
+          maxScore: r?.maxScore || score,
+          accuracy,
+          timeMs: r?.timeMs || 0,
+          level,
+          date: Date.now(),
+        })
         const w = earnTokens(TOKEN_EARN_RATES.gameComplete, tpl('game_completed', { game: game?.title || 'game' }))
         setWallet(w)
       }
     }
+    lastGameResult.current = null
     setActiveGame(null)
+  }
+
+  const launchGame = useCallback((gameId: string) => {
+    const game = GAMES.find(g => g.id === gameId)
+    if (game && ADULT_CATEGORIES.includes(game.category) && !isAgeVerified()) {
+      setPendingAdultGame(gameId)
+      setShowAgeGate(true)
+      return
+    }
+    setActiveGame(gameId)
+  }, [])
+
+  const handleAgeConfirm = () => {
+    confirmAge()
+    setShowAgeGate(false)
+    if (pendingAdultGame) {
+      setActiveGame(pendingAdultGame)
+      setPendingAdultGame(null)
+    }
+  }
+
+  const handleAgeDeny = () => {
+    setShowAgeGate(false)
+    setPendingAdultGame(null)
   }
 
   const handleLuckyDraw = () => {
@@ -293,7 +374,7 @@ export default function App() {
     if (GameComponent) {
       return (
         <Suspense fallback={<LoadingView P={P} />}>
-          <GameComponent onBack={handleGameBack} />
+          <GameComponent onBack={handleGameBack} onGameEnd={handleGameEnd} />
           <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} theme={theme} />
         </Suspense>
       )
@@ -356,7 +437,7 @@ export default function App() {
               ...navBtnStyle, background: section === 'profile' ? P.sapphire + '20' : 'none', gap: 6,
             }}>
               <span style={{ fontSize: 18 }}>{profile.avatar}</span>
-              <VerifiedBadge muhuri={profile.muhuri} size={14} />
+              <MuhuriBadge type={profile.muhuri} size={14} />
               <span style={{ fontSize: 11, fontWeight: 600, color: RANK_META[profile.rank].color }}>{profile.level}</span>
             </button>
           ) : (
@@ -393,6 +474,34 @@ export default function App() {
         <MobileTab icon={profile ? <span style={{ fontSize: 20 }}>{profile.avatar}</span> : <LogIn size={20} />} label={profile ? t('profile') : t('sign_in')} active={section === 'profile'} onClick={() => profile ? setSection('profile') : setShowLogin(true)} P={P} />
       </nav>
 
+      {/* AGE VERIFICATION GATE */}
+      {showAgeGate && (
+        <div style={modalOverlay} onClick={handleAgeDeny}>
+          <div style={{ ...modalCard, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: '#d45b6a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <span style={{ color: '#fff', fontWeight: 600, fontSize: 22 }}>18+</span>
+            </div>
+            <h2 style={{ margin: '0 0 8px', ...TYPOGRAPHY.heading, color: P.text, textAlign: 'center' }}>
+              Age Verification Required
+            </h2>
+            <p style={{ color: P.textMuted, fontSize: 14, textAlign: 'center', margin: '0 0 8px', lineHeight: 1.5 }}>
+              This content is intended for adults aged 18 and over. By proceeding, you confirm that you are at least 18 years old.
+            </p>
+            <p style={{ color: P.textMuted, fontSize: 12, textAlign: 'center', margin: '0 0 20px', lineHeight: 1.4, opacity: 0.7 }}>
+              This verification is stored locally and lasts for one year. KasukuGames does not collect or store your date of birth.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={handleAgeDeny} style={{ ...premiumBtn(P.textMuted), flex: 1, opacity: 0.7 }}>
+                I am under 18
+              </button>
+              <button onClick={handleAgeConfirm} style={{ ...premiumBtn('#d45b6a'), flex: 1 }}>
+                I am 18 or older
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LOGIN MODAL */}
       {showLogin && (
         <div style={modalOverlay} onClick={() => setShowLogin(false)}>
@@ -404,8 +513,11 @@ export default function App() {
             <p style={{ margin: `0 0 ${SPACING.xl}px`, fontSize: 14, color: P.textMuted, lineHeight: 1.5, textAlign: 'center' }}>
               {t('use_kasuku_or_create')}
             </p>
-            <input value={loginName} onChange={e => setLoginName(e.target.value)} placeholder={t('username')}
+            <input value={loginName} onChange={e => { setLoginName(e.target.value); setLoginError('') }} placeholder={t('username')}
               onKeyDown={e => e.key === 'Enter' && handleLogin()} style={inputStyle} autoFocus />
+            <input value={loginPassword} onChange={e => { setLoginPassword(e.target.value); setLoginError('') }} placeholder={t('password')}
+              type="password" onKeyDown={e => e.key === 'Enter' && handleLogin()} style={{ ...inputStyle, marginTop: 12 }} />
+            {loginError && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#e55', textAlign: 'center' }}>{loginError}</p>}
             {loginMode === 'signup' && (
               <>
                 <input value={loginDisplay} onChange={e => setLoginDisplay(e.target.value)} placeholder={t('display_name')}
@@ -427,11 +539,12 @@ export default function App() {
                 </div>
               </>
             )}
-            <button onClick={handleLogin} style={{
+            <button onClick={handleLogin} disabled={loginLoading} style={{
               ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center',
               marginTop: SPACING.lg, padding: '14px 28px', fontSize: 15,
+              opacity: loginLoading ? 0.6 : 1, pointerEvents: loginLoading ? 'none' : 'auto',
             }}>
-              {loginMode === 'signup' ? t('create_account') : t('sign_in')}
+              {loginLoading ? '...' : loginMode === 'signup' ? t('create_account') : t('sign_in')}
             </button>
             <p style={{ margin: '20px 0 0', fontSize: 13, color: P.textMuted, textAlign: 'center' }}>
               {loginMode === 'signin' ? (
@@ -463,11 +576,11 @@ export default function App() {
 
       {/* SECTIONS */}
       {section === 'home' && (
-        <HomeSection onPlay={setActiveGame} P={P} isDark={isDark} gct={glassCardTheme} />
+        <HomeSection onPlay={launchGame} P={P} isDark={isDark} gct={glassCardTheme} />
       )}
-      {section === 'daily' && <DailySection profile={profile} onPlay={setActiveGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
+      {section === 'daily' && <DailySection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
       {section === 'leaderboard' && <LeaderboardSection profile={profile} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
-      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={setActiveGame} onLogin={() => setShowLogin(true)} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
+      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'notifications' && <NotificationsSection P={P} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} gct={glassCardTheme} />}
@@ -573,7 +686,7 @@ function HomeSection({ onPlay, P, isDark, gct }: {
           margin: 0, fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 600,
           color: P.text, letterSpacing: '-0.02em', lineHeight: 1.1,
         }}>
-          What will you play?
+          {t('what_will_you_play')}
         </h1>
       </div>
 
@@ -591,7 +704,7 @@ function HomeSection({ onPlay, P, isDark, gct }: {
           boxSizing: 'border-box',
         } as CSSProperties}
       >
-        <option value="all">All Games</option>
+        <option value="all">{t('all_games')}</option>
         {categories.map(([key, meta]) => (
           <option key={key} value={key}>{meta.label}</option>
         ))}
@@ -638,7 +751,7 @@ function HomeSection({ onPlay, P, isDark, gct }: {
           }}
           style={{ ...premiumBtn(P.sapphire), padding: '16px 48px', fontSize: 16 }}
         >
-          <Gamepad2 size={18} /> Play Now
+          <Gamepad2 size={18} /> {t('play_now')}
         </button>
       </div>
     </section>
@@ -788,7 +901,7 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2, maxWidth: 80 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: P.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.displayName}</span>
-                {e.muhuri && <VerifiedBadge muhuri={e.muhuri as MuhuriType} size={11} />}
+                {e.muhuri && <MuhuriBadge type={e.muhuri as MuhuriType} size={11} />}
               </div>
               <span style={{ fontSize: 10, color: P.textMuted, fontVariantNumeric: 'tabular-nums' }}>{e.score.toLocaleString()}</span>
               <div style={{ width: avatarSizes[i] + 12, height: heights[i], marginTop: 10, borderRadius: `${RADIUS.md}px ${RADIUS.md}px 0 0`, background: color.bg, border: `1px solid ${color.border}40`, borderBottom: 'none', display: 'grid', placeItems: 'end center', paddingBottom: 10, boxShadow: isChampion ? (isDark ? `${GLASS.highlight}, 0 0 30px ${P.gold}15` : `0 0 20px ${P.gold}10`) : (isDark ? GLASS.highlight : 'none') }}>
@@ -807,7 +920,7 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{e.displayName}</span>
-                {e.muhuri && <VerifiedBadge muhuri={e.muhuri as MuhuriType} size={13} />}
+                {e.muhuri && <MuhuriBadge type={e.muhuri as MuhuriType} size={13} />}
                 {e.teamTag && <span style={{ fontSize: 9, fontWeight: 600, color: P.teal, background: P.teal + '15', padding: '2px 8px', borderRadius: RADIUS.full }}>[{e.teamTag}]</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
@@ -1158,9 +1271,32 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
   const showAdmin = isFounderOrAdmin(profile.muhuri)
   const rankColor = RANK_META[profile.rank].color
 
-  const [sheet, setSheet] = useState<'edit' | 'avatar' | 'cover' | null>(null)
+  const [sheet, setSheet] = useState<'edit' | 'avatar' | 'cover' | 'socials' | null>(null)
   const [editName, setEditName] = useState(profile.displayName)
   const [coverColor, setCoverColor] = useState(loadCover)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [editSocials, setEditSocials] = useState<ProfileSocials>(profile.socials || {})
+
+  const profileUrl = `https://kasukugames.vercel.app/@${profile.username}`
+  const shareText = `Check out my KasukuGames profile! 🎮 Train. Compete. Transcend. ${profileUrl}`
+
+  const handleShareWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
+  }
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(profileUrl)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch { /* fallback */ }
+  }
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${profile.displayName} on KasukuGames`, text: shareText, url: profileUrl })
+      } catch { /* user cancelled */ }
+    }
+  }
 
   const completionChecks = [
     profile.displayName !== profile.username,
@@ -1240,7 +1376,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>@{profile.username}</span>
-            <VerifiedBadge muhuri={profile.muhuri} size={16} />
+            <MuhuriBadge type={profile.muhuri} size={16} />
             {isVerifiedTier(profile.muhuri) && (
               <span style={{
                 fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -1306,6 +1442,59 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
           </button>
         </div>
 
+        {/* Share Profile */}
+        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Share2 size={16} color={P.gold} /> {t('share_profile')}</h3>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={handleShareWhatsApp} style={{
+              display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px',
+              borderRadius: RADIUS.md, border: 'none', cursor: 'pointer',
+              background: '#25D366', color: '#fff', fontSize: 12, fontWeight: 600,
+              boxShadow: isDark ? `inset 0 1px 0 rgba(255,255,255,0.1), ${SHADOW.sm}` : SHADOW.sm,
+            }}>
+              <Send size={13} /> {t('share_via_whatsapp')}
+            </button>
+            <button onClick={handleCopyLink} style={{
+              display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px',
+              borderRadius: RADIUS.md, border: 'none', cursor: 'pointer',
+              background: isDark ? '#2a2418' : '#1a1610', color: '#fff', fontSize: 12, fontWeight: 600,
+              boxShadow: isDark ? `inset 0 1px 0 rgba(255,255,255,0.08), ${SHADOW.sm}` : SHADOW.sm,
+            }}>
+              {linkCopied ? <><Check size={13} /> {t('link_copied')}</> : <><Copy size={13} /> {t('copy_link')}</>}
+            </button>
+            {typeof navigator !== 'undefined' && 'share' in navigator && (
+              <button onClick={handleNativeShare} style={{
+                display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px',
+                borderRadius: RADIUS.md, border: 'none', cursor: 'pointer',
+                background: P.gold, color: '#fff', fontSize: 12, fontWeight: 600,
+                boxShadow: isDark ? `inset 0 1px 0 rgba(255,255,255,0.1), ${SHADOW.sm}` : SHADOW.sm,
+              }}>
+                <Share2 size={13} /> {t('native_share')}
+              </button>
+            )}
+          </div>
+          <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: RADIUS.sm, background: P.surface, border: `1px solid ${P.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Link size={13} color={P.textDim} />
+            <span style={{ fontSize: 11, color: P.textMuted, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{profileUrl}</span>
+          </div>
+        </div>
+
+        {/* Social Links */}
+        <div style={{ ...gct(), padding: '6px 24px', marginBottom: 20 }}>
+          <button onClick={() => { setEditSocials(profile.socials || {}); setSheet('socials') }} style={{ ...sheetRowStyle, border: 'none', background: 'none', width: '100%', borderBottom: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Globe size={16} color={P.teal} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('social_links')}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {profile.socials?.whatsapp && <span style={{ fontSize: 10, color: P.textMuted, fontWeight: 600 }}>WA</span>}
+              {profile.socials?.instagram && <span style={{ fontSize: 10, color: P.textMuted, fontWeight: 600 }}>IG</span>}
+              {profile.socials?.tiktok && <span style={{ fontSize: 10, color: P.textMuted, fontWeight: 600 }}>TT</span>}
+              <ChevronRight size={16} color={P.textDim} />
+            </div>
+          </button>
+        </div>
+
         {/* Settings */}
         <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
           <div style={{ ...sheetRowStyle }}>
@@ -1364,7 +1553,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
         {showAdmin && (
           <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
             <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Crown size={16} color={MUHURI_META.admin.sealColor} /> Verification Admin
+              <Crown size={16} color={MUHURI_META.admin.sealColor} /> {t('verification_admin')}
             </h3>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               <input
@@ -1398,7 +1587,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
               {Object.entries(adminAssignments).map(([user, tier]) => (
                 <div key={user} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: RADIUS.md, background: P.surface, border: `1px solid ${P.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <VerifiedBadge muhuri={tier} size={14} />
+                    <MuhuriBadge type={tier} size={14} />
                     <span style={{ fontSize: 12, fontWeight: 600, color: P.text }}>@{user}</span>
                     <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUHURI_META[tier].color, background: MUHURI_META[tier].color + '12', padding: '2px 7px', borderRadius: RADIUS.full }}>{MUHURI_META[tier].label}</span>
                   </div>
@@ -1463,7 +1652,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
             <div style={{ width: 36, height: 4, borderRadius: 2, background: P.border, margin: '0 auto 20px' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: P.text }}>
-                {sheet === 'edit' ? `${t('edit')} ${t('profile')}` : sheet === 'avatar' ? 'Avatar' : 'Cover'}
+                {sheet === 'edit' ? `${t('edit')} ${t('profile')}` : sheet === 'avatar' ? 'Avatar' : sheet === 'socials' ? t('social_links') : 'Cover'}
               </h3>
               <button onClick={() => setSheet(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textMuted, padding: 4 }}><X size={20} /></button>
             </div>
@@ -1511,7 +1700,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
                   padding: '12px 0', borderRadius: RADIUS.lg, border: `1px solid ${P.border}`,
                   cursor: 'pointer', fontSize: 13, fontWeight: 600, color: P.textMuted,
                 }}>
-                  <Camera size={15} /> Upload photo
+                  <Camera size={15} /> {t('upload_photo')}
                   <input
                     type="file" accept="image/*" style={{ display: 'none' }}
                     onChange={e => {
@@ -1545,6 +1734,34 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
                     style={{ background: 'none', border: 'none', color: P.rose, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%', padding: '12px 0', marginTop: 8 }}
                   ><Trash2 size={13} /> Remove photo</button>
                 )}
+              </div>
+            )}
+
+            {sheet === 'socials' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: P.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('whatsapp_number')}</label>
+                  <input value={editSocials.whatsapp || ''} onChange={e => setEditSocials({ ...editSocials, whatsapp: e.target.value.slice(0, 20) })} placeholder="+255..." style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: P.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('instagram_handle')}</label>
+                  <input value={editSocials.instagram || ''} onChange={e => setEditSocials({ ...editSocials, instagram: e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 30) })} placeholder="username" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: P.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('tiktok_handle')}</label>
+                  <input value={editSocials.tiktok || ''} onChange={e => setEditSocials({ ...editSocials, tiktok: e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 30) })} placeholder="username" style={inputStyle} />
+                </div>
+                <button
+                  onClick={() => {
+                    const cleaned: ProfileSocials = {}
+                    if (editSocials.whatsapp?.trim()) cleaned.whatsapp = editSocials.whatsapp.trim()
+                    if (editSocials.instagram?.trim()) cleaned.instagram = editSocials.instagram.trim()
+                    if (editSocials.tiktok?.trim()) cleaned.tiktok = editSocials.tiktok.trim()
+                    updateField({ socials: Object.keys(cleaned).length > 0 ? cleaned : undefined })
+                    setSheet(null)
+                  }}
+                  style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', fontSize: 14, padding: '12px 0' }}
+                >{t('save')}</button>
               </div>
             )}
 

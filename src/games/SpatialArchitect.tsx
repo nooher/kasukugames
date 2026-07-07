@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Eye, Scissors } from 'lucide-react'
+import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Eye, Scissors, Layers, Puzzle } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxCombo } from '../lib/sfx'
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx'
 
@@ -35,7 +35,7 @@ const GLASS = {
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
 /* ------------------------------------------------------------------ */
-type PuzzleType = 'rotation' | 'mirror' | 'paper_fold'
+type PuzzleType = 'rotation' | 'mirror' | 'paper_fold' | 'cross_section' | 'assembly'
 type Point = [number, number]
 
 interface Shape {
@@ -53,6 +53,14 @@ interface Puzzle {
     foldAxis: 'horizontal' | 'vertical'
     punchPos: Point
   }
+  /** For cross section: layered 3D shape + cut info */
+  crossSectionData?: {
+    layers: Point[][]
+    cutAxis: 'horizontal' | 'vertical'
+    cutIndex: number
+  }
+  /** For assembly: the separate pieces to show */
+  assemblyPieces?: Shape[]
 }
 
 type GamePhase = 'menu' | 'playing' | 'feedback' | 'gameover'
@@ -67,7 +75,8 @@ const POINTS_BASE = 100
 const POINTS_SPEED = 50
 const SPEED_THRESHOLD = 10
 const BLOCK_COLORS = [C.violet, C.teal, C.sapphire, C.emerald, C.amber, C.rose]
-const PUZZLE_TYPES: PuzzleType[] = ['rotation', 'mirror', 'paper_fold']
+const _PUZZLE_TYPES: PuzzleType[] = ['rotation', 'mirror', 'paper_fold', 'cross_section', 'assembly']; void _PUZZLE_TYPES
+const LS_HIGH_SCORE_KEY = 'spatialArchitect_hs'
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -295,13 +304,208 @@ function generatePaperFoldPuzzle(level: number): Puzzle {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  Cross-section puzzle                                              */
+/* ------------------------------------------------------------------ */
+function generateCrossSectionPuzzle(level: number): Puzzle {
+  const layerCount = Math.min(2 + Math.floor(level / 6), 3)
+  const layerSize = Math.min(4 + Math.floor(level / 4), 7)
+  const layers: Point[][] = []
+  const color = pick(BLOCK_COLORS)
+
+  for (let l = 0; l < layerCount; l++) {
+    const layer = generateShape(layerSize)
+    layers.push(layer)
+  }
+
+  const cutAxis: 'horizontal' | 'vertical' = Math.random() > 0.5 ? 'horizontal' : 'vertical'
+  const cutLayerIdx = randInt(0, layerCount - 1)
+  const cutLayer = layers[cutLayerIdx]
+
+  // The cross-section for a horizontal cut at a given layer = that layer's cells
+  // For a vertical cut, we slice through a specific column/row
+  let cutIndex: number
+  let correctCells: Point[]
+
+  if (cutAxis === 'horizontal') {
+    // Horizontal cut = take the entire layer at cutLayerIdx
+    cutIndex = cutLayerIdx
+    correctCells = normalizeShape([...cutLayer])
+  } else {
+    // Vertical cut at a specific x column: collect cells from ALL layers at that x
+    const allXs = new Set<number>()
+    for (const layer of layers) for (const [x] of layer) allXs.add(x)
+    const xArr = Array.from(allXs)
+    cutIndex = pick(xArr)
+    const sliceCells: Point[] = []
+    for (let l = 0; l < layers.length; l++) {
+      for (const [x, y] of layers[l]) {
+        if (x === cutIndex) {
+          sliceCells.push([l, y])
+        }
+      }
+    }
+    if (sliceCells.length === 0) {
+      // Fallback: just use the first layer
+      correctCells = normalizeShape([...layers[0]])
+    } else {
+      correctCells = normalizeShape(sliceCells)
+    }
+  }
+
+  const options: Shape[] = []
+  const correctIndex = randInt(0, 3)
+
+  for (let i = 0; i < 4; i++) {
+    if (i === correctIndex) {
+      options.push({ cells: correctCells, color })
+    } else {
+      const distractor = generateDistractor(correctCells, correctCells)
+      // Make sure distractor is actually different
+      let d = distractor
+      if (shapesEqual(d, correctCells)) {
+        d = generateShape(Math.max(2, correctCells.length - 1))
+        d = normalizeShape(d)
+      }
+      options.push({ cells: d, color })
+    }
+  }
+
+  return {
+    type: 'cross_section',
+    reference: { cells: layers[0], color },
+    options,
+    correctIndex,
+    crossSectionData: { layers, cutAxis, cutIndex },
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Assembly puzzle                                                    */
+/* ------------------------------------------------------------------ */
+function splitShapeIntoPieces(cells: Point[], pieceCount: number): Point[][] {
+  // Assign each cell a piece ID via flood-fill seeded from random starts
+  const n = cells.length
+  if (n < pieceCount) return [cells]
+
+  const assignment = new Array(n).fill(-1)
+  const seeds: number[] = []
+  const usedIndices = new Set<number>()
+
+  for (let p = 0; p < pieceCount; p++) {
+    let idx: number
+    do { idx = randInt(0, n - 1) } while (usedIndices.has(idx))
+    usedIndices.add(idx)
+    seeds.push(idx)
+    assignment[idx] = p
+  }
+
+  // BFS expand each piece
+  const cellMap = new Map<string, number>()
+  cells.forEach((c, i) => cellMap.set(`${c[0]},${c[1]}`, i))
+
+  const queues: number[][] = seeds.map(s => [s])
+  let assigned = pieceCount
+
+  while (assigned < n) {
+    let progressed = false
+    for (let p = 0; p < pieceCount; p++) {
+      const nextQueue: number[] = []
+      for (const qi of queues[p]) {
+        const [cx, cy] = cells[qi]
+        const dirs: Point[] = [[0, -1], [0, 1], [-1, 0], [1, 0]]
+        for (const [dx, dy] of dirs) {
+          const key = `${cx + dx},${cy + dy}`
+          const ni = cellMap.get(key)
+          if (ni !== undefined && assignment[ni] === -1) {
+            assignment[ni] = p
+            nextQueue.push(ni)
+            assigned++
+            progressed = true
+          }
+        }
+      }
+      queues[p] = nextQueue
+    }
+    if (!progressed) {
+      // Assign remaining to last piece
+      for (let i = 0; i < n; i++) {
+        if (assignment[i] === -1) {
+          assignment[i] = pieceCount - 1
+          assigned++
+        }
+      }
+    }
+  }
+
+  const pieces: Point[][] = Array.from({ length: pieceCount }, () => [])
+  for (let i = 0; i < n; i++) {
+    pieces[assignment[i]].push(cells[i])
+  }
+
+  return pieces.filter(p => p.length > 0).map(p => normalizeShape(p))
+}
+
+function generateAssemblyPuzzle(level: number): Puzzle {
+  const size = Math.min(5 + Math.floor(level / 3), 9)
+  const pieceCount = Math.min(2 + Math.floor(level / 5), 3)
+  const targetCells = generateShape(size)
+  const color = pick(BLOCK_COLORS)
+  const pieces = splitShapeIntoPieces(targetCells, pieceCount)
+  const pieceColors = [C.teal, C.amber, C.rose]
+
+  const assemblyPieces: Shape[] = pieces.map((p, i) => ({
+    cells: normalizeShape(p),
+    color: pieceColors[i % pieceColors.length],
+  }))
+
+  const normalTarget = normalizeShape(targetCells)
+  const options: Shape[] = []
+  const correctIndex = randInt(0, 3)
+
+  for (let i = 0; i < 4; i++) {
+    if (i === correctIndex) {
+      options.push({ cells: normalTarget, color })
+    } else {
+      const d = generateDistractor(targetCells, normalTarget)
+      options.push({ cells: d, color })
+    }
+  }
+
+  return {
+    type: 'assembly',
+    reference: { cells: normalTarget, color },
+    options,
+    correctIndex,
+    assemblyPieces,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Progressive puzzle generator                                      */
+/* ------------------------------------------------------------------ */
 function generatePuzzle(level: number): Puzzle {
-  const typeIndex = level % 3
-  const puzzleType = PUZZLE_TYPES[typeIndex]
+  let pool: PuzzleType[]
+
+  if (level <= 3) {
+    pool = ['rotation']
+  } else if (level <= 6) {
+    pool = ['rotation', 'mirror']
+  } else if (level <= 9) {
+    pool = ['rotation', 'mirror', 'paper_fold']
+  } else if (level <= 12) {
+    pool = ['rotation', 'mirror', 'paper_fold', 'cross_section']
+  } else {
+    pool = ['rotation', 'mirror', 'paper_fold', 'cross_section', 'assembly']
+  }
+
+  const puzzleType = pick(pool)
   switch (puzzleType) {
     case 'rotation': return generateRotationPuzzle(level)
     case 'mirror': return generateMirrorPuzzle(level)
     case 'paper_fold': return generatePaperFoldPuzzle(level)
+    case 'cross_section': return generateCrossSectionPuzzle(level)
+    case 'assembly': return generateAssemblyPuzzle(level)
   }
 }
 
@@ -385,10 +589,117 @@ function PaperFoldReference({ cells, color, foldAxis, size = 120 }: {
   )
 }
 
+function CrossSectionReference({ layers, cutAxis, cutIndex, color, size = 140 }: {
+  layers: Point[][]
+  cutAxis: 'horizontal' | 'vertical'
+  cutIndex: number
+  color: string
+  size?: number
+}) {
+  const layerCount = layers.length
+  const offsetY = 6
+  const offsetX = 4
+  const totalH = size + (layerCount - 1) * offsetY
+  const totalW = size + (layerCount - 1) * offsetX
+  const cellSize = size / GRID
+
+  return (
+    <svg width={totalW} height={totalH} viewBox={`0 0 ${totalW} ${totalH}`}>
+      {layers.map((layer, li) => {
+        const lx = li * offsetX
+        const ly = (layerCount - 1 - li) * offsetY
+        const layerOpacity = 0.5 + (li / layerCount) * 0.5
+        return (
+          <g key={li} transform={`translate(${lx}, ${ly})`}>
+            <rect x={0} y={0} width={size} height={size} rx={RADIUS.sm} fill={C.surface} stroke={C.border} strokeWidth={1} opacity={layerOpacity} />
+            {layer.map(([x, y], ci) => (
+              <rect
+                key={ci}
+                x={x * cellSize + 1}
+                y={y * cellSize + 1}
+                width={cellSize - 2}
+                height={cellSize - 2}
+                rx={3}
+                fill={color}
+                opacity={layerOpacity}
+              />
+            ))}
+          </g>
+        )
+      })}
+      {/* Cut line indicator */}
+      {cutAxis === 'horizontal' ? (
+        <line
+          x1={0}
+          y1={(layerCount - 1 - cutIndex) * offsetY + size / 2}
+          x2={totalW}
+          y2={(layerCount - 1 - cutIndex) * offsetY + size / 2}
+          stroke={C.rose}
+          strokeWidth={2.5}
+          strokeDasharray="6,3"
+        />
+      ) : (
+        <line
+          x1={cutIndex * cellSize + cellSize / 2}
+          y1={0}
+          x2={cutIndex * cellSize + cellSize / 2 + (layerCount - 1) * offsetX}
+          y2={totalH}
+          stroke={C.rose}
+          strokeWidth={2.5}
+          strokeDasharray="6,3"
+        />
+      )}
+    </svg>
+  )
+}
+
+function AssemblyReference({ pieces, size = 120 }: {
+  pieces: Shape[]
+  size?: number
+}) {
+  const totalWidth = pieces.length * size + (pieces.length - 1) * 28
+  const cellSize = size / GRID
+
+  return (
+    <svg width={totalWidth} height={size} viewBox={`0 0 ${totalWidth} ${size}`}>
+      {pieces.map((piece, pi) => {
+        const ox = pi * (size + 28)
+        return (
+          <g key={pi}>
+            <rect x={ox} y={0} width={size} height={size} rx={RADIUS.sm} fill={C.surface} stroke={C.border} strokeWidth={1} />
+            {piece.cells.map(([x, y], ci) => (
+              <rect
+                key={ci}
+                x={ox + x * cellSize + 1}
+                y={y * cellSize + 1}
+                width={cellSize - 2}
+                height={cellSize - 2}
+                rx={3}
+                fill={piece.color}
+              />
+            ))}
+            {pi < pieces.length - 1 && (
+              <text
+                x={ox + size + 14}
+                y={size / 2}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill={C.muted}
+                fontSize={20}
+                fontWeight={600}
+              >+</text>
+            )}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 /* ------------------------------------------------------------------ */
 /*  Component                                                         */
 /* ------------------------------------------------------------------ */
-export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
+export default function SpatialArchitect({ onBack, onGameEnd }: { onBack: () => void; onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void }) {
   const [phase, setPhase] = useState<GamePhase>('menu')
   const [level, setLevel] = useState(1)
   const [score, setScore] = useState(0)
@@ -398,7 +709,10 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [feedbackCorrect, setFeedbackCorrect] = useState(false)
-  const [highScore, setHighScore] = useState(0)
+  const [highScore, setHighScore] = useState(() => {
+    try { return Number(localStorage.getItem(LS_HIGH_SCORE_KEY)) || 0 } catch { return 0 }
+  })
+  const [refFlash, setRefFlash] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [particles, setParticles] = useState<Particle[]>([])
@@ -436,9 +750,14 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   const endGame = useCallback(() => {
     sfxGameOver()
     setPhase('gameover')
-    setHighScore(prev => Math.max(prev, score))
+    setHighScore(prev => {
+      const next = Math.max(prev, score)
+      try { localStorage.setItem(LS_HIGH_SCORE_KEY, String(next)) } catch { /* noop */ }
+      return next
+    })
+    onGameEnd?.({ score, accuracy: level > 0 ? Math.max(0, (level - MAX_LIVES) / level) : 0, level })
     if (timerRef.current) clearInterval(timerRef.current)
-  }, [score])
+  }, [score, level, onGameEnd])
 
   // Timer
   useEffect(() => {
@@ -455,8 +774,9 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
             } else {
               setStreak(0)
               setFeedbackCorrect(false)
+              setRefFlash(C.rose)
               setPhase('feedback')
-              setTimeout(() => nextPuzzle(), 1200)
+              setTimeout(() => { setRefFlash(null); nextPuzzle() }, 1200)
             }
             return nl
           })
@@ -491,6 +811,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
 
     if (isCorrect) {
       sfxCorrect()
+      setRefFlash(C.emerald)
       const timeBonus = timer > SPEED_THRESHOLD ? POINTS_SPEED : 0
       const streakMultiplier = 1 + streak * 0.25
       const points = Math.round((POINTS_BASE + timeBonus) * streakMultiplier)
@@ -509,6 +830,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
       })
     } else {
       sfxWrong()
+      setRefFlash(C.rose)
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect()
         const cx = rect.width / 2
@@ -528,7 +850,10 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
 
     setPhase('feedback')
     if (isCorrect || lives > 1) {
-      setTimeout(() => nextPuzzle(), 1200)
+      setTimeout(() => {
+        setRefFlash(null)
+        nextPuzzle()
+      }, 1200)
     }
   }, [phase, selected, puzzle, timer, streak, lives, endGame, nextPuzzle])
 
@@ -716,6 +1041,8 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
       case 'rotation': return 'Mental Rotation'
       case 'mirror': return 'Mirror Image'
       case 'paper_fold': return 'Paper Folding'
+      case 'cross_section': return 'Cross Section'
+      case 'assembly': return 'Assembly'
     }
   }
 
@@ -724,6 +1051,8 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
       case 'rotation': return 'Which option shows this shape rotated?'
       case 'mirror': return 'Which option shows the mirror image?'
       case 'paper_fold': return 'What does the paper look like when unfolded?'
+      case 'cross_section': return 'Which shape results from cutting along the line?'
+      case 'assembly': return 'Which completed shape do these pieces form?'
     }
   }
 
@@ -732,6 +1061,8 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
       case 'rotation': return <RotateCcw size={14} />
       case 'mirror': return <Eye size={14} />
       case 'paper_fold': return <Scissors size={14} />
+      case 'cross_section': return <Layers size={14} />
+      case 'assembly': return <Puzzle size={14} />
     }
   }
 
@@ -763,13 +1094,19 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
             <div style={S.featureChip}>
               <Scissors size={14} color={C.amber} /> Paper Fold
             </div>
+            <div style={S.featureChip}>
+              <Layers size={14} color={C.rose} /> Cross Section
+            </div>
+            <div style={S.featureChip}>
+              <Puzzle size={14} color={C.sapphire} /> Assembly
+            </div>
           </div>
 
           <div style={{ marginTop: 24, marginBottom: 24, padding: '16px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.8 }}>
               <div>{TIMER_SECONDS}s per puzzle &middot; {MAX_LIVES} lives</div>
               <div>Streak multiplier &middot; Speed bonuses</div>
-              <div>Increasing complexity over 12+ levels</div>
+              <div>5 puzzle types unlock over 13+ levels</div>
             </div>
           </div>
 
@@ -858,7 +1195,13 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
 
         {/* Reference shape */}
         <div style={S.refSection}>
-          <div style={{ border: `2px solid ${C.violet}`, borderRadius: RADIUS.md, padding: 8, display: 'inline-block' }}>
+          <div style={{
+            border: `2px solid ${refFlash ?? C.violet}`,
+            borderRadius: RADIUS.md,
+            padding: 8,
+            display: 'inline-block',
+            transition: 'border-color 200ms ease',
+          }}>
             {puzzle.type === 'paper_fold' && puzzle.foldData ? (
               <PaperFoldReference
                 cells={puzzle.reference.cells}
@@ -866,6 +1209,16 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
                 foldAxis={puzzle.foldData.foldAxis}
                 size={140}
               />
+            ) : puzzle.type === 'cross_section' && puzzle.crossSectionData ? (
+              <CrossSectionReference
+                layers={puzzle.crossSectionData.layers}
+                cutAxis={puzzle.crossSectionData.cutAxis}
+                cutIndex={puzzle.crossSectionData.cutIndex}
+                color={puzzle.reference.color}
+                size={140}
+              />
+            ) : puzzle.type === 'assembly' && puzzle.assemblyPieces ? (
+              <AssemblyReference pieces={puzzle.assemblyPieces} size={100} />
             ) : (
               <ShapeGrid cells={puzzle.reference.cells} color={puzzle.reference.color} size={140} />
             )}

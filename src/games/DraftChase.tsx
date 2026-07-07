@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Trophy, Zap, Target, Brain, Calculator, Users, ChevronRight, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Trophy, Zap, Target, Brain, Calculator, Users, ChevronRight, RotateCcw, Type, Timer, Grid3X3, Link } from 'lucide-react';
 import { RADIUS, MOTION, solidBtn, COLOR } from '../lib/design';
 import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCountdown, sfxCountdownGo, sfxScore } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
@@ -41,7 +41,7 @@ type Phase =
   | 'round-result'
   | 'game-over';
 
-type ChallengeType = 'speed-tap' | 'color-match' | 'number-memory' | 'quick-math';
+type ChallengeType = 'speed-tap' | 'color-match' | 'number-memory' | 'quick-math' | 'speed-type' | 'reaction-time' | 'pattern-match' | 'word-chain';
 
 interface RoundResult {
   challenge: ChallengeType;
@@ -60,9 +60,13 @@ const CHALLENGE_INFO: Record<ChallengeType, { name: string; desc: string; icon: 
   'color-match': { name: 'Color Match', desc: 'Tap the word whose INK color is named — Stroop effect!', icon: <Target size={28} /> },
   'number-memory': { name: 'Number Memory', desc: 'Memorize the number sequence, then type it back!', icon: <Brain size={28} /> },
   'quick-math': { name: 'Quick Math', desc: 'Solve arithmetic problems in 10 seconds!', icon: <Calculator size={28} /> },
+  'speed-type': { name: 'Speed Type', desc: 'Type the word as fast and accurately as you can!', icon: <Type size={28} /> },
+  'reaction-time': { name: 'Reaction Time', desc: 'Wait for green, then tap as fast as possible!', icon: <Timer size={28} /> },
+  'pattern-match': { name: 'Pattern Match', desc: 'Memorize the pattern, then reproduce it!', icon: <Grid3X3 size={28} /> },
+  'word-chain': { name: 'Word Chain', desc: 'Type as many words as you can starting with the given letter!', icon: <Link size={28} /> },
 };
 
-const CHALLENGES: ChallengeType[] = ['speed-tap', 'color-match', 'number-memory', 'quick-math'];
+const CHALLENGES: ChallengeType[] = ['speed-tap', 'color-match', 'number-memory', 'quick-math', 'speed-type', 'reaction-time', 'pattern-match', 'word-chain'];
 
 const TRASH_TALK = {
   destroyed: ['DESTROYED!', 'OBLITERATED!', 'NOT EVEN CLOSE!', 'ABSOLUTE CARNAGE!'],
@@ -116,6 +120,73 @@ function generateStroopPrompt(): { word: string; inkColor: { name: string; hex: 
   }
   const options = shuffled.sort(() => Math.random() - 0.5);
   return { word, inkColor, options };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Speed-type data                                                    */
+/* ------------------------------------------------------------------ */
+const SPEED_TYPE_WORDS = [
+  'velocity', 'quantum', 'python', 'rocket', 'galaxy',
+  'phoenix', 'matrix', 'cipher', 'shadow', 'turbo',
+  'blitz', 'prism', 'nexus', 'orbit', 'ember',
+  'swift', 'coral', 'frost', 'spark', 'drift',
+  'lunar', 'solar', 'viper', 'storm', 'blaze',
+  'crystal', 'dragon', 'falcon', 'horizon', 'zenith',
+];
+
+/* ------------------------------------------------------------------ */
+/*  Pattern-match data                                                 */
+/* ------------------------------------------------------------------ */
+function generatePattern(difficulty: number): boolean[] {
+  const cellCount = 9;
+  const highlighted = Math.min(2 + difficulty, 7);
+  const grid = Array(cellCount).fill(false);
+  const indices: number[] = [];
+  while (indices.length < highlighted) {
+    const idx = Math.floor(Math.random() * cellCount);
+    if (!indices.includes(idx)) {
+      indices.push(idx);
+      grid[idx] = true;
+    }
+  }
+  return grid;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Word-chain data                                                    */
+/* ------------------------------------------------------------------ */
+const WORD_CHAIN_LETTERS = 'ABCDEFGHIJKLMNOPRSTW'.split('');
+
+const COMMON_WORDS: Record<string, string[]> = {
+  A: ['ace','act','add','age','ago','aid','aim','air','all','and','ant','any','ape','arc','are','ark','arm','art','ask','ate'],
+  B: ['bad','bag','ban','bar','bat','bay','bed','bee','bet','bid','big','bin','bit','bow','box','boy','bud','bug','bun','bus','but','buy'],
+  C: ['cab','can','cap','car','cat','cop','cow','cry','cub','cup','cut'],
+  D: ['dad','dam','day','den','dew','did','dig','dim','dip','dog','dot','dry','dub','dud','due','dug','dun','duo','dye'],
+  E: ['ear','eat','eel','egg','ego','elm','emu','end','era','eve','ewe','eye'],
+  F: ['fad','fan','far','fat','fax','fed','fee','few','fig','fin','fir','fit','fix','fly','foe','fog','for','fox','fry','fun','fur'],
+  G: ['gag','gal','gap','gas','gem','get','gig','gin','gnu','god','got','gum','gun','gut','guy','gym'],
+  H: ['had','ham','has','hat','hay','hen','her','hew','hex','hid','him','hip','his','hit','hob','hog','hop','hot','how','hub','hue','hug','hum','hut'],
+  I: ['ice','icy','ill','imp','ink','inn','ion','ire','irk','its','ivy'],
+  J: ['jab','jag','jam','jar','jaw','jay','jet','jig','job','jog','jot','joy','jug','jut'],
+  K: ['keg','ken','key','kid','kin','kit'],
+  L: ['lab','lad','lag','lap','law','lay','led','leg','let','lid','lie','lip','lit','log','lot','low','lug'],
+  M: ['mad','man','map','mar','mat','maw','may','men','met','mid','mix','mob','mod','mop','mow','mud','mug','mum'],
+  N: ['nab','nag','nap','net','new','nil','nip','nit','nod','nor','not','now','nub','nun','nut'],
+  O: ['oak','oar','oat','odd','ode','off','oft','ohm','oil','old','one','opt','orb','ore','our','out','owe','owl','own'],
+  P: ['pad','pal','pan','par','pat','paw','pay','pea','peg','pen','per','pet','pie','pig','pin','pit','ply','pod','pop','pot','pow','pro','pry','pub','pug','pun','pup','pus','put'],
+  R: ['rag','ram','ran','rap','rat','raw','ray','red','ref','rib','rid','rig','rim','rip','rob','rod','roe','rot','row','rub','rug','rum','run','rut','rye'],
+  S: ['sac','sad','sag','sap','sat','saw','say','sea','set','sew','shy','sin','sip','sir','sis','sit','six','ski','sky','sly','sob','sod','son','sop','sot','sow','soy','spa','spy','sub','sue','sum','sun','sup'],
+  T: ['tab','tad','tag','tan','tap','tar','tax','tea','ten','the','thy','tie','tin','tip','toe','ton','too','top','tow','toy','try','tub','tug','tun','two'],
+  W: ['wad','wag','war','was','wax','way','web','wed','wet','who','why','wig','win','wit','woe','wok','won','woo','wow'],
+};
+
+function isValidWord(word: string, letter: string): boolean {
+  if (word.length < 3) return false;
+  if (word[0].toUpperCase() !== letter.toUpperCase()) return false;
+  const known = COMMON_WORDS[letter.toUpperCase()];
+  if (known && known.includes(word.toLowerCase())) return true;
+  if (word.length >= 4) return true;
+  return false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -406,9 +477,460 @@ function QuickMathChallenge({ onComplete }: { onComplete: (score: number) => voi
 }
 
 /* ------------------------------------------------------------------ */
+/*  Speed Type challenge                                               */
+/* ------------------------------------------------------------------ */
+function SpeedTypeChallenge({ onComplete }: { onComplete: (score: number) => void }) {
+  const [wordIndex, setWordIndex] = useState(0);
+  const [words] = useState(() => {
+    const shuffled = [...SPEED_TYPE_WORDS].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 5);
+  });
+  const [input, setInput] = useState('');
+  const [totalScore, setTotalScore] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [flash, setFlash] = useState<'correct' | 'wrong' | null>(null);
+  const totalWords = 5;
+
+  const currentWord = words[wordIndex] || '';
+
+  const handleChange = (val: string) => {
+    if (!startTime) setStartTime(Date.now());
+    setInput(val);
+  };
+
+  const handleSubmit = () => {
+    if (!input.trim()) return;
+    const elapsed = startTime ? (Date.now() - startTime) / 1000 : 5;
+    const typed = input.trim().toLowerCase();
+    const target = currentWord.toLowerCase();
+
+    let charCorrect = 0;
+    for (let i = 0; i < Math.min(typed.length, target.length); i++) {
+      if (typed[i] === target[i]) charCorrect++;
+    }
+    const accuracy = target.length > 0 ? charCorrect / target.length : 0;
+    const speedBonus = Math.max(0, Math.round((5 - elapsed) * 2));
+    const accuracyPoints = Math.round(accuracy * 10);
+    const roundScore = accuracyPoints + speedBonus;
+
+    if (accuracy >= 0.8) { sfxCorrect(); } else { sfxWrong(); }
+    setFlash(accuracy >= 0.8 ? 'correct' : 'wrong');
+
+    const newTotal = totalScore + roundScore;
+    setTotalScore(newTotal);
+
+    setTimeout(() => {
+      setFlash(null);
+      if (wordIndex + 1 >= totalWords) {
+        onComplete(newTotal);
+      } else {
+        setWordIndex(w => w + 1);
+        setInput('');
+        setStartTime(null);
+      }
+    }, 400);
+  };
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+        {wordIndex + 1} / {totalWords} | Score: {totalScore}
+      </div>
+      <div style={{
+        fontSize: 40, fontWeight: 600, color: C.text, marginBottom: 24,
+        letterSpacing: 3, fontFamily: 'monospace',
+        textShadow: flash === 'correct' ? `0 0 20px ${COLOR.emerald}60` :
+          flash === 'wrong' ? `0 0 20px ${COLOR.rose}60` : 'none',
+      }}>
+        {currentWord}
+      </div>
+      <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Type it as fast as you can!</div>
+      <input
+        autoFocus
+        type="text"
+        value={input}
+        onChange={e => handleChange(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+        placeholder="Type here..."
+        style={{
+          ...glass(),
+          padding: '14px 20px',
+          fontSize: 24, fontWeight: 600, color: C.text,
+          textAlign: 'center', letterSpacing: 3, fontFamily: 'monospace',
+          width: '100%', maxWidth: 300, outline: 'none',
+          marginBottom: 16,
+        }}
+      />
+      <div>
+        <button onClick={handleSubmit} style={solidBtn(COLOR.sapphire)}>Submit</button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reaction Time challenge                                            */
+/* ------------------------------------------------------------------ */
+function ReactionTimeChallenge({ onComplete }: { onComplete: (score: number) => void }) {
+  const [attempt, setAttempt] = useState(0);
+  const [phase, setPhase] = useState<'wait' | 'ready' | 'go' | 'result' | 'done'>('wait');
+  const [times, setTimes] = useState<number[]>([]);
+  const [goTime, setGoTime] = useState(0);
+  const [lastTime, setLastTime] = useState(0);
+  const [tooEarly, setTooEarly] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const totalAttempts = 3;
+
+  const startAttempt = useCallback(() => {
+    setTooEarly(false);
+    setPhase('ready');
+    const delay = 1000 + Math.random() * 4000;
+    timerRef.current = setTimeout(() => {
+      setGoTime(Date.now());
+      setPhase('go');
+    }, delay);
+  }, []);
+
+  useEffect(() => {
+    startAttempt();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTap = () => {
+    if (phase === 'ready') {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setTooEarly(true);
+      sfxWrong();
+      setTimeout(() => {
+        startAttempt();
+      }, 1000);
+      return;
+    }
+    if (phase === 'go') {
+      const reactionMs = Date.now() - goTime;
+      setLastTime(reactionMs);
+      sfxCorrect();
+      const newTimes = [...times, reactionMs];
+      setTimes(newTimes);
+      setPhase('result');
+      setTimeout(() => {
+        if (newTimes.length >= totalAttempts) {
+          const avgMs = newTimes.reduce((s, t) => s + t, 0) / newTimes.length;
+          const score = Math.max(0, Math.round(1000 / (avgMs / 100)));
+          setPhase('done');
+          setTimeout(() => onComplete(score), 300);
+        } else {
+          setAttempt(a => a + 1);
+        }
+      }, 1200);
+    }
+  };
+
+  const bgColor = phase === 'ready' ? '#991b1b' : phase === 'go' ? '#166534' : C.card;
+  const borderColor = phase === 'ready' ? '#ef4444' : phase === 'go' ? '#22c55e' : C.border;
+
+  if (phase === 'done') {
+    const avgMs = times.reduce((s, t) => s + t, 0) / times.length;
+    return (
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 18, color: C.muted, marginBottom: 8 }}>Average: {Math.round(avgMs)}ms</div>
+        <div style={{ fontSize: 14, color: C.dim }}>Calculating score...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+        Attempt {attempt + 1} / {totalAttempts}
+        {times.length > 0 && ` | Best: ${Math.min(...times)}ms`}
+      </div>
+      {tooEarly && (
+        <div style={{
+          fontSize: 18, fontWeight: 600, color: COLOR.rose, marginBottom: 12,
+        }}>
+          Too early! Wait for green.
+        </div>
+      )}
+      <button
+        onClick={handleTap}
+        style={{
+          background: bgColor,
+          border: `2px solid ${borderColor}`,
+          borderRadius: RADIUS.lg,
+          width: '100%', maxWidth: 300, height: 200,
+          cursor: 'pointer', color: '#fff',
+          fontSize: 22, fontWeight: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: `background 80ms ease, border-color 80ms ease`,
+          margin: '0 auto',
+        }}
+      >
+        {phase === 'wait' && 'Get ready...'}
+        {phase === 'ready' && 'WAIT...'}
+        {phase === 'go' && 'TAP NOW!'}
+        {phase === 'result' && `${lastTime}ms`}
+      </button>
+      {phase === 'result' && (
+        <div style={{ fontSize: 14, color: C.muted, marginTop: 12 }}>
+          {lastTime < 200 ? 'Lightning fast!' : lastTime < 350 ? 'Nice reflexes!' : 'Keep practicing!'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Pattern Match challenge                                            */
+/* ------------------------------------------------------------------ */
+function PatternMatchChallenge({ onComplete }: { onComplete: (score: number) => void }) {
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState(0);
+  const [phase, setPhase] = useState<'show' | 'input' | 'feedback'>('show');
+  const [pattern, setPattern] = useState<boolean[]>(() => generatePattern(0));
+  const [playerPattern, setPlayerPattern] = useState<boolean[]>(Array(9).fill(false));
+  const [flash, setFlash] = useState<'correct' | 'wrong' | null>(null);
+  const totalRounds = 4;
+
+  useEffect(() => {
+    if (phase === 'show') {
+      const showDuration = Math.max(1200, 2500 - round * 300);
+      const timer = setTimeout(() => {
+        setPhase('input');
+        setPlayerPattern(Array(9).fill(false));
+      }, showDuration);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, round]);
+
+  const toggleCell = (idx: number) => {
+    if (phase !== 'input') return;
+    sfxTap();
+    setPlayerPattern(prev => {
+      const next = [...prev];
+      next[idx] = !next[idx];
+      return next;
+    });
+  };
+
+  const handleSubmit = () => {
+    if (phase !== 'input') return;
+    let correct = 0;
+    for (let i = 0; i < 9; i++) {
+      if (playerPattern[i] === pattern[i]) correct++;
+    }
+    const roundScore = Math.round((correct / 9) * 10);
+    const isCorrect = correct === 9;
+
+    if (isCorrect) { sfxCorrect(); } else { sfxWrong(); }
+    setFlash(isCorrect ? 'correct' : 'wrong');
+    setScore(s => s + roundScore);
+
+    setPhase('feedback');
+    setTimeout(() => {
+      setFlash(null);
+      if (round + 1 >= totalRounds) {
+        onComplete(score + roundScore);
+      } else {
+        const nextRound = round + 1;
+        setRound(nextRound);
+        setPattern(generatePattern(nextRound));
+        setPhase('show');
+      }
+    }, 800);
+  };
+
+  const cellSize = 64;
+  const gap = 6;
+
+  const renderGrid = (grid: boolean[], interactive: boolean) => (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(3, ${cellSize}px)`,
+      gap,
+      justifyContent: 'center',
+      margin: '0 auto 20px',
+    }}>
+      {grid.map((on, i) => (
+        <button
+          key={i}
+          onClick={() => interactive && toggleCell(i)}
+          style={{
+            width: cellSize, height: cellSize,
+            borderRadius: RADIUS.sm,
+            border: `2px solid ${on ? COLOR.sapphire : C.border}`,
+            background: on ? COLOR.sapphire : C.card,
+            cursor: interactive ? 'pointer' : 'default',
+            transition: `background ${MOTION.snap}, border-color ${MOTION.snap}`,
+          }}
+        />
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+        Round {round + 1} / {totalRounds} | Score: {score}
+      </div>
+      {phase === 'show' && (
+        <>
+          <div style={{ fontSize: 14, color: COLOR.amber, fontWeight: 600, marginBottom: 12 }}>
+            MEMORIZE THIS PATTERN
+          </div>
+          {renderGrid(pattern, false)}
+        </>
+      )}
+      {phase === 'input' && (
+        <>
+          <div style={{ fontSize: 14, color: C.muted, fontWeight: 600, marginBottom: 12 }}>
+            Reproduce the pattern
+          </div>
+          {renderGrid(playerPattern, true)}
+          <button onClick={handleSubmit} style={solidBtn(COLOR.sapphire)}>Submit</button>
+        </>
+      )}
+      {phase === 'feedback' && (
+        <>
+          <div style={{
+            fontSize: 18, fontWeight: 600, marginBottom: 12,
+            color: flash === 'correct' ? COLOR.emerald : COLOR.rose,
+          }}>
+            {flash === 'correct' ? 'Perfect match!' : 'Not quite!'}
+          </div>
+          {renderGrid(pattern, false)}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Word Chain challenge                                               */
+/* ------------------------------------------------------------------ */
+function WordChainChallenge({ onComplete }: { onComplete: (score: number) => void }) {
+  const [letter] = useState(() => pick(WORD_CHAIN_LETTERS));
+  const [input, setInput] = useState('');
+  const [words, setWords] = useState<string[]>([]);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [started, setStarted] = useState(false);
+  const [flash, setFlash] = useState<'correct' | 'wrong' | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (started && timeLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(t => {
+          if (t <= 1) {
+            clearInterval(intervalRef.current!);
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
+      return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    }
+  }, [started, timeLeft]);
+
+  useEffect(() => {
+    if (started && timeLeft === 0) {
+      const timer = setTimeout(() => onComplete(words.length), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [started, timeLeft, words.length, onComplete]);
+
+  const handleSubmit = () => {
+    const word = input.trim().toLowerCase();
+    if (!word) return;
+
+    if (!started) setStarted(true);
+
+    if (words.includes(word)) {
+      sfxWrong();
+      setFlash('wrong');
+      setTimeout(() => setFlash(null), 300);
+      setInput('');
+      return;
+    }
+
+    if (isValidWord(word, letter)) {
+      sfxCorrect();
+      setWords(prev => [...prev, word]);
+      setFlash('correct');
+    } else {
+      sfxWrong();
+      setFlash('wrong');
+    }
+    setTimeout(() => setFlash(null), 300);
+    setInput('');
+  };
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 14, color: timeLeft <= 3 && started ? COLOR.rose : C.muted, fontWeight: 700, marginBottom: 8 }}>
+        {!started ? 'Type to start!' : `${timeLeft}s`} | Words: {words.length}
+      </div>
+      <div style={{
+        fontSize: 64, fontWeight: 700, color: COLOR.sapphire, marginBottom: 16,
+        textShadow: `0 0 30px ${COLOR.sapphire}40`,
+      }}>
+        {letter}
+      </div>
+      <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+        Words starting with "{letter}" (3+ letters)
+      </div>
+      <input
+        autoFocus
+        type="text"
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+        disabled={started && timeLeft === 0}
+        placeholder={`${letter}...`}
+        style={{
+          ...glass(flash === 'correct' ? COLOR.emerald : flash === 'wrong' ? COLOR.rose : undefined),
+          padding: '14px 20px',
+          fontSize: 22, fontWeight: 600, color: C.text,
+          textAlign: 'center', width: '100%', maxWidth: 300, outline: 'none',
+          marginBottom: 12,
+        }}
+      />
+      <div>
+        <button
+          onClick={handleSubmit}
+          disabled={started && timeLeft === 0}
+          style={{
+            ...solidBtn(COLOR.sapphire),
+            opacity: (started && timeLeft === 0) ? 0.4 : 1,
+          }}
+        >
+          Add Word
+        </button>
+      </div>
+      {words.length > 0 && (
+        <div style={{
+          marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6,
+          justifyContent: 'center', maxHeight: 80, overflowY: 'auto',
+        }}>
+          {words.map((w, i) => (
+            <span key={i} style={{
+              ...glass(COLOR.emerald),
+              padding: '4px 10px', fontSize: 12, color: COLOR.emerald, fontWeight: 600,
+              borderRadius: RADIUS.full,
+            }}>
+              {w}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main game component                                                */
 /* ------------------------------------------------------------------ */
-export default function DraftChase({ onBack }: { onBack: () => void }) {
+export default function DraftChase({ onBack, onGameEnd }: { onBack: () => void; onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void }) {
   const [phase, setPhase] = useState<Phase>('setup');
   const [p1Name, setP1Name] = useState('');
   const [p2Name, setP2Name] = useState('');
@@ -427,7 +949,31 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   const [shakeIntensity, setShakeIntensity] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
-  const totalRounds = 5;
+  const totalRounds = 7;
+
+  /* ---- Comeback + match-point logic ---- */
+  const p1Wins = results.filter(r => (r.winner === 'drafter' && r.drafterName === p1Name) || (r.winner === 'chaser' && r.chaserName === p1Name)).length;
+  const p2Wins = results.filter(r => (r.winner === 'drafter' && r.drafterName === p2Name) || (r.winner === 'chaser' && r.chaserName === p2Name)).length;
+
+  const winsToWin = Math.ceil(totalRounds / 2); // 4 wins needed in best of 7
+  const p1IsMatchPoint = p1Wins === winsToWin - 1;
+  const p2IsMatchPoint = p2Wins === winsToWin - 1;
+  const isMatchPoint = p1IsMatchPoint || p2IsMatchPoint;
+
+  const comebackThreshold = (loserWins: number, leaderWins: number): boolean => {
+    return (loserWins === 0 && leaderWins >= 3) || (loserWins === 1 && leaderWins >= 3);
+  };
+
+  const p1NeedsComeback = comebackThreshold(p1Wins, p2Wins);
+  const p2NeedsComeback = comebackThreshold(p2Wins, p1Wins);
+  const comebackActive = p1NeedsComeback || p2NeedsComeback;
+  const comebackPlayerName = p1NeedsComeback ? p1Name : p2NeedsComeback ? p2Name : null;
+
+  const getComebackMultiplier = (playerName: string): number => {
+    if (p1NeedsComeback && playerName === p1Name) return 1.5;
+    if (p2NeedsComeback && playerName === p2Name) return 1.5;
+    return 1.0;
+  };
 
   useEffect(() => {
     if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.01) return;
@@ -441,10 +987,18 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01]);
 
+  useEffect(() => {
+    if (phase === 'game-over') {
+      const p1Tot = results.reduce((s, r) => s + (r.drafterName === p1Name ? r.draftScore : r.chaseScore), 0);
+      const p2Tot = results.reduce((s, r) => s + (r.drafterName === p2Name ? r.draftScore : r.chaseScore), 0);
+      const p1W = results.filter(r => (r.winner === 'drafter' && r.drafterName === p1Name) || (r.winner === 'chaser' && r.chaserName === p1Name)).length;
+      const p2W = results.filter(r => (r.winner === 'drafter' && r.drafterName === p2Name) || (r.winner === 'chaser' && r.chaserName === p2Name)).length;
+      onGameEnd?.({ score: Math.max(p1Tot, p2Tot), accuracy: totalRounds > 0 ? Math.max(p1W, p2W) / totalRounds : 0, level: 1 });
+    }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const drafterName = isDrafterP1 ? p1Name : p2Name;
   const chaserName = isDrafterP1 ? p2Name : p1Name;
-  const p1Wins = results.filter(r => (r.winner === 'drafter' && r.drafterName === p1Name) || (r.winner === 'chaser' && r.chaserName === p1Name)).length;
-  const p2Wins = results.filter(r => (r.winner === 'drafter' && r.drafterName === p2Name) || (r.winner === 'chaser' && r.chaserName === p2Name)).length;
 
   const startGame = () => {
     if (!p1Name.trim() || !p2Name.trim()) return;
@@ -460,18 +1014,24 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
     setIsChasing(false);
   };
 
+  const applyMultiplier = useCallback((score: number, playerName: string): number => {
+    const mult = getComebackMultiplier(playerName);
+    return Math.round(score * mult);
+  }, [p1NeedsComeback, p2NeedsComeback, p1Name, p2Name]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onDraftComplete = useCallback((score: number) => {
     sfxScore();
-    setDraftScore(score);
+    const finalScore = applyMultiplier(score, drafterName);
+    setDraftScore(finalScore);
     setPhase('draft-result');
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const cx = rect.width / 2;
       const cy = rect.height / 3;
       setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
-      setScorePops(prev => [...prev, createScorePop(cx, cy, score, '#3a86ff')]);
+      setScorePops(prev => [...prev, createScorePop(cx, cy, finalScore, '#3a86ff')]);
     }
-  }, []);
+  }, [applyMultiplier, drafterName]);
 
   const startPassPhone = () => {
     setPassCountdown(3);
@@ -495,15 +1055,16 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   };
 
   const onChaseComplete = useCallback((score: number) => {
-    setChaseScore(score);
+    const finalScore = applyMultiplier(score, chaserName);
+    setChaseScore(finalScore);
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const cx = rect.width / 2;
       const cy = rect.height / 3;
-      if (score > draftScore) {
+      if (finalScore > draftScore) {
         setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
         setScorePops(prev => [...prev, createScorePop(cx, cy, 'WIN!', '#00c97b')]);
-      } else if (score < draftScore) {
+      } else if (finalScore < draftScore) {
         setParticles(prev => [...prev, ...wrongBurst(cx, cy)]);
         setShakeIntensity(3);
       }
@@ -511,24 +1072,27 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
     setShowScoreAnim(true);
     setTimeout(() => {
       setShowScoreAnim(false);
-      const winner: 'drafter' | 'chaser' | 'tie' = score > draftScore ? 'chaser' : score < draftScore ? 'drafter' : 'tie';
+      const winner: 'drafter' | 'chaser' | 'tie' = finalScore > draftScore ? 'chaser' : finalScore < draftScore ? 'drafter' : 'tie';
       const result: RoundResult = {
         challenge: currentChallenge,
         drafterName,
         chaserName,
         draftScore,
-        chaseScore: score,
+        chaseScore: finalScore,
         winner,
       };
       setResults(prev => [...prev, result]);
       setPhase('round-result');
     }, 2000);
     setPhase('chase-result');
-  }, [draftScore, currentChallenge, drafterName, chaserName]);
+  }, [draftScore, currentChallenge, drafterName, chaserName, applyMultiplier]);
 
   const nextRound = () => {
     const next = currentRound + 1;
-    if (next >= totalRounds) {
+    // Check if someone has clinched the match
+    const newP1Wins = results.filter(r => (r.winner === 'drafter' && r.drafterName === p1Name) || (r.winner === 'chaser' && r.chaserName === p1Name)).length;
+    const newP2Wins = results.filter(r => (r.winner === 'drafter' && r.drafterName === p2Name) || (r.winner === 'chaser' && r.chaserName === p2Name)).length;
+    if (next >= totalRounds || newP1Wins >= winsToWin || newP2Wins >= winsToWin) {
       sfxGameOver();
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
@@ -561,6 +1125,43 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   };
 
   /* ---- render helpers ---- */
+
+  const matchPointBanner = isMatchPoint && phase !== 'setup' && phase !== 'game-over' && (
+    <div style={{
+      background: COLOR.rose,
+      color: '#fff',
+      textAlign: 'center',
+      padding: '6px 12px',
+      fontSize: 12,
+      fontWeight: 600,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase' as const,
+      borderRadius: RADIUS.sm,
+      marginBottom: 12,
+      boxShadow: `0 0 20px ${COLOR.rose}50`,
+      animation: 'matchPointPulse 1.5s ease-in-out infinite',
+    }}>
+      MATCH POINT — {p1IsMatchPoint ? p1Name : p2Name}
+    </div>
+  );
+
+  const comebackBanner = comebackActive && !isMatchPoint && phase !== 'setup' && phase !== 'game-over' && (
+    <div style={{
+      background: COLOR.amber,
+      color: '#fff',
+      textAlign: 'center',
+      padding: '6px 12px',
+      fontSize: 12,
+      fontWeight: 600,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase' as const,
+      borderRadius: RADIUS.sm,
+      marginBottom: 12,
+      boxShadow: `0 0 16px ${COLOR.amber}40`,
+    }}>
+      COMEBACK MODE — {comebackPlayerName} gets 1.5x score
+    </div>
+  );
 
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -609,7 +1210,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
       <Users size={40} color={C.accent} style={{ marginBottom: 16 }} />
       <div style={{ fontSize: 24, fontWeight: 600, color: C.text, marginBottom: 8 }}>Draft & Chase</div>
       <div style={{ fontSize: 14, color: C.muted, marginBottom: 28, lineHeight: 1.5 }}>
-        Set a score. Dare them to beat it.<br />Best of 5 rounds wins.
+        Set a score. Dare them to beat it.<br />Best of 7 rounds wins.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 280, margin: '0 auto 24px' }}>
         <input
@@ -681,10 +1282,21 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   const renderPlaying = () => {
     const playerColor = isChasing ? (isDrafterP1 ? C.p2 : C.p1) : (isDrafterP1 ? C.p1 : C.p2);
     const playerName = isChasing ? chaserName : drafterName;
+    const hasComeback = getComebackMultiplier(playerName) > 1;
     return (
       <div style={{ ...glass(), padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: playerColor }}>{playerName}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: playerColor }}>{playerName}</div>
+            {hasComeback && (
+              <span style={{
+                background: COLOR.amber, color: '#fff', fontSize: 10, fontWeight: 600,
+                padding: '2px 6px', borderRadius: RADIUS.full, letterSpacing: '0.04em',
+              }}>
+                1.5x
+              </span>
+            )}
+          </div>
           <div style={{
             fontSize: 11, fontWeight: 700, color: isChasing ? COLOR.rose : C.accent,
             textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -704,6 +1316,10 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         {currentChallenge === 'color-match' && <ColorMatchChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
         {currentChallenge === 'number-memory' && <NumberMemoryChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
         {currentChallenge === 'quick-math' && <QuickMathChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
+        {currentChallenge === 'speed-type' && <SpeedTypeChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
+        {currentChallenge === 'reaction-time' && <ReactionTimeChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
+        {currentChallenge === 'pattern-match' && <PatternMatchChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
+        {currentChallenge === 'word-chain' && <WordChainChallenge onComplete={isChasing ? onChaseComplete : onDraftComplete} />}
       </div>
     );
   };
@@ -734,9 +1350,9 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         width: 80, height: 80, borderRadius: '50%',
         background: (isDrafterP1 ? C.p2 : C.p1) + '20',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        margin: '0 auto 20px', fontSize: 36,
+        margin: '0 auto 20px', fontSize: 36, color: C.muted,
       }}>
-        📱
+        <RotateCcw size={32} />
       </div>
       <div style={{ fontSize: 22, fontWeight: 600, color: C.text, marginBottom: 8 }}>
         Pass the phone to
@@ -823,7 +1439,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
           </div>
         </div>
         <button onClick={nextRound} style={{ ...solidBtn(C.accent), justifyContent: 'center', width: '100%' }}>
-          {currentRound + 1 >= totalRounds ? 'See Final Results' : 'Next Round'} <ChevronRight size={18} />
+          {currentRound + 1 >= totalRounds || p1Wins >= winsToWin || p2Wins >= winsToWin ? 'See Final Results' : 'Next Round'} <ChevronRight size={18} />
         </button>
       </div>
     );
@@ -913,7 +1529,15 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
       position: 'relative', overflow: 'hidden',
       ...screenShakeStyle(shakeIntensity),
     }}>
+      <style>{`
+        @keyframes matchPointPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+      `}</style>
       {header}
+      {matchPointBanner}
+      {comebackBanner}
       {scoreBar}
       {phase === 'setup' && renderSetup()}
       {phase === 'round-intro' && renderRoundIntro()}

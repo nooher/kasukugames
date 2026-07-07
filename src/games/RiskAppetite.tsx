@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   TrendingUp,
@@ -233,11 +233,12 @@ const glassCard = (extra?: React.CSSProperties): React.CSSProperties => ({
 /* ------------------------------------------------------------------ */
 interface Props {
   onBack: () => void;
+  onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void;
 }
 
 type Phase = 'intro' | 'scenario' | 'results';
 
-export default function RiskAppetite({ onBack }: Props) {
+export default function RiskAppetite({ onBack, onGameEnd }: Props) {
   const [phase, setPhase] = useState<Phase>('intro');
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -264,6 +265,28 @@ export default function RiskAppetite({ onBack }: Props) {
       setAnimating(false);
     }, 350);
   }, [idx]);
+
+  /* ---- Report score at results ---- */
+  useEffect(() => {
+    if (phase === 'results' && answers.length >= SCENARIOS.length) {
+      const domainScores: Record<Domain, number[]> = {
+        Investment: [], Health: [], Relationships: [], Career: [],
+      };
+      SCENARIOS.forEach((s, i) => { domainScores[s.domain].push(answers[i]); });
+      const domainAvg = Object.fromEntries(
+        (Object.entries(domainScores) as [Domain, number[]][]).map(([d, scores]) => [
+          d, Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+        ])
+      ) as Record<Domain, number>;
+      const overall = Math.round(Object.values(domainAvg).reduce((a, b) => a + b, 0) / 4);
+      onGameEnd?.({
+        score: overall,
+        accuracy: 1.0,
+        level: 1,
+        maxScore: 100,
+      });
+    }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* -- Results computation -- */
   const results = useMemo(() => {
