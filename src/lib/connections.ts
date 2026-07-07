@@ -132,36 +132,52 @@ export function createInvite(
   return invite
 }
 
-export function generateInviteMessage(_fromName: string, conn: Connection, gameType: string, gameName: string): string {
-  const meta = RELATION_META[conn.relation]
-  const isRomantic = ['husband', 'wife', 'hubby', 'wifey', 'partner', 'bae'].includes(conn.relation)
-  const isSibling = ['brother', 'sister', 'sibling'].includes(conn.relation)
+// What the SENDER is to the RECIPIENT — so we address the recipient from their
+// side (invite your wife → she reads "your husband", not "your wifey").
+const RECIPROCAL: Record<RelationType, RelationType> = {
+  husband: 'wife', hubby: 'wife', wife: 'husband', wifey: 'husband',
+  partner: 'partner', bae: 'bae',
+  friend: 'friend', bestfriend: 'bestfriend', bff: 'bff',
+  brother: 'sibling', sister: 'sibling', sibling: 'sibling',
+  son: 'parent', daughter: 'parent', parent: 'son',
+  classmate: 'classmate', colleague: 'colleague', teammate: 'teammate',
+}
+
+export function generateInviteMessage(fromName: string, conn: Connection, gameType: string, gameName: string): string {
+  const rel = RECIPROCAL[conn.relation] ?? conn.relation
+  const meta = RELATION_META[rel]
+  const name = fromName?.trim()
+  // e.g. "your husband John" (with name) or "your husband"
+  const who = `your ${meta.label.toLowerCase()}${name ? ` ${name}` : ''}`
+  const Who = who.charAt(0).toUpperCase() + who.slice(1)
+  const isRomantic = ['husband', 'wife', 'hubby', 'wifey', 'partner', 'bae'].includes(rel)
+  const isSibling = ['brother', 'sister', 'sibling'].includes(rel)
 
   if (gameType === 'truth-or-dare') {
-    if (isRomantic) return `Your ${meta.label.toLowerCase()} ${meta.pokeVerb}... Truth or Dare? 😏🔥`
-    if (isSibling) return `Your ${meta.label.toLowerCase()} dares you to play Truth or Dare. Think you can handle it? 💪`
-    return `Your ${meta.label.toLowerCase()} wants to play Truth or Dare! In the mood? 🎯`
+    if (isRomantic) return `${Who} ${meta.pokeVerb}... Truth or Dare? 😏🔥`
+    if (isSibling) return `${Who} dares you to play Truth or Dare. Think you can handle it? 💪`
+    return `${Who} wants to play Truth or Dare! In the mood? 🎯`
   }
   if (gameType === 'never-have-i-ever') {
-    if (isRomantic) return `Your ${meta.label.toLowerCase()} started Never Have I Ever... secrets coming out? 👀💕`
-    return `Your ${meta.label.toLowerCase()} started Never Have I Ever. How well do you really know each other? 🤔`
+    if (isRomantic) return `${Who} started Never Have I Ever... secrets coming out? 👀💕`
+    return `${Who} started Never Have I Ever. How well do you really know each other? 🤔`
   }
   if (gameType === 'guess-what') {
-    if (isRomantic) return `Your ${meta.label.toLowerCase()} is testing how well you know them. Guess What? 💭💖`
-    return `Your ${meta.label.toLowerCase()} is testing you — Guess What? Think you know them? 🧠`
+    if (isRomantic) return `${Who} is testing how well you know them. Guess What? 💭💖`
+    return `${Who} is testing you — Guess What? Think you know them? 🧠`
   }
   if (gameType === 'record-broken') {
-    if (isSibling) return `Your ${meta.label.toLowerCase()} just DESTROYED your record in ${gameName}! You taking that? 😤`
-    if (isRomantic) return `Your ${meta.label.toLowerCase()} just broke your ${gameName} record! Rematch time? 💪`
-    return `Your ${meta.label.toLowerCase()} just broke your record in ${gameName}! Can you reclaim it? 🏆`
+    if (isSibling) return `${Who} just DESTROYED your record in ${gameName}! You taking that? 😤`
+    if (isRomantic) return `${Who} just broke your ${gameName} record! Rematch time? 💪`
+    return `${Who} just broke your record in ${gameName}! Can you reclaim it? 🏆`
   }
   if (gameType === 'draft-chase') {
-    if (isRomantic) return `Your ${meta.label.toLowerCase()} ${meta.inviteVerb} you to Draft & Chase. Ready to be caught? 🏃‍♂️💨`
-    return `Your ${meta.label.toLowerCase()} started a Draft & Chase. Can you keep up? ⚡`
+    if (isRomantic) return `${Who} ${meta.inviteVerb} you to Draft & Chase. Ready to be caught? 🏃‍♂️💨`
+    return `${Who} started a Draft & Chase. Can you keep up? ⚡`
   }
-  if (isRomantic) return `Your ${meta.label.toLowerCase()} ${meta.pokeVerb}. In a mood to play ${gameName}? ${meta.emoji}`
-  if (isSibling) return `Your ${meta.label.toLowerCase()} ${meta.pokeVerb} — ${gameName}. You in? ${meta.emoji}`
-  return `Your ${meta.label.toLowerCase()} ${meta.inviteVerb} you to ${gameName}! ${meta.emoji}`
+  if (isRomantic) return `${Who} ${meta.pokeVerb}. In a mood to play ${gameName}? ${meta.emoji}`
+  if (isSibling) return `${Who} ${meta.pokeVerb} — ${gameName}. You in? ${meta.emoji}`
+  return `${Who} ${meta.inviteVerb} you to ${gameName}! ${meta.emoji}`
 }
 
 export function generateWhatsAppInvite(fromName: string, conn: Connection, gameType: string, gameName: string): string {
