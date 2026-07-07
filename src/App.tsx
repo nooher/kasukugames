@@ -15,7 +15,7 @@ import { CATEGORY_META, type GameCategory } from './lib/cognitive'
 import {
   loadProfile, createProfile, updateProfileAfterGame,
   xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
-  MUHURI_META, isVerifiedTier,
+  MUHURI_META, isVerifiedTier, setMuhuri, getAllMuhuriAssignments, isFounderOrAdmin,
   type PlayerProfile, type MuhuriType,
 } from './lib/rewards'
 import {
@@ -533,7 +533,7 @@ export default function App() {
           <Logo size={22} textColor={P.text} mutedColor={P.textMuted} />
           <div>
             <span style={{ fontSize: 12, fontWeight: 600, color: P.textMuted }}>{BRAND.sub}</span>
-            <span style={{ fontSize: 11, color: P.textDim, display: 'block', marginTop: 2 }}>by {BRAND.by}</span>
+            <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: P.textDim, display: 'block', marginTop: 2, textDecoration: 'none' }}>by <span style={{ textDecoration: 'underline', textDecorationColor: P.textDim + '40', textUnderlineOffset: 2 }}>{BRAND.by}</span></a>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -1142,6 +1142,10 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
 }) {
   const earnedBadges = BADGES.filter(b => profile.badges.includes(b.id))
   const unearnedBadges = BADGES.filter(b => !profile.badges.includes(b.id))
+  const [adminUser, setAdminUser] = useState('')
+  const [adminTier, setAdminTier] = useState<MuhuriType>('verified')
+  const [adminAssignments, setAdminAssignments] = useState<Record<string, MuhuriType>>(getAllMuhuriAssignments)
+  const showAdmin = isFounderOrAdmin(profile.muhuri)
   const rankColor = RANK_META[profile.rank].color
 
   return (
@@ -1223,6 +1227,60 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
         </div>
       </div>
 
+      {/* Admin — Muhuri Assignment */}
+      {showAdmin && (
+        <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Crown size={18} color={MUHURI_META.admin.sealColor} /> Verification Admin
+          </h3>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <input
+              value={adminUser}
+              onChange={e => setAdminUser(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              placeholder="username"
+              style={{ flex: 1, padding: '10px 14px', borderRadius: RADIUS.md, border: `1px solid ${P.border}`, background: P.surface, color: P.text, fontSize: 13, fontWeight: 600, outline: 'none' }}
+            />
+            <select
+              value={adminTier}
+              onChange={e => setAdminTier(e.target.value as MuhuriType)}
+              style={{ padding: '10px 14px', borderRadius: RADIUS.md, border: `1px solid ${P.border}`, background: P.surface, color: P.text, fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="verified">Verified</option>
+              <option value="creator">Creator</option>
+              {profile.muhuri === 'founder' && <option value="admin">Admin</option>}
+            </select>
+            <button
+              onClick={() => {
+                if (!adminUser.trim()) return
+                setMuhuri(adminUser.trim(), adminTier)
+                setAdminAssignments(getAllMuhuriAssignments())
+                setAdminUser('')
+              }}
+              style={{ ...premiumBtn(MUHURI_META[adminTier].sealColor), fontSize: 13, padding: '10px 18px', whiteSpace: 'nowrap' }}
+            >
+              <Check size={14} /> Assign
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Object.entries(adminAssignments).map(([user, tier]) => (
+              <div key={user} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: RADIUS.md, background: P.surface, border: `1px solid ${P.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <VerifiedBadge muhuri={tier} size={16} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>@{user}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUHURI_META[tier].color, background: MUHURI_META[tier].color + '12', padding: '2px 8px', borderRadius: RADIUS.full }}>{MUHURI_META[tier].label}</span>
+                </div>
+                {tier !== 'founder' && (
+                  <button
+                    onClick={() => { setMuhuri(user, 'player'); setAdminAssignments(getAllMuhuriAssignments()) }}
+                    style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 4 }}
+                  ><Trash2 size={14} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Teams */}
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={18} color={P.teal} /> {t('teams_friends')}</h3>
@@ -1249,7 +1307,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
       </div>
 
       <div style={{ textAlign: 'center', padding: '20px 0 8px' }}>
-        <span style={{ fontSize: 11, color: P.textDim, fontWeight: 600 }}>Built by Laetoli</span>
+        <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: P.textDim, fontWeight: 600, textDecoration: 'none' }}>Built by <span style={{ textDecoration: 'underline', textDecorationColor: P.textDim + '40', textUnderlineOffset: 2 }}>Laetoli</span></a>
       </div>
 
       <button onClick={() => { localStorage.removeItem('kg_profile'); setProfile(null) }} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textDim, borderRadius: RADIUS.lg, padding: '12px 24px', fontSize: 13, cursor: 'pointer', width: '100%', boxShadow: isDark ? GLASS.highlight : 'none' }}>{t('logout')}</button>

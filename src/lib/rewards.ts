@@ -17,12 +17,46 @@ export const MUHURI_META: Record<MuhuriType, Muhuri> = {
   player:   { type: 'player',   label: 'Player',     color: '#a89a86', sealColor: '#a89a86' },
 }
 
-const KASUKU_MUHURI: Record<string, MuhuriType> = {
+const BUILTIN_MUHURI: Record<string, MuhuriType> = {
   anaim: 'founder',
 }
 
+const MUHURI_STORE_KEY = 'kg_muhuri_assignments'
+
+function loadMuhuriAssignments(): Record<string, MuhuriType> {
+  try { return JSON.parse(localStorage.getItem(MUHURI_STORE_KEY) || '{}') }
+  catch { return {} }
+}
+
+function saveMuhuriAssignments(assignments: Record<string, MuhuriType>) {
+  localStorage.setItem(MUHURI_STORE_KEY, JSON.stringify(assignments))
+}
+
 export function getMuhuri(username: string): MuhuriType {
-  return KASUKU_MUHURI[username.toLowerCase()] || 'player'
+  const key = username.toLowerCase()
+  if (BUILTIN_MUHURI[key]) return BUILTIN_MUHURI[key]
+  const assigned = loadMuhuriAssignments()
+  return assigned[key] || 'player'
+}
+
+export function setMuhuri(username: string, muhuri: MuhuriType) {
+  const key = username.toLowerCase()
+  if (BUILTIN_MUHURI[key]) return
+  const assigned = loadMuhuriAssignments()
+  if (muhuri === 'player') {
+    delete assigned[key]
+  } else {
+    assigned[key] = muhuri
+  }
+  saveMuhuriAssignments(assigned)
+}
+
+export function getAllMuhuriAssignments(): Record<string, MuhuriType> {
+  return { ...BUILTIN_MUHURI, ...loadMuhuriAssignments() }
+}
+
+export function isFounderOrAdmin(muhuri: MuhuriType): boolean {
+  return muhuri === 'founder' || muhuri === 'admin'
 }
 
 export function isVerifiedTier(muhuri: MuhuriType): boolean {
