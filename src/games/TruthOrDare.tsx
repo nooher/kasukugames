@@ -595,9 +595,9 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
         </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
-            Ukweli au Changamoto
+            Truth or Dare
           </h1>
-          <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>Truth or Dare</span>
+          <span style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>Ukweli au Changamoto</span>
         </div>
         {phase !== 'setup' && phase !== 'summary' && (
           <div style={{
@@ -748,7 +748,7 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                   ...solidBtn(C.truth),
                   padding: '4px 12px', fontSize: 11,
                 }}>
-                  <Plus size={14} /> Ongeza
+                  <Plus size={14} /> Add
                 </button>
               )}
             </div>
@@ -767,7 +767,7 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                     ref={i === players.length - 1 ? inputRef : undefined}
                     value={p.name}
                     onChange={e => updateName(i, e.target.value)}
-                    placeholder={`Mchezaji ${i + 1}`}
+                    placeholder={`Player ${i + 1}`}
                     maxLength={16}
                     style={{
                       flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -798,7 +798,7 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
               fontSize: 16, padding: '14px 24px',
               opacity: canStart ? 1 : 0.4,
             }}>
-              <Play size={18} /> Anza Mchezo — Start Game
+              <Play size={18} /> Start Game
             </button>
           </div>
         )}
@@ -936,8 +936,8 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                 }}>
                   <Sparkles size={28} />
                 </div>
-                <span style={{ fontSize: 22, fontWeight: 600, color: C.truth }}>Ukweli</span>
-                <span style={{ fontSize: 12, color: C.muted }}>Truth</span>
+                <span style={{ fontSize: 22, fontWeight: 600, color: C.truth }}>Truth</span>
+                <span style={{ fontSize: 12, color: C.muted }}>Ukweli</span>
               </button>
 
               {/* Dare */}
@@ -971,8 +971,8 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                 }}>
                   <Flame size={28} />
                 </div>
-                <span style={{ fontSize: 22, fontWeight: 600, color: C.dare }}>Changamoto</span>
-                <span style={{ fontSize: 12, color: C.muted }}>Dare</span>
+                <span style={{ fontSize: 22, fontWeight: 600, color: C.dare }}>Dare</span>
+                <span style={{ fontSize: 12, color: C.muted }}>Changamoto</span>
               </button>
             </div>
           </div>
@@ -1049,7 +1049,7 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                     letterSpacing: '0.06em',
                   }}>
                     {choice === 'truth' ? <Sparkles size={12} /> : <Flame size={12} />}
-                    {choice === 'truth' ? 'Ukweli — Truth' : 'Changamoto — Dare'}
+                    {choice === 'truth' ? 'Truth' : 'Dare'}
                   </div>
                   <p style={{
                     margin: 0, fontSize: 18, fontWeight: 600,
@@ -1228,9 +1228,9 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                 }}>
                   <span style={{ fontSize: 24 }}>{truthLover.avatar}</span>
                   <div style={{ fontSize: 10, color: C.truth, fontWeight: 600, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Mpenda Ukweli
+                    Truth Lover
                   </div>
-                  <div style={{ fontSize: 9, color: C.dim }}>Truth Lover</div>
+                  <div style={{ fontSize: 9, color: C.dim }}>Mpenda Ukweli</div>
                   <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{truthLover.name}</div>
                   <div style={{ fontSize: 11, color: C.muted }}>{truthLover.truthCount} truths</div>
                 </div>
@@ -1371,14 +1371,14 @@ export default function TruthOrDare({ onBack, onGameEnd }: { onBack: () => void;
                   boxShadow: C.glass,
                   transition: `all ${MOTION.fast}`,
                 }}>
-                  <ArrowLeft size={16} /> Nyumbani — Home
+                  <ArrowLeft size={16} /> Home
                 </button>
                 <button onClick={resetGame} style={{
                   ...solidBtn(modeColor),
                   flex: 1, justifyContent: 'center',
                   padding: '14px 20px', fontSize: 14,
                 }}>
-                  <RotateCcw size={16} /> Cheza Tena — Replay
+                  <RotateCcw size={16} /> Play Again
                 </button>
               </div>
             </div>

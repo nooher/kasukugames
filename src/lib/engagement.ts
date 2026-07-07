@@ -25,26 +25,26 @@ export const LOGIN_REWARD_SCHEDULE = [
 ]
 
 export const MILESTONES = [
-  { id: 'games_10', label: '10 Michezo', threshold: 10, tokens: 50, check: (s: any) => s.totalGames >= 10 },
-  { id: 'games_50', label: '50 Michezo', threshold: 50, tokens: 150, check: (s: any) => s.totalGames >= 50 },
-  { id: 'games_100', label: '100 Michezo', threshold: 100, tokens: 300, check: (s: any) => s.totalGames >= 100 },
-  { id: 'games_500', label: '500 Michezo', threshold: 500, tokens: 1000, check: (s: any) => s.totalGames >= 500 },
-  { id: 'streak_7', label: 'Wiki Moja Mfululizo', threshold: 7, tokens: 100, check: (s: any) => s.streakDays >= 7 },
-  { id: 'streak_30', label: 'Mwezi Mmoja Mfululizo', threshold: 30, tokens: 500, check: (s: any) => s.streakDays >= 30 },
-  { id: 'level_5', label: 'Kiwango 5', threshold: 5, tokens: 50, check: (s: any) => s.level >= 5 },
-  { id: 'level_10', label: 'Kiwango 10', threshold: 10, tokens: 150, check: (s: any) => s.level >= 10 },
-  { id: 'level_25', label: 'Kiwango 25', threshold: 25, tokens: 500, check: (s: any) => s.level >= 25 },
+  { id: 'games_10', label: '10 Games', threshold: 10, tokens: 50, check: (s: any) => s.totalGames >= 10 },
+  { id: 'games_50', label: '50 Games', threshold: 50, tokens: 150, check: (s: any) => s.totalGames >= 50 },
+  { id: 'games_100', label: '100 Games', threshold: 100, tokens: 300, check: (s: any) => s.totalGames >= 100 },
+  { id: 'games_500', label: '500 Games', threshold: 500, tokens: 1000, check: (s: any) => s.totalGames >= 500 },
+  { id: 'streak_7', label: 'One Week Streak', threshold: 7, tokens: 100, check: (s: any) => s.streakDays >= 7 },
+  { id: 'streak_30', label: 'One Month Streak', threshold: 30, tokens: 500, check: (s: any) => s.streakDays >= 30 },
+  { id: 'level_5', label: 'Level 5', threshold: 5, tokens: 50, check: (s: any) => s.level >= 5 },
+  { id: 'level_10', label: 'Level 10', threshold: 10, tokens: 150, check: (s: any) => s.level >= 10 },
+  { id: 'level_25', label: 'Level 25', threshold: 25, tokens: 500, check: (s: any) => s.level >= 25 },
   { id: 'xp_10k', label: '10,000 XP', threshold: 10000, tokens: 200, check: (s: any) => s.xp >= 10000 },
   { id: 'xp_100k', label: '100,000 XP', threshold: 100000, tokens: 1000, check: (s: any) => s.xp >= 100000 },
 ]
 
 export const LUCKY_DRAW_PRIZES = [
-  { tokens: 5, weight: 40, label: '5 Sarafu' },
-  { tokens: 10, weight: 25, label: '10 Sarafu' },
-  { tokens: 25, weight: 15, label: '25 Sarafu' },
-  { tokens: 50, weight: 10, label: '50 Sarafu' },
-  { tokens: 100, weight: 7, label: '100 Sarafu!' },
-  { tokens: 500, weight: 2, label: '500 Sarafu!!' },
+  { tokens: 5, weight: 40, label: '5 Tokens' },
+  { tokens: 10, weight: 25, label: '10 Tokens' },
+  { tokens: 25, weight: 15, label: '25 Tokens' },
+  { tokens: 50, weight: 10, label: '50 Tokens' },
+  { tokens: 100, weight: 7, label: '100 Tokens!' },
+  { tokens: 500, weight: 2, label: '500 Tokens!!' },
   { tokens: 1000, weight: 1, label: 'JACKPOT 1000!!!' },
 ]
 

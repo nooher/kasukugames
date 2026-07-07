@@ -143,22 +143,22 @@ export interface Badge {
 }
 
 export const BADGES: Badge[] = [
-  { id: 'first-game', name: 'Mwanzo', description: 'Complete your first game', icon: 'play', color: PALETTE.emerald, requirement: 'Play 1 game', rarity: 'common' },
-  { id: 'streak-7', name: 'Msimamo', description: '7-day streak', icon: 'flame', color: PALETTE.amber, requirement: '7 consecutive days', rarity: 'common' },
-  { id: 'streak-30', name: 'Nguvu', description: '30-day streak', icon: 'flame', color: PALETTE.rose, requirement: '30 consecutive days', rarity: 'rare' },
-  { id: 'streak-100', name: 'Hadithi', description: '100-day streak', icon: 'flame', color: PALETTE.violet, requirement: '100 consecutive days', rarity: 'legendary' },
-  { id: 'all-categories', name: 'Msomi', description: 'Play every category', icon: 'grid', color: PALETTE.sapphire, requirement: 'Play all 8 categories', rarity: 'rare' },
-  { id: 'perfect-score', name: 'Ukamilifu', description: 'Perfect score in any game', icon: 'star', color: PALETTE.gold, requirement: '100% accuracy', rarity: 'epic' },
-  { id: 'speed-demon', name: 'Haraka', description: 'Top 1% processing speed', icon: 'zap', color: PALETTE.amber, requirement: 'Elite speed ranking', rarity: 'epic' },
-  { id: 'memory-king', name: 'Kumbukumbu', description: 'Level 10 in Memory Marathon', icon: 'brain', color: PALETTE.violet, requirement: 'Memory Marathon level 10', rarity: 'epic' },
-  { id: 'team-founder', name: 'Kiongozi', description: 'Found a team', icon: 'users', color: PALETTE.teal, requirement: 'Create a team', rarity: 'common' },
-  { id: 'couple-sync', name: 'Pamoja', description: 'Complete 10 couple challenges', icon: 'heart', color: PALETTE.rose, requirement: '10 couple challenges', rarity: 'rare' },
-  { id: 'social-butterfly', name: 'Rafiki', description: '10 friends added', icon: 'users', color: PALETTE.fuchsia, requirement: '10 friends', rarity: 'common' },
-  { id: 'games-50', name: 'Mchezaji', description: 'Play 50 games', icon: 'gamepad', color: PALETTE.emerald, requirement: '50 total games', rarity: 'common' },
-  { id: 'games-500', name: 'Bingwa', description: 'Play 500 games', icon: 'trophy', color: PALETTE.gold, requirement: '500 total games', rarity: 'epic' },
-  { id: 'top-10', name: 'Mfalme', description: 'Reach top 10 global', icon: 'crown', color: PALETTE.rose, requirement: 'Global top 10', rarity: 'legendary' },
-  { id: 'night-owl', name: 'Bundi', description: 'Play at midnight', icon: 'moon', color: PALETTE.violet, requirement: 'Play between 00:00-04:00', rarity: 'rare' },
-  { id: 'moral-explorer', name: 'Hekima', description: 'Complete Moral Dilemmas', icon: 'scale', color: PALETTE.teal, requirement: 'Finish all dilemmas', rarity: 'rare' },
+  { id: 'first-game', name: 'First Steps', description: 'Complete your first game', icon: 'play', color: PALETTE.emerald, requirement: 'Play 1 game', rarity: 'common' },
+  { id: 'streak-7', name: 'Consistent', description: '7-day streak', icon: 'flame', color: PALETTE.amber, requirement: '7 consecutive days', rarity: 'common' },
+  { id: 'streak-30', name: 'Powerhouse', description: '30-day streak', icon: 'flame', color: PALETTE.rose, requirement: '30 consecutive days', rarity: 'rare' },
+  { id: 'streak-100', name: 'Living Legend', description: '100-day streak', icon: 'flame', color: PALETTE.violet, requirement: '100 consecutive days', rarity: 'legendary' },
+  { id: 'all-categories', name: 'Scholar', description: 'Play every category', icon: 'grid', color: PALETTE.sapphire, requirement: 'Play all 8 categories', rarity: 'rare' },
+  { id: 'perfect-score', name: 'Perfectionist', description: 'Perfect score in any game', icon: 'star', color: PALETTE.gold, requirement: '100% accuracy', rarity: 'epic' },
+  { id: 'speed-demon', name: 'Speed Demon', description: 'Top 1% processing speed', icon: 'zap', color: PALETTE.amber, requirement: 'Elite speed ranking', rarity: 'epic' },
+  { id: 'memory-king', name: 'Memory King', description: 'Level 10 in Memory Marathon', icon: 'brain', color: PALETTE.violet, requirement: 'Memory Marathon level 10', rarity: 'epic' },
+  { id: 'team-founder', name: 'Founder', description: 'Found a team', icon: 'users', color: PALETTE.teal, requirement: 'Create a team', rarity: 'common' },
+  { id: 'couple-sync', name: 'In Sync', description: 'Complete 10 couple challenges', icon: 'heart', color: PALETTE.rose, requirement: '10 couple challenges', rarity: 'rare' },
+  { id: 'social-butterfly', name: 'Social Butterfly', description: '10 friends added', icon: 'users', color: PALETTE.fuchsia, requirement: '10 friends', rarity: 'common' },
+  { id: 'games-50', name: 'Gamer', description: 'Play 50 games', icon: 'gamepad', color: PALETTE.emerald, requirement: '50 total games', rarity: 'common' },
+  { id: 'games-500', name: 'Champion', description: 'Play 500 games', icon: 'trophy', color: PALETTE.gold, requirement: '500 total games', rarity: 'epic' },
+  { id: 'top-10', name: 'Legend', description: 'Reach top 10 global', icon: 'crown', color: PALETTE.rose, requirement: 'Global top 10', rarity: 'legendary' },
+  { id: 'night-owl', name: 'Night Owl', description: 'Play at midnight', icon: 'moon', color: PALETTE.violet, requirement: 'Play between 00:00-04:00', rarity: 'rare' },
+  { id: 'moral-explorer', name: 'Sage', description: 'Complete Moral Dilemmas', icon: 'scale', color: PALETTE.teal, requirement: 'Finish all dilemmas', rarity: 'rare' },
 ]
 
 export interface DailyChallenge {
@@ -174,15 +174,15 @@ export interface DailyChallenge {
 export function generateDailyChallenges(day: number): DailyChallenge[] {
   const pool: DailyChallenge[] = [
     { id: 'dc-matrix', title: 'Matrix Master', description: 'Score 500+ in Matrix Forge', gameId: 'matrix-forge', target: 500, xpReward: 150, type: 'score' },
-    { id: 'dc-speed', title: 'Haraka Sana', description: 'Complete Split Decision with 90%+ accuracy', gameId: 'split-decision', target: 90, xpReward: 200, type: 'accuracy' },
-    { id: 'dc-memory', title: 'Kumbuka', description: 'Reach level 4 in Memory Marathon', gameId: 'memory-marathon', target: 4, xpReward: 175, type: 'score' },
-    { id: 'dc-words', title: 'Maneno', description: 'Forge 15 words in Word Forge', gameId: 'word-forge', target: 15, xpReward: 150, type: 'score' },
-    { id: 'dc-focus', title: 'Umakini', description: 'Build 8 floors in Focus Tower', gameId: 'focus-tower', target: 8, xpReward: 250, type: 'score' },
-    { id: 'dc-triage', title: 'Dharura', description: 'Score 300+ in Cognitive Overload', gameId: 'cognitive-overload', target: 300, xpReward: 200, type: 'score' },
-    { id: 'dc-pattern', title: 'Mtafiti', description: 'Find 5 patterns in Pattern Hunter', gameId: 'pattern-hunter', target: 5, xpReward: 175, type: 'score' },
-    { id: 'dc-signal', title: 'Ishara', description: 'Clear 4 rounds in Signal vs Noise', gameId: 'signal-noise', target: 4, xpReward: 150, type: 'score' },
-    { id: 'dc-3games', title: 'Tatu', description: 'Play any 3 different games', gameId: '*', target: 3, xpReward: 100, type: 'games' },
-    { id: 'dc-sequence', title: 'Mfuatano', description: 'Score 400+ in Sequence Collapse', gameId: 'sequence-collapse', target: 400, xpReward: 175, type: 'score' },
+    { id: 'dc-speed', title: 'Lightning Fast', description: 'Complete Split Decision with 90%+ accuracy', gameId: 'split-decision', target: 90, xpReward: 200, type: 'accuracy' },
+    { id: 'dc-memory', title: 'Total Recall', description: 'Reach level 4 in Memory Marathon', gameId: 'memory-marathon', target: 4, xpReward: 175, type: 'score' },
+    { id: 'dc-words', title: 'Wordsmith', description: 'Forge 15 words in Word Forge', gameId: 'word-forge', target: 15, xpReward: 150, type: 'score' },
+    { id: 'dc-focus', title: 'Deep Focus', description: 'Build 8 floors in Focus Tower', gameId: 'focus-tower', target: 8, xpReward: 250, type: 'score' },
+    { id: 'dc-triage', title: 'Triage', description: 'Score 300+ in Cognitive Overload', gameId: 'cognitive-overload', target: 300, xpReward: 200, type: 'score' },
+    { id: 'dc-pattern', title: 'Investigator', description: 'Find 5 patterns in Pattern Hunter', gameId: 'pattern-hunter', target: 5, xpReward: 175, type: 'score' },
+    { id: 'dc-signal', title: 'Signal Hunter', description: 'Clear 4 rounds in Signal vs Noise', gameId: 'signal-noise', target: 4, xpReward: 150, type: 'score' },
+    { id: 'dc-3games', title: 'Triple Play', description: 'Play any 3 different games', gameId: '*', target: 3, xpReward: 100, type: 'games' },
+    { id: 'dc-sequence', title: 'Sequence', description: 'Score 400+ in Sequence Collapse', gameId: 'sequence-collapse', target: 400, xpReward: 175, type: 'score' },
   ]
   const seed = day % pool.length
   return [pool[seed], pool[(seed + 3) % pool.length], pool[(seed + 7) % pool.length]]

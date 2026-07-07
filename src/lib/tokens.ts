@@ -28,14 +28,14 @@ export interface ShopItem {
 }
 
 export const SHOP: ShopItem[] = [
-  { id: 'streak-shield', name: 'Kinga ya Mfuatano', description: 'Protect your streak for 1 day if you miss', price: 50, category: 'streak', icon: 'shield', color: PALETTE.amber, oneTime: false },
+  { id: 'streak-shield', name: 'Streak Shield', description: 'Protect your streak for 1 day if you miss', price: 50, category: 'streak', icon: 'shield', color: PALETTE.amber, oneTime: false },
   { id: 'double-xp', name: '2x XP Boost', description: 'Double XP for 1 hour', price: 80, category: 'boost', icon: 'zap', color: PALETTE.gold, oneTime: false },
-  { id: 'extra-life', name: 'Maisha ya Ziada', description: 'Extra life in any game', price: 30, category: 'powerup', icon: 'heart', color: PALETTE.rose, oneTime: false },
-  { id: 'time-freeze', name: 'Simamisha Muda', description: 'Freeze timer for 5 seconds', price: 40, category: 'powerup', icon: 'clock', color: PALETTE.teal, oneTime: false },
-  { id: 'hint', name: 'Dokezo', description: 'Get a hint in puzzle games', price: 20, category: 'powerup', icon: 'lightbulb', color: PALETTE.violet, oneTime: false },
-  { id: 'avatar-fire', name: 'Avatar: Moto', description: '🔥 Fire avatar', price: 200, category: 'avatar', icon: 'flame', color: PALETTE.orange, oneTime: true },
-  { id: 'avatar-diamond', name: 'Avatar: Almasi', description: '💎 Diamond avatar', price: 500, category: 'avatar', icon: 'gem', color: PALETTE.cyan, oneTime: true },
-  { id: 'avatar-crown', name: 'Avatar: Taji', description: '👑 Crown avatar', price: 1000, category: 'avatar', icon: 'crown', color: PALETTE.gold, oneTime: true },
+  { id: 'extra-life', name: 'Extra Life', description: 'Extra life in any game', price: 30, category: 'powerup', icon: 'heart', color: PALETTE.rose, oneTime: false },
+  { id: 'time-freeze', name: 'Time Freeze', description: 'Freeze timer for 5 seconds', price: 40, category: 'powerup', icon: 'clock', color: PALETTE.teal, oneTime: false },
+  { id: 'hint', name: 'Hint', description: 'Get a hint in puzzle games', price: 20, category: 'powerup', icon: 'lightbulb', color: PALETTE.violet, oneTime: false },
+  { id: 'avatar-fire', name: 'Avatar: Fire', description: '🔥 Fire avatar', price: 200, category: 'avatar', icon: 'flame', color: PALETTE.orange, oneTime: true },
+  { id: 'avatar-diamond', name: 'Avatar: Diamond', description: '💎 Diamond avatar', price: 500, category: 'avatar', icon: 'gem', color: PALETTE.cyan, oneTime: true },
+  { id: 'avatar-crown', name: 'Avatar: Crown', description: '👑 Crown avatar', price: 1000, category: 'avatar', icon: 'crown', color: PALETTE.gold, oneTime: true },
   { id: 'card-glow', name: 'Card Glow', description: 'Your name glows on leaderboard', price: 300, category: 'cosmetic', icon: 'sparkles', color: PALETTE.fuchsia, oneTime: true },
   { id: 'team-banner', name: 'Team Banner', description: 'Custom team banner color', price: 400, category: 'cosmetic', icon: 'flag', color: PALETTE.sapphire, oneTime: true },
 ]

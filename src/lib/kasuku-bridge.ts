@@ -28,28 +28,28 @@ function userEmail(handle: string) { return `${handle}@users.kasuku.app` }
 function cleanHandle(u: string) { return u.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') }
 
 export async function signInWithKasuku(username: string, password: string): Promise<{ profile: KasukuProfile | null; error?: string }> {
-  if (!supabase) return { profile: null, error: 'Mtandao haujawashwa.' }
+  if (!supabase) return { profile: null, error: 'Network unavailable.' }
   const handle = cleanHandle(username)
   const { data, error } = await supabase.auth.signInWithPassword({
     email: userEmail(handle), password,
   })
-  if (error) return { profile: null, error: /invalid|credentials/i.test(error.message) ? 'Jina la mtumiaji au nenosiri si sahihi.' : error.message }
-  if (!data.user) return { profile: null, error: 'Imeshindwa kuingia.' }
+  if (error) return { profile: null, error: /invalid|credentials/i.test(error.message) ? 'Incorrect username or password.' : error.message }
+  if (!data.user) return { profile: null, error: 'Sign-in failed.' }
   const profile = await fetchKasukuProfile(handle)
   return { profile }
 }
 
 export async function signUpWithKasuku(username: string, password: string, name: string): Promise<{ profile: KasukuProfile | null; error?: string }> {
-  if (!supabase) return { profile: null, error: 'Mtandao haujawashwa.' }
+  if (!supabase) return { profile: null, error: 'Network unavailable.' }
   const handle = cleanHandle(username)
-  if (handle.length < 3) return { profile: null, error: 'Jina la mtumiaji liwe na herufi 3+.' }
-  if (password.length < 6) return { profile: null, error: 'Nenosiri liwe na herufi 6 au zaidi.' }
+  if (handle.length < 3) return { profile: null, error: 'Username must be at least 3 characters.' }
+  if (password.length < 6) return { profile: null, error: 'Password must be at least 6 characters.' }
   const { data, error } = await supabase.auth.signUp({
     email: userEmail(handle), password,
     options: { data: { name: name.trim() || handle, handle } },
   })
-  if (error) return { profile: null, error: /registered|already|exists/i.test(error.message) ? 'Jina la mtumiaji limetumika.' : error.message }
-  if (!data.session) return { profile: null, error: 'Imeshindwa kuingia.' }
+  if (error) return { profile: null, error: /registered|already|exists/i.test(error.message) ? 'That username is taken.' : error.message }
+  if (!data.session) return { profile: null, error: 'Sign-in failed.' }
   await supabase.from('profiles').update({ handle, name: name.trim() || handle }).eq('id', data.user!.id)
   const profile = await fetchKasukuProfile(handle)
   return { profile }

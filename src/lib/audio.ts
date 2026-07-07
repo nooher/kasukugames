@@ -47,7 +47,7 @@ export const BUILT_IN_TRACKS: AudioTrack[] = [
   { id: 'nat_fire', title: 'Fireplace', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/fire.mp3', cors: true },
   { id: 'sb_tibetan_r', title: 'Tibetan Bowl', artist: 'Sound Bath', category: 'soundbath', src: '/sounds/bowl.mp3', cors: true },
   { id: 'sb_handpan', title: 'Handpan', artist: 'Sound Bath', category: 'soundbath', src: '/sounds/handpan.mp3', cors: true },
-  { id: 'sb_kalobela', title: 'Kalobela', artist: 'Sound Bath', category: 'soundbath', src: '/sounds/kalobela.mp3', cors: true },
+  { id: 'nat_kalobela', title: 'Kalobela Beach', artist: 'Nature · Bukoba (Public Domain)', category: 'ambient', src: '/sounds/kalobela.mp3', cors: true },
   // ── Generative ambience engine (offline, no network) ──
   { id: 'rain', title: 'Night Rain', artist: 'Ambient Engine', category: 'ambient' },
   { id: 'tibetan', title: 'Tibetan Bowls (Engine)', artist: 'Sound Bath Engine', category: 'soundbath' },

@@ -505,9 +505,6 @@ export default function SpinTheBottle({ onBack, onGameEnd }: {
                     }}
                   >
                     <div style={{ fontWeight: 600, fontSize: 15 }}>{meta.label}</div>
-                    <div style={{ fontSize: 11, color: active ? meta.color : C.muted, marginTop: 2 }}>
-                      {meta.swLabel}
-                    </div>
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>{meta.desc}</div>
                   </button>
                 );
@@ -568,7 +565,7 @@ export default function SpinTheBottle({ onBack, onGameEnd }: {
                   transition: `all ${MOTION.fast}`,
                 }}
               >
-                + Add Player / Ongeza Mchezaji
+                + Add Player
               </button>
             )}
           </div>
@@ -634,7 +631,7 @@ export default function SpinTheBottle({ onBack, onGameEnd }: {
               transition: `all ${MOTION.fast}`,
             }}
           >
-            Anza Mchezo -- Start Game
+            Start Game
           </button>
         </div>
       </div>
@@ -883,7 +880,7 @@ export default function SpinTheBottle({ onBack, onGameEnd }: {
         {awards.length > 0 && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.muted, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Awards / Tuzo
+              Awards
             </div>
             {awards.map((award, i) => {
               const globalIdx = players.findIndex(p => p.name === award.player.name);
@@ -969,7 +966,7 @@ export default function SpinTheBottle({ onBack, onGameEnd }: {
               fontSize: 15, fontWeight: 600, border: 'none', cursor: 'pointer',
             }}
           >
-            Play Again / Cheza Tena
+            Play Again
           </button>
           <button
             onClick={onBack}
@@ -979,7 +976,7 @@ export default function SpinTheBottle({ onBack, onGameEnd }: {
               background: C.card, color: C.muted, cursor: 'pointer',
             }}
           >
-            Nyumbani -- Home
+            Home
           </button>
         </div>
       </div>

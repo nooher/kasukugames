@@ -191,7 +191,7 @@ export const GAMES: GameDef[] = [
   {
     id: 'truth-or-dare',
     title: 'Truth or Dare',
-    subtitle: 'Ukweli au Changamoto',
+    subtitle: 'Spicy party dares',
     category: 'party',
     targets: ['social-intelligence', 'emotional-intelligence', 'creativity'],
     difficulty: 'beginner',
@@ -202,7 +202,7 @@ export const GAMES: GameDef[] = [
   {
     id: 'never-have-i-ever',
     title: 'Never Have I Ever',
-    subtitle: 'Sijawahi',
+    subtitle: 'Reveal your secrets',
     category: 'party',
     targets: ['social-intelligence', 'theory-of-mind', 'emotional-intelligence'],
     difficulty: 'beginner',
@@ -213,7 +213,7 @@ export const GAMES: GameDef[] = [
   {
     id: 'guess-what',
     title: 'Guess What',
-    subtitle: 'Nadhani Nini',
+    subtitle: 'How well do you know them?',
     category: 'party',
     targets: ['theory-of-mind', 'social-intelligence', 'emotional-intelligence'],
     difficulty: 'beginner',
@@ -224,7 +224,7 @@ export const GAMES: GameDef[] = [
   {
     id: 'draft-chase',
     title: 'Draft & Chase',
-    subtitle: 'Fukuza',
+    subtitle: 'Beat their score',
     category: 'party',
     targets: ['processing-speed', 'working-memory', 'decision-making'],
     difficulty: 'intermediate',

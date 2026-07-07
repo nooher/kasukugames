@@ -32,29 +32,29 @@ interface Space {
 
 // Rent arrays: [base, 1 house, 2, 3, 4, hotel]
 const BOARD: Space[] = [
-  { i: 0, type: 'go', name: 'ANZA' },
+  { i: 0, type: 'go', name: 'GO' },
   { i: 1, type: 'prop', name: 'Kariakoo', group: 'brown', price: 60, rent: [2, 10, 30, 90, 160, 250], house: 50 },
-  { i: 2, type: 'chest', name: 'Sanduku' },
+  { i: 2, type: 'chest', name: 'Chest' },
   { i: 3, type: 'prop', name: 'Ilala', group: 'brown', price: 60, rent: [4, 20, 60, 180, 320, 450], house: 50 },
-  { i: 4, type: 'tax', name: 'Kodi ya Mapato', tax: 200 },
-  { i: 5, type: 'rail', name: 'Reli ya Kati', price: 200 },
+  { i: 4, type: 'tax', name: 'Income Tax', tax: 200 },
+  { i: 5, type: 'rail', name: 'Central Line', price: 200 },
   { i: 6, type: 'prop', name: 'Kinondoni', group: 'lblue', price: 100, rent: [6, 30, 90, 270, 400, 550], house: 50 },
-  { i: 7, type: 'chance', name: 'Bahati' },
+  { i: 7, type: 'chance', name: 'Chance' },
   { i: 8, type: 'prop', name: 'Magomeni', group: 'lblue', price: 100, rent: [6, 30, 90, 270, 400, 550], house: 50 },
   { i: 9, type: 'prop', name: 'Ubungo', group: 'lblue', price: 120, rent: [8, 40, 100, 300, 450, 600], house: 50 },
-  { i: 10, type: 'jail', name: 'JELA' },
+  { i: 10, type: 'jail', name: 'JAIL' },
   { i: 11, type: 'prop', name: 'Temeke', group: 'pink', price: 140, rent: [10, 50, 150, 450, 625, 750], house: 100 },
   { i: 12, type: 'util', name: 'TANESCO', price: 150 },
   { i: 13, type: 'prop', name: 'Mbagala', group: 'pink', price: 140, rent: [10, 50, 150, 450, 625, 750], house: 100 },
   { i: 14, type: 'prop', name: "Chang'ombe", group: 'pink', price: 160, rent: [12, 60, 180, 500, 700, 900], house: 100 },
   { i: 15, type: 'rail', name: 'TAZARA', price: 200 },
   { i: 16, type: 'prop', name: 'Mikocheni', group: 'orange', price: 180, rent: [14, 70, 200, 550, 750, 950], house: 100 },
-  { i: 17, type: 'chest', name: 'Sanduku' },
+  { i: 17, type: 'chest', name: 'Chest' },
   { i: 18, type: 'prop', name: 'Msasani', group: 'orange', price: 180, rent: [14, 70, 200, 550, 750, 950], house: 100 },
   { i: 19, type: 'prop', name: 'Kijitonyama', group: 'orange', price: 200, rent: [16, 80, 220, 600, 800, 1000], house: 100 },
-  { i: 20, type: 'parking', name: 'Pumziko' },
+  { i: 20, type: 'parking', name: 'Free Parking' },
   { i: 21, type: 'prop', name: 'Masaki', group: 'red', price: 220, rent: [18, 90, 250, 700, 875, 1050], house: 150 },
-  { i: 22, type: 'chance', name: 'Bahati' },
+  { i: 22, type: 'chance', name: 'Chance' },
   { i: 23, type: 'prop', name: 'Oyster Bay', group: 'red', price: 220, rent: [18, 90, 250, 700, 875, 1050], house: 150 },
   { i: 24, type: 'prop', name: 'Upanga', group: 'red', price: 240, rent: [20, 100, 300, 750, 925, 1100], house: 150 },
   { i: 25, type: 'rail', name: 'SGR', price: 200 },
@@ -62,15 +62,15 @@ const BOARD: Space[] = [
   { i: 27, type: 'prop', name: 'Arusha', group: 'yellow', price: 260, rent: [22, 110, 330, 800, 975, 1150], house: 150 },
   { i: 28, type: 'util', name: 'DAWASA', price: 150 },
   { i: 29, type: 'prop', name: 'Moshi', group: 'yellow', price: 280, rent: [24, 120, 360, 850, 1025, 1200], house: 150 },
-  { i: 30, type: 'gotojail', name: 'Nenda Jela' },
+  { i: 30, type: 'gotojail', name: 'Go to Jail' },
   { i: 31, type: 'prop', name: 'Dodoma', group: 'green', price: 300, rent: [26, 130, 390, 900, 1100, 1275], house: 200 },
   { i: 32, type: 'prop', name: 'Morogoro', group: 'green', price: 300, rent: [26, 130, 390, 900, 1100, 1275], house: 200 },
-  { i: 33, type: 'chest', name: 'Sanduku' },
+  { i: 33, type: 'chest', name: 'Chest' },
   { i: 34, type: 'prop', name: 'Mbeya', group: 'green', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], house: 200 },
   { i: 35, type: 'rail', name: 'Bandari', price: 200 },
-  { i: 36, type: 'chance', name: 'Bahati' },
+  { i: 36, type: 'chance', name: 'Chance' },
   { i: 37, type: 'prop', name: 'Zanzibar', group: 'dblue', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], house: 200 },
-  { i: 38, type: 'tax', name: 'Kodi ya Anasa', tax: 100 },
+  { i: 38, type: 'tax', name: 'Luxury Tax', tax: 100 },
   { i: 39, type: 'prop', name: 'Serengeti', group: 'dblue', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], house: 200 },
 ];
 
@@ -82,10 +82,10 @@ interface Card { text: string; act: (g: GameState, pid: number) => Partial<Playe
 interface PlayerPatch { cash?: number; }
 
 const CHANCE: Card[] = [
-  { text: 'Advance to ANZA — collect TSh 200.', act: () => ({ move: 0, msg: 'Moved to ANZA (+200)' }) },
+  { text: 'Advance to GO — collect TSh 200.', act: () => ({ move: 0, msg: 'Moved to GO (+200)' }) },
   { text: 'Bank pays you a dividend of TSh 150.', act: () => ({ cash: 150, msg: '+TSh 150 dividend' }) },
   { text: 'Speeding fine — pay TSh 100.', act: () => ({ cash: -100, msg: '−TSh 100 fine' }) },
-  { text: 'Go directly to JELA.', act: () => ({ toJail: true, msg: 'Sent to Jela' }) },
+  { text: 'Go directly to JAIL.', act: () => ({ toJail: true, msg: 'Sent to Jela' }) },
   { text: 'Building repairs — pay TSh 120.', act: () => ({ cash: -120, msg: '−TSh 120 repairs' }) },
   { text: 'You won a talent show — collect TSh 200.', act: () => ({ cash: 200, msg: '+TSh 200 prize' }) },
 ];
@@ -94,7 +94,7 @@ const CHEST: Card[] = [
   { text: 'Hospital fees — pay TSh 100.', act: () => ({ cash: -100, msg: '−TSh 100' }) },
   { text: 'Inheritance — collect TSh 200.', act: () => ({ cash: 200, msg: '+TSh 200' }) },
   { text: 'School fees — pay TSh 150.', act: () => ({ cash: -150, msg: '−TSh 150' }) },
-  { text: 'Advance to ANZA — collect TSh 200.', act: () => ({ move: 0, msg: 'Moved to ANZA' }) },
+  { text: 'Advance to GO — collect TSh 200.', act: () => ({ move: 0, msg: 'Moved to GO' }) },
   { text: 'Community award — collect TSh 100.', act: () => ({ cash: 100, msg: '+TSh 100 award' }) },
 ];
 
@@ -246,7 +246,7 @@ export default function Monopoly({ onBack, onGameEnd }: Props) {
       const newPos = (oldPos + total) % 40;
       const passedGo = newPos < oldPos;
       let next = { ...st, players: st.players.map(pl => pl.id === p.id ? { ...pl, pos: newPos, jail: 0, cash: pl.cash + (passedGo ? 200 : 0) } : pl) };
-      if (passedGo) { sfxScore(); push(`${p.name} passed ANZA (+TSh 200)`); }
+      if (passedGo) { sfxScore(); push(`${p.name} passed GO (+TSh 200)`); }
       next = settleLanding(next, p.id, total);
       checkWin(next);
       return next;
@@ -308,7 +308,7 @@ export default function Monopoly({ onBack, onGameEnd }: Props) {
           <div style={{ fontSize: 54, marginBottom: 8 }}>🏙️</div>
           <h2 style={{ color: C.white, fontSize: 26, margin: '0 0 8px' }}>Build your empire</h2>
           <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-            Buy Tanzanian neighbourhoods, build houses & hotels, collect rent, and bankrupt your rivals. Pass ANZA to collect TSh 200. Hot-seat — pass the device each turn.
+            Buy Tanzanian neighbourhoods, build houses & hotels, collect rent, and bankrupt your rivals. Pass GO to collect TSh 200. Hot-seat — pass the device each turn.
           </p>
           <p style={{ color: C.muted, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Players</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
