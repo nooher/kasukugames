@@ -66,7 +66,7 @@ export const LIGHT_PALETTE = {
   lime: '#84cc16',
 } as const
 
-export type Palette = typeof DARK_PALETTE
+export type Palette = { [K in keyof typeof DARK_PALETTE]: string }
 
 export function getPalette(theme: Theme): Palette {
   return theme === 'light' ? LIGHT_PALETTE : DARK_PALETTE
