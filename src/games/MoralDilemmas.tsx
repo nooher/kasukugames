@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Scale, Heart, Shield, Users, Brain, Clock, ChevronRight } from 'lucide-react';
+import { sfxTap, sfxClick, sfxReveal, sfxLevelUp } from '../lib/sfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -308,12 +309,14 @@ export default function MoralDilemmas({ onBack }: Props) {
     if (currentIndex + 1 >= total) {
       setFade(false);
       setTimeout(() => {
+        sfxLevelUp();
         setPhase('results');
         setFade(true);
       }, 300);
     } else {
       setFade(false);
       setTimeout(() => {
+        sfxReveal();
         setCurrentIndex(prev => prev + 1);
         setSelectedChoice(null);
         setFade(true);
@@ -323,12 +326,14 @@ export default function MoralDilemmas({ onBack }: Props) {
 
   const handleChoice = (index: number) => {
     if (selectedChoice !== null) return;
+    sfxTap();
     setSelectedChoice(index);
     const framework = scenario.choices[index].framework;
     setTimeout(() => advanceToNext(framework), 600);
   };
 
   const handleRestart = () => {
+    sfxTap();
     setPhase('intro');
     setCurrentIndex(0);
     setAnswers([]);
@@ -464,7 +469,7 @@ export default function MoralDilemmas({ onBack }: Props) {
             </div>
 
             <button
-              onClick={() => { setPhase('playing'); setFade(true); }}
+              onClick={() => { sfxClick(); setPhase('playing'); setFade(true); }}
               style={{
                 width: '100%',
                 padding: '14px',

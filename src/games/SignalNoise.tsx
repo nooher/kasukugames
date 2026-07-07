@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Eye,
 } from 'lucide-react';
+import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxScore, sfxTimer } from '../lib/sfx';
+import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  DESIGN TOKENS                                                      */
@@ -257,6 +259,11 @@ export default function SignalNoise({ onBack }: Props) {
     try { return Number(localStorage.getItem('signalnoise_high') ?? 0); } catch { return 0; }
   });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
 
   /* ---- grid size per round ---- */
   const getGridSize = useCallback((r: number) => {
@@ -327,6 +334,7 @@ export default function SignalNoise({ onBack }: Props) {
           setPhase('roundEnd');
           return 0;
         }
+        if (t <= 4) sfxTimer();
         return t - 1;
       });
     }, 1000);
@@ -338,13 +346,15 @@ export default function SignalNoise({ onBack }: Props) {
     if (phase === 'playing' && foundCount > 0 && foundCount >= totalSignals) {
       if (timerRef.current) clearInterval(timerRef.current);
       // bonus for clearing with time left
+      sfxLevelUp();
+      setParticles(prev => [...prev, ...confettiBurst(200, 200)]);
       setScore((s) => s + timeLeft * 5);
       setPhase('roundEnd');
     }
   }, [foundCount, totalSignals, phase, timeLeft]);
 
   /* ---- cell click ---- */
-  const handleClick = useCallback((id: number) => {
+  const handleClick = useCallback((id: number, e?: React.MouseEvent) => {
     if (phase !== 'playing') return;
     setCells((prev) => {
       const cell = prev[id];
@@ -353,21 +363,36 @@ export default function SignalNoise({ onBack }: Props) {
       const next = [...prev];
       if (cell.isSignal) {
         next[id] = { ...cell, found: true };
+        sfxCorrect();
+        sfxScore();
+        if (e) {
+          const pos = getRelativePos(e);
+          setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)]);
+          setScorePops(prev => [...prev, createScorePop(pos.x, pos.y, 10 + streak * 2, C.emerald)]);
+        }
         setScore((s) => s + 10 + streak * 2);
         setStreak((s) => {
           const ns = s + 1;
           setBestStreak((b) => Math.max(b, ns));
+          if (ns >= 3) sfxCombo(ns);
           return ns;
         });
         setFoundCount((f) => f + 1);
       } else {
         next[id] = { ...cell, wrong: true };
+        sfxWrong();
+        if (e) {
+          const pos = getRelativePos(e);
+          setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)]);
+        }
+        setShakeIntensity(5);
         setScore((s) => Math.max(0, s - 5));
         setStreak(0);
         setLives((l) => {
           const nl = l - 1;
           if (nl <= 0) {
             if (timerRef.current) clearInterval(timerRef.current);
+            sfxGameOver();
             setTimeout(() => setPhase('gameOver'), 400);
           }
           return nl;
@@ -387,11 +412,13 @@ export default function SignalNoise({ onBack }: Props) {
 
   /* ---- next round ---- */
   const nextRound = useCallback(() => {
+    sfxTap();
     startRound(round + 1, score, lives);
   }, [round, score, lives, startRound]);
 
   /* ---- new game ---- */
   const newGame = useCallback(() => {
+    sfxTap();
     setStreak(0);
     setBestStreak(0);
     startRound(1, 0, 3);
@@ -404,6 +431,25 @@ export default function SignalNoise({ onBack }: Props) {
       try { localStorage.setItem('signalnoise_high', String(score)); } catch { /* */ }
     }
   }, [phase, score, highScore]);
+
+  const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0;
+  useEffect(() => {
+    if (!vfxActive) return;
+    const loop = () => {
+      setParticles(prev => prev.length ? tickParticles(prev) : prev);
+      setScorePops(prev => prev.length ? tickScorePops(prev) : prev);
+      setShakeIntensity(prev => prev > 0.01 ? prev * 0.85 : 0);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [vfxActive]);
+
+  const getRelativePos = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
   /* ---- grid cols ---- */
   const gridSize = getGridSize(round);
@@ -553,7 +599,7 @@ export default function SignalNoise({ onBack }: Props) {
   const timeColor = timeRatio > 0.5 ? C.amber : timeRatio > 0.25 ? '#e67e22' : C.rose;
 
   return (
-    <div style={{ minHeight: '100vh', background: C.obsidian, display: 'flex', flexDirection: 'column', fontFamily: "'Inter','SF Pro Display',system-ui,sans-serif" }}>
+    <div ref={containerRef} style={{ minHeight: '100vh', background: C.obsidian, display: 'flex', flexDirection: 'column', fontFamily: "'Inter','SF Pro Display',system-ui,sans-serif", position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity), ...comboGlowStyle(streak, C.amber) }}>
       {/* TOP BAR */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${C.border}` }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: 4 }}>
@@ -629,7 +675,7 @@ export default function SignalNoise({ onBack }: Props) {
             return (
               <button
                 key={cell.id}
-                onClick={() => handleClick(cell.id)}
+                onClick={(e) => handleClick(cell.id, e)}
                 disabled={cell.found}
                 style={{
                   aspectRatio: '1',
@@ -658,6 +704,12 @@ export default function SignalNoise({ onBack }: Props) {
           })}
         </div>
       </div>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

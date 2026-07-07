@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Trophy, Zap, Target, Brain, Calculator, Users, ChevronRight, RotateCcw } from 'lucide-react';
 import { RADIUS, MOTION, solidBtn, COLOR } from '../lib/design';
+import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCountdown, sfxCountdownGo, sfxScore } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -149,7 +151,7 @@ function SpeedTapChallenge({ onComplete }: { onComplete: (score: number) => void
 
   const handleTap = () => {
     if (!started) setStarted(true);
-    if (timeLeft > 0) setTaps(t => t + 1);
+    if (timeLeft > 0) { sfxTap(); setTaps(t => t + 1); }
   };
 
   return (
@@ -186,7 +188,7 @@ function ColorMatchChallenge({ onComplete }: { onComplete: (score: number) => vo
   const handlePick = (colorName: string) => {
     if (round >= totalRounds) return;
     const correct = colorName === prompt.inkColor.name;
-    if (correct) setScore(s => s + 1);
+    if (correct) { sfxCorrect(); setScore(s => s + 1); } else { sfxWrong(); }
     setFlash(correct ? 'correct' : 'wrong');
     setTimeout(() => {
       setFlash(null);
@@ -260,9 +262,11 @@ function NumberMemoryChallenge({ onComplete }: { onComplete: (score: number) => 
 
   const handleSubmit = () => {
     if (input === sequence) {
+      sfxCorrect();
       setScore(s => s + 1);
       setLevel(l => l + 1);
     } else {
+      sfxWrong();
       setPhase('done');
       setTimeout(() => onComplete(score), 600);
     }
@@ -368,7 +372,7 @@ function QuickMathChallenge({ onComplete }: { onComplete: (score: number) => voi
   const handleAnswer = (choice: number) => {
     if (timeLeft === 0) return;
     const correct = choice === problem.answer;
-    if (correct) setScore(s => s + 1);
+    if (correct) { sfxCorrect(); setScore(s => s + 1); } else { sfxWrong(); }
     setFlash(correct ? 'correct' : 'wrong');
     setTimeout(() => {
       setFlash(null);
@@ -418,7 +422,24 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   const [isChasing, setIsChasing] = useState(false);
   const [passCountdown, setPassCountdown] = useState(3);
   const [showScoreAnim, setShowScoreAnim] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
   const totalRounds = 5;
+
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.01) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01]);
 
   const drafterName = isDrafterP1 ? p1Name : p2Name;
   const chaserName = isDrafterP1 ? p2Name : p1Name;
@@ -427,6 +448,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
 
   const startGame = () => {
     if (!p1Name.trim() || !p2Name.trim()) return;
+    sfxTap();
     setPhase('round-intro');
     const ch = pickChallenge([]);
     setCurrentChallenge(ch);
@@ -439,8 +461,16 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   };
 
   const onDraftComplete = useCallback((score: number) => {
+    sfxScore();
     setDraftScore(score);
     setPhase('draft-result');
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 3;
+      setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
+      setScorePops(prev => [...prev, createScorePop(cx, cy, score, '#3a86ff')]);
+    }
   }, []);
 
   const startPassPhone = () => {
@@ -450,8 +480,12 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     if (phase === 'pass-phone' && passCountdown > 0) {
+      sfxCountdown();
       const timer = setTimeout(() => setPassCountdown(c => c - 1), 1000);
       return () => clearTimeout(timer);
+    }
+    if (phase === 'pass-phone' && passCountdown === 0) {
+      sfxCountdownGo();
     }
   }, [phase, passCountdown]);
 
@@ -462,6 +496,18 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
 
   const onChaseComplete = useCallback((score: number) => {
     setChaseScore(score);
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 3;
+      if (score > draftScore) {
+        setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
+        setScorePops(prev => [...prev, createScorePop(cx, cy, 'WIN!', '#00c97b')]);
+      } else if (score < draftScore) {
+        setParticles(prev => [...prev, ...wrongBurst(cx, cy)]);
+        setShakeIntensity(3);
+      }
+    }
     setShowScoreAnim(true);
     setTimeout(() => {
       setShowScoreAnim(false);
@@ -483,9 +529,15 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   const nextRound = () => {
     const next = currentRound + 1;
     if (next >= totalRounds) {
+      sfxGameOver();
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setParticles(prev => [...prev, ...confettiBurst(rect.width / 2, rect.height / 3)]);
+      }
       setPhase('game-over');
       return;
     }
+    sfxLevelUp();
     setCurrentRound(next);
     setIsDrafterP1(!isDrafterP1);
     const ch = pickChallenge(usedChallenges);
@@ -854,10 +906,12 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       minHeight: '100vh', background: C.bg, padding: '20px 16px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       maxWidth: 420, margin: '0 auto',
+      position: 'relative', overflow: 'hidden',
+      ...screenShakeStyle(shakeIntensity),
     }}>
       {header}
       {scoreBar}
@@ -869,6 +923,12 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
       {phase === 'chase-result' && renderChaseResult()}
       {phase === 'round-result' && renderRoundResult()}
       {phase === 'game-over' && renderGameOver()}
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

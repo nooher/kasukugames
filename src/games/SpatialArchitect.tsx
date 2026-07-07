@@ -1,6 +1,8 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Eye, Scissors } from 'lucide-react'
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxCombo } from '../lib/sfx'
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -399,8 +401,14 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   const [highScore, setHighScore] = useState(0)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [scorePops, setScorePops] = useState<ScorePop[]>([])
+  const [shakeIntensity, setShakeIntensity] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number>(0)
 
   const startGame = useCallback(() => {
+    sfxTap()
     setPhase('playing')
     setLevel(1)
     setScore(0)
@@ -412,7 +420,12 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   }, [])
 
   const nextPuzzle = useCallback(() => {
+    sfxLevelUp()
     const next = level + 1
+    if (containerRef.current && next % 3 === 0) {
+      const rect = containerRef.current.getBoundingClientRect()
+      setParticles(prev => [...prev, ...confettiBurst(rect.width / 2, rect.height / 3)])
+    }
     setLevel(next)
     setTimer(TIMER_SECONDS)
     setSelected(null)
@@ -421,6 +434,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   }, [level])
 
   const endGame = useCallback(() => {
+    sfxGameOver()
     setPhase('gameover')
     setHighScore(prev => Math.max(prev, score))
     if (timerRef.current) clearInterval(timerRef.current)
@@ -433,6 +447,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
       setTimer(prev => {
         if (prev <= 1) {
           // Time's up
+          sfxWrong()
           setLives(l => {
             const nl = l - 1
             if (nl <= 0) {
@@ -455,6 +470,18 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
     }
   }, [phase, endGame, nextPuzzle])
 
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.01) return
+    const tick = () => {
+      setParticles(prev => tickParticles(prev))
+      setScorePops(prev => tickScorePops(prev))
+      setShakeIntensity(prev => prev * 0.85)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01])
+
   const handleSelect = useCallback((index: number) => {
     if (phase !== 'playing' || selected !== null || !puzzle) return
     setSelected(index)
@@ -463,12 +490,32 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
     setFeedbackCorrect(isCorrect)
 
     if (isCorrect) {
+      sfxCorrect()
       const timeBonus = timer > SPEED_THRESHOLD ? POINTS_SPEED : 0
       const streakMultiplier = 1 + streak * 0.25
       const points = Math.round((POINTS_BASE + timeBonus) * streakMultiplier)
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        const cx = rect.width / 2
+        const cy = rect.height / 2
+        setParticles(prev => [...prev, ...correctBurst(cx, cy)])
+        setScorePops(prev => [...prev, createScorePop(cx, cy - 40, points, '#00c97b')])
+      }
       setScore(s => s + points)
-      setStreak(s => s + 1)
+      setStreak(s => {
+        const next = s + 1
+        if (next >= 2) sfxCombo(next)
+        return next
+      })
     } else {
+      sfxWrong()
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        const cx = rect.width / 2
+        const cy = rect.height / 2
+        setParticles(prev => [...prev, ...wrongBurst(cx, cy)])
+        setShakeIntensity(3)
+      }
       setStreak(0)
       setLives(l => {
         const nl = l - 1
@@ -693,7 +740,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   /* ------------------------------------------------------------------ */
   if (phase === 'menu') {
     return (
-      <div style={S.root}>
+      <div ref={containerRef} style={{ ...S.root, position: 'relative', overflow: 'hidden' }}>
         <div style={S.header}>
           <button style={S.backBtn} onClick={onBack}><ArrowLeft size={18} /></button>
           <span style={{ fontSize: 18, fontWeight: 700 }}>Spatial Architect</span>
@@ -744,7 +791,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   if (phase === 'gameover') {
     const isNewHigh = score >= highScore && score > 0
     return (
-      <div style={S.root}>
+      <div ref={containerRef} style={{ ...S.root, position: 'relative', overflow: 'hidden' }}>
         <div style={S.header}>
           <button style={S.backBtn} onClick={onBack}><ArrowLeft size={18} /></button>
         </div>
@@ -778,7 +825,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
   if (!puzzle) return null
 
   return (
-    <div style={S.root}>
+    <div ref={containerRef} style={{ ...S.root, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity), ...comboGlowStyle(streak, '#f59e0b') }}>
       {/* Header */}
       <div style={S.header}>
         <button style={S.backBtn} onClick={onBack}><ArrowLeft size={18} /></button>
@@ -874,6 +921,12 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
           </div>
         )}
       </div>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   )
 }

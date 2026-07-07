@@ -57,6 +57,7 @@ export interface LeaderboardEntry {
   level: number
   score: number
   teamTag?: string
+  muhuri?: string
 }
 
 export interface LeaderboardCategory {
@@ -110,18 +111,18 @@ export function getTeamById(teamId: string): Team | null {
 
 export function generateDemoLeaderboard(category: string): LeaderboardEntry[] {
   const names = [
-    { username: 'mtaalamu', displayName: 'Mtaalamu', avatar: '🧠' },
-    { username: 'haraka_x', displayName: 'Haraka X', avatar: '⚡' },
+    { username: 'mtaalamu', displayName: 'Mtaalamu', avatar: '🧠', muhuri: 'verified' },
+    { username: 'haraka_x', displayName: 'Haraka X', avatar: '⚡', muhuri: 'creator' },
     { username: 'mwanafunzi', displayName: 'Mwanafunzi', avatar: '📚' },
     { username: 'jenga_pro', displayName: 'Jenga Pro', avatar: '🏗️' },
-    { username: 'kimbunga', displayName: 'Kimbunga', avatar: '🌪️' },
+    { username: 'kimbunga', displayName: 'Kimbunga', avatar: '🌪️', muhuri: 'verified' },
     { username: 'msomi_tz', displayName: 'Msomi TZ', avatar: '🎓' },
-    { username: 'fikra_kali', displayName: 'Fikra Kali', avatar: '💡' },
+    { username: 'fikra_kali', displayName: 'Fikra Kali', avatar: '💡', muhuri: 'creator' },
     { username: 'nguvu_mental', displayName: 'Nguvu Mental', avatar: '💪' },
     { username: 'akili_sharp', displayName: 'Akili Sharp', avatar: '🔬' },
     { username: 'bongo_brain', displayName: 'Bongo Brain', avatar: '🧬' },
-    { username: 'champion_tz', displayName: 'Champion TZ', avatar: '🏆' },
-    { username: 'mfalme', displayName: 'Mfalme', avatar: '👑' },
+    { username: 'champion_tz', displayName: 'Champion TZ', avatar: '🏆', muhuri: 'admin' },
+    { username: 'mfalme', displayName: 'Mfalme', avatar: '👑', muhuri: 'verified' },
     { username: 'daktari_akili', displayName: 'Daktari Akili', avatar: '🩺' },
     { username: 'profesa', displayName: 'Profesa', avatar: '🎯' },
     { username: 'mchezaji1', displayName: 'Mchezaji', avatar: '🎮' },
@@ -150,5 +151,6 @@ export function generateDemoLeaderboard(category: string): LeaderboardEntry[] {
     level: levels[i],
     score: scores[i],
     teamTag: teamTags[i] || undefined,
+    muhuri: (n as { muhuri?: string }).muhuri || undefined,
   }))
 }

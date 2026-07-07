@@ -6,6 +6,7 @@ import {
   Cpu, Star, Target, TrendingUp
 } from 'lucide-react'
 import { COLOR, RADIUS, MOTION, solidBtn } from '../lib/design'
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxReveal } from '../lib/sfx'
 
 /* ── types ── */
 type Phase = 'menu' | 'topic' | 'debate' | 'result'
@@ -283,8 +284,11 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
 
   const pickStrategy = useCallback((strategy: Strategy) => {
     if (!topic || !currentRound) return
+    sfxTap()
     const eff = currentRound.effectiveness[STRATEGY_IDX[strategy]]
     const { score, feedback } = scoreRound(currentRound.argType, strategy, eff)
+    const avg = (score.logic + score.persuasion + score.evidence + score.adaptability) / 4
+    if (avg >= 7) sfxCorrect(); else if (avg < 4.5) sfxWrong()
     const round: Round = {
       aiArgument: currentRound.argument,
       aiArgType: currentRound.argType,
@@ -299,13 +303,16 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
   const nextRound = useCallback(() => {
     setShowFeedback(false)
     if (topic && roundIndex < topic.rounds.length - 1) {
+      sfxLevelUp()
       setRoundIndex(prev => prev + 1)
     } else {
+      sfxGameOver()
       setPhase('result')
     }
   }, [topic, roundIndex])
 
   const startTopic = useCallback((t: Topic) => {
+    sfxReveal()
     setTopic(t)
     setRoundIndex(0)
     setRounds([])

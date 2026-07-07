@@ -15,8 +15,8 @@ import { CATEGORY_META, type GameCategory } from './lib/cognitive'
 import {
   loadProfile, createProfile, updateProfileAfterGame,
   xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
-  MUHURI_META,
-  type PlayerProfile,
+  MUHURI_META, isVerifiedTier,
+  type PlayerProfile, type MuhuriType,
 } from './lib/rewards'
 import {
   LEADERBOARD_CATEGORIES, generateDemoLeaderboard,
@@ -43,6 +43,7 @@ import {
 import Logo from './components/Logo'
 import FloatingPlayer from './components/FloatingPlayer'
 import LaunchScreen from './components/LaunchScreen'
+import VerifiedBadge from './components/VerifiedBadge'
 
 const MatrixForge = lazy(() => import('./games/MatrixForge'))
 const SequenceCollapse = lazy(() => import('./games/SequenceCollapse'))
@@ -354,9 +355,7 @@ export default function App() {
               ...navBtnStyle, background: section === 'profile' ? P.sapphire + '20' : 'none', gap: 6,
             }}>
               <span style={{ fontSize: 18 }}>{profile.avatar}</span>
-              {profile.muhuri && profile.muhuri !== 'player' && (
-                <span style={{ fontSize: 7, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUHURI_META[profile.muhuri].color, background: MUHURI_META[profile.muhuri].color + '18', padding: '2px 6px', borderRadius: RADIUS.full, border: `1px solid ${MUHURI_META[profile.muhuri].color}30` }}>{MUHURI_META[profile.muhuri].label}</span>
-              )}
+              <VerifiedBadge muhuri={profile.muhuri} size={14} />
               <span style={{ fontSize: 11, fontWeight: 600, color: RANK_META[profile.rank].color }}>{profile.level}</span>
             </button>
           ) : (
@@ -786,7 +785,10 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
               <div style={{ width: avatarSizes[i], height: avatarSizes[i], borderRadius: '50%', background: color.bg, border: `2px solid ${color.border}`, display: 'grid', placeItems: 'center', boxShadow: isChampion ? SHADOW.glow(P.gold) : 'none', marginBottom: 6 }}>
                 <span style={{ fontSize: avatarSizes[i] * 0.45 }}>{e.avatar}</span>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: P.text, marginTop: 2, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.displayName}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2, maxWidth: 80 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: P.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.displayName}</span>
+                {e.muhuri && <VerifiedBadge muhuri={e.muhuri as MuhuriType} size={11} />}
+              </div>
               <span style={{ fontSize: 10, color: P.textMuted, fontVariantNumeric: 'tabular-nums' }}>{e.score.toLocaleString()}</span>
               <div style={{ width: avatarSizes[i] + 12, height: heights[i], marginTop: 10, borderRadius: `${RADIUS.md}px ${RADIUS.md}px 0 0`, background: color.bg, border: `1px solid ${color.border}40`, borderBottom: 'none', display: 'grid', placeItems: 'end center', paddingBottom: 10, boxShadow: isChampion ? (isDark ? `${GLASS.highlight}, 0 0 30px ${P.gold}15` : `0 0 20px ${P.gold}10`) : (isDark ? GLASS.highlight : 'none') }}>
                 <span style={{ fontSize: 28, fontWeight: 600, color: color.text }}>#{pos}</span>
@@ -804,6 +806,7 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{e.displayName}</span>
+                {e.muhuri && <VerifiedBadge muhuri={e.muhuri as MuhuriType} size={13} />}
                 {e.teamTag && <span style={{ fontSize: 9, fontWeight: 600, color: P.teal, background: P.teal + '15', padding: '2px 8px', borderRadius: RADIUS.full }}>[{e.teamTag}]</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
@@ -1149,17 +1152,14 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
         <h2 style={{ margin: '0 0 4px', fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.1, color: P.text }}>{profile.displayName}</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '0 0 16px' }}>
           <span style={{ fontSize: 14, color: P.textMuted }}>@{profile.username}</span>
-          {profile.muhuri && profile.muhuri !== 'player' && (
+          <VerifiedBadge muhuri={profile.muhuri} size={18} />
+          {isVerifiedTier(profile.muhuri) && (
             <span style={{
               fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
               color: MUHURI_META[profile.muhuri].color,
-              background: MUHURI_META[profile.muhuri].color + '18',
-              padding: '4px 14px', borderRadius: RADIUS.full,
-              border: `1px solid ${MUHURI_META[profile.muhuri].color}30`,
+              background: MUHURI_META[profile.muhuri].color + '12',
+              padding: '3px 10px', borderRadius: RADIUS.full,
             }}>{MUHURI_META[profile.muhuri].label}</span>
-          )}
-          {profile.muhuri === 'founder' && (
-            <span style={{ fontSize: 10, color: P.textDim, fontWeight: 600 }}>Mtengenezaji</span>
           )}
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: RADIUS.full, background: rankColor + '18', border: `1px solid ${rankColor}30`, boxShadow: SHADOW.glow(rankColor) }}>

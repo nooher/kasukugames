@@ -11,6 +11,8 @@ import {
   Flame,
   Target,
 } from 'lucide-react';
+import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxScore, sfxTimer } from '../lib/sfx';
+import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  DICTIONARY (~200 common 3-7 letter English words)                  */
@@ -368,6 +370,11 @@ export default function WordForge({ onBack }: Props) {
   const [popTile, setPopTile] = useState<number | null>(null);
 
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
 
   // Calculate possible words when letters change
   useEffect(() => {
@@ -381,6 +388,7 @@ export default function WordForge({ onBack }: Props) {
       endRound();
       return;
     }
+    if (timer <= 5) sfxTimer();
     const id = setInterval(() => setTimer(t => t - 1), 1000);
     return () => clearInterval(id);
   }, [phase, timer]);
@@ -418,6 +426,7 @@ export default function WordForge({ onBack }: Props) {
     // Skip if already selected (not last)
     if (selected.includes(index)) return;
 
+    sfxTap();
     setPopTile(index);
     setTimeout(() => setPopTile(null), 150);
     setSelected(prev => [...prev, index]);
@@ -428,27 +437,38 @@ export default function WordForge({ onBack }: Props) {
   const handleSubmit = useCallback(() => {
     if (phase !== 'playing') return;
     if (selected.length < 3) {
+      sfxWrong();
       showFeedback('Need 3+ letters', C.error);
       setShakeSubmit(true);
       setTimeout(() => setShakeSubmit(false), 400);
+      setShakeIntensity(4);
       return;
     }
     const word = currentWord;
     if (foundWords.includes(word)) {
+      sfxWrong();
       showFeedback('Already found!', C.error);
       setShakeSubmit(true);
       setTimeout(() => setShakeSubmit(false), 400);
+      setShakeIntensity(4);
       setSelected([]);
       return;
     }
     if (!DICT_LOWER.has(word)) {
+      sfxWrong();
       showFeedback('Not a word', C.error);
       setShakeSubmit(true);
       setTimeout(() => setShakeSubmit(false), 400);
+      setShakeIntensity(4);
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        setParticles(prev => [...prev, ...wrongBurst(rect.width / 2, rect.height * 0.35)]);
+      }
       setSelected([]);
       return;
     }
     const pts = scoreWord(word, letters[goldenIndex], selected, goldenIndex);
+    sfxScore();
     setTotalScore(prev => prev + pts);
     setFoundWords(prev => [...prev, word]);
     if (pts > bestWordScore) {
@@ -456,6 +476,20 @@ export default function WordForge({ onBack }: Props) {
       setBestWordScore(pts);
     }
     showFeedback(`+${pts}`, C.success);
+    // VFX burst at center of grid
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const cx = rect.width / 2;
+      const cy = rect.height * 0.45;
+      setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
+      setScorePops(prev => [...prev, createScorePop(cx, cy, pts, C.success)]);
+    }
+    if (word.length >= 6) {
+      setTimeout(() => {
+        const r = containerRef.current?.getBoundingClientRect();
+        if (r) setParticles(prev => [...prev, ...confettiBurst(r.width / 2, r.height * 0.3)]);
+      }, 200);
+    }
     setSelected([]);
   }, [phase, selected, currentWord, foundWords, goldenIndex, letters, bestWordScore]);
 
@@ -483,6 +517,25 @@ export default function WordForge({ onBack }: Props) {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [handleSubmit, handleClear, selected]);
+
+  const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0;
+  useEffect(() => {
+    if (!vfxActive) return;
+    const loop = () => {
+      setParticles(prev => prev.length ? tickParticles(prev) : prev);
+      setScorePops(prev => prev.length ? tickScorePops(prev) : prev);
+      setShakeIntensity(prev => prev > 0.01 ? prev * 0.85 : 0);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [vfxActive]);
+
+  const getRelativePos = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
   // Get grid position for connecting lines
   const getTileCenter = (index: number) => {
@@ -839,6 +892,7 @@ export default function WordForge({ onBack }: Props) {
               <button
                 style={s.modalBtn}
                 onClick={() => {
+                  sfxLevelUp();
                   setRound(r => r + 1);
                   startNewRound();
                 }}
@@ -848,7 +902,7 @@ export default function WordForge({ onBack }: Props) {
             ) : (
               <button
                 style={s.modalBtn}
-                onClick={() => setPhase('gameEnd')}
+                onClick={() => { sfxGameOver(); setPhase('gameEnd'); }}
               >
                 See Results <ChevronRight size={18} />
               </button>
@@ -922,7 +976,7 @@ export default function WordForge({ onBack }: Props) {
 
   /* ---- Playing Phase ---- */
   return (
-    <div style={s.root}>
+    <div ref={containerRef} style={{ ...s.root, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity) }}>
       {/* Header */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={onBack} title="Back">
@@ -1097,6 +1151,12 @@ export default function WordForge({ onBack }: Props) {
           />
         </div>
       </div>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

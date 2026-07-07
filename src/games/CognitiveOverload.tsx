@@ -4,6 +4,8 @@ import {
   Flame, Stethoscope, Shield, Truck, CloudLightning,
   Zap as Power, Droplets, Radio, AlertTriangle,
 } from 'lucide-react';
+import { sfxTap, sfxCorrect, sfxWrong, sfxCombo, sfxLevelUp, sfxGameOver, sfxScore } from '../lib/sfx';
+import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -203,6 +205,11 @@ export default function CognitiveOverload({ onBack }: Props) {
   const levelRef = useRef(level);
   const triagedRef = useRef(triaged);
   const feedbackTimer = useRef<number>(0);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
 
   itemsRef.current = items;
   livesRef.current = lives;
@@ -213,10 +220,30 @@ export default function CognitiveOverload({ onBack }: Props) {
 
   /* ---- Level progression ---- */
   useEffect(() => {
-    if (triaged >= 8 && level === 0) setLevel(1);
-    else if (triaged >= 20 && level === 1) setLevel(2);
-    else if (triaged >= 40 && level === 2) setLevel(3);
+    if (triaged >= 8 && level === 0) { sfxLevelUp(); setLevel(1); }
+    else if (triaged >= 20 && level === 1) { sfxLevelUp(); setLevel(2); }
+    else if (triaged >= 40 && level === 2) { sfxLevelUp(); setLevel(3); }
   }, [triaged, level]);
+
+  /* ---- VFX rAF loop ---- */
+  const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0;
+  useEffect(() => {
+    if (!vfxActive) return;
+    const loop = () => {
+      setParticles(prev => prev.length ? tickParticles(prev) : prev);
+      setScorePops(prev => prev.length ? tickScorePops(prev) : prev);
+      setShakeIntensity(prev => prev > 0.01 ? prev * 0.85 : 0);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [vfxActive]);
+
+  const getRelativePos = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
   /* ---- Spawn loop ---- */
   const spawnLoop = useCallback(() => {
@@ -254,8 +281,11 @@ export default function CognitiveOverload({ onBack }: Props) {
         const newLives = livesRef.current - 1;
         setLives(newLives);
         setCombo(0);
+        sfxWrong();
+        setShakeIntensity(6);
         showFeedback('ITEM EXPIRED!', T.rose);
         if (newLives <= 0) {
+          sfxGameOver();
           setPhase('gameover');
         }
       }
@@ -301,7 +331,7 @@ export default function CognitiveOverload({ onBack }: Props) {
   }, [level, phase, spawnLoop]);
 
   /* ---- Handle triage click ---- */
-  const handleTriage = useCallback((item: TriageItem) => {
+  const handleTriage = useCallback((item: TriageItem, e?: React.MouseEvent) => {
     if (phase !== 'playing') return;
     if (animating[item.id]) return;
 
@@ -315,6 +345,12 @@ export default function CognitiveOverload({ onBack }: Props) {
 
     if (hasHigher) {
       // Wrong order
+      sfxWrong();
+      if (e) {
+        const pos = getRelativePos(e);
+        setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)]);
+      }
+      setShakeIntensity(5);
       setAnimating(a => ({ ...a, [item.id]: 'wrong' }));
       setTimeout(() => setAnimating(a => {
         const { [item.id]: _, ...rest } = a;
@@ -326,15 +362,23 @@ export default function CognitiveOverload({ onBack }: Props) {
     }
 
     // Correct triage
+    sfxCorrect();
     const config = PRIORITY_CONFIG[item.priority];
     const elapsed = (Date.now() - item.spawnTime) / 1000;
     const speedBonus = Math.max(0, Math.floor((config.expiry - elapsed) * 2));
     const comboBonus = combo * 5;
     const totalPoints = config.points + speedBonus + comboBonus;
 
+    if (e) {
+      const pos = getRelativePos(e);
+      setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)]);
+      setScorePops(prev => [...prev, createScorePop(pos.x, pos.y, totalPoints, T.emerald)]);
+    }
+
     setScore(s => s + totalPoints);
     setCombo(c => c + 1);
     setTriaged(t => t + 1);
+    if (combo + 1 > 1) sfxCombo(combo + 1);
 
     setAnimating(a => ({ ...a, [item.id]: 'correct' }));
     setTimeout(() => {
@@ -350,6 +394,7 @@ export default function CognitiveOverload({ onBack }: Props) {
 
   /* ---- Start game ---- */
   const startGame = useCallback(() => {
+    sfxTap();
     nextId = 0;
     setScore(0);
     setLives(3);
@@ -501,7 +546,7 @@ export default function CognitiveOverload({ onBack }: Props) {
   const lvl = LEVELS[level];
 
   return (
-    <div style={{ minHeight: '100vh', background: T.obsidian, color: T.white, display: 'flex', flexDirection: 'column' }}>
+    <div ref={containerRef} style={{ minHeight: '100vh', background: T.obsidian, color: T.white, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity), ...comboGlowStyle(combo, T.violet) }}>
       {/* ---- Top bar ---- */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -580,7 +625,7 @@ export default function CognitiveOverload({ onBack }: Props) {
           return (
             <button
               key={item.id}
-              onClick={() => handleTriage(item)}
+              onClick={(e) => handleTriage(item, e)}
               style={{
                 position: 'relative',
                 background: T.surface,
@@ -664,6 +709,12 @@ export default function CognitiveOverload({ onBack }: Props) {
           </div>
         )}
       </div>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

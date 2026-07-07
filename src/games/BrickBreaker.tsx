@@ -1,4 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { sfxTap, sfxScore, sfxLevelUp, sfxGameOver, sfxWrong, sfxClick } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 interface Props {
   onBack: () => void;
@@ -122,6 +124,11 @@ export default function BrickBreaker({ onBack }: Props) {
   const [uiLives, setUiLives] = useState(3);
   const [uiLevel, setUiLevel] = useState(1);
   const [, setUiPhase] = useState<'idle' | 'playing' | 'over' | 'won'>('idle');
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const vfxRafRef = useRef(0);
+  const pendingVfx = useRef<{particles: Particle[], pops: ScorePop[], shake: number}>({particles:[], pops:[], shake:0});
 
   /* ── responsive sizing ── */
   useEffect(() => {
@@ -134,6 +141,19 @@ export default function BrickBreaker({ onBack }: Props) {
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, []);
+
+  /* ── VFX animation loop ── */
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.1) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      vfxRafRef.current = requestAnimationFrame(tick);
+    };
+    vfxRafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(vfxRafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.1]);
 
   /* ── init game state ── */
   const initGame = useCallback(
@@ -225,6 +245,12 @@ export default function BrickBreaker({ onBack }: Props) {
         setUiLevel(gs.level);
         if (gs.phase !== 'playing') setUiPhase(gs.phase);
       }
+      if (pendingVfx.current.particles.length > 0 || pendingVfx.current.pops.length > 0 || pendingVfx.current.shake > 0) {
+        setParticles(prev => [...prev, ...pendingVfx.current.particles]);
+        setScorePops(prev => [...prev, ...pendingVfx.current.pops]);
+        if (pendingVfx.current.shake > 0) setShakeIntensity(pendingVfx.current.shake);
+        pendingVfx.current = {particles:[], pops:[], shake:0};
+      }
       draw(ctx, gs, dims.w, dims.h);
     };
 
@@ -302,6 +328,9 @@ export default function BrickBreaker({ onBack }: Props) {
         ) {
           brick.alive = false;
           gs.score += 10;
+          sfxScore();
+          pendingVfx.current.particles.push(...correctBurst(brick.x + brick.w/2, brick.y + brick.h/2));
+          pendingVfx.current.pops.push(createScorePop(brick.x + brick.w/2, brick.y, 10));
 
           /* reflect */
           const overlapLeft = b.x + b.r - brick.x;
@@ -338,9 +367,15 @@ export default function BrickBreaker({ onBack }: Props) {
     if (gs.balls.length === 0) {
       gs.lives--;
       if (gs.lives <= 0) {
+        sfxGameOver();
+        pendingVfx.current.particles.push(...wrongBurst(cw/2, ch/2));
+        pendingVfx.current.shake = 10;
         gs.phase = 'over';
         return;
       }
+      sfxWrong();
+      pendingVfx.current.particles.push(...wrongBurst(cw/2, ch - 20));
+      pendingVfx.current.shake = 6;
       gs.balls.push(initBall(cw, ch, gs.baseSpeed));
       gs.wideTimer = 0;
       gs.slowTimer = 0;
@@ -360,6 +395,9 @@ export default function BrickBreaker({ onBack }: Props) {
         p.x <= gs.paddle.x + gs.paddle.w
       ) {
         gs.score += 50;
+        sfxClick();
+        pendingVfx.current.pops.push(createScorePop(p.x, p.y, 50, PUP_COLORS[p.type]));
+        pendingVfx.current.particles.push(...correctBurst(p.x, p.y));
         switch (p.type) {
           case PUp.Wide:
             gs.wideTimer = 10;
@@ -389,6 +427,9 @@ export default function BrickBreaker({ onBack }: Props) {
     /* level clear */
     if (gs.bricks.every((b) => !b.alive)) {
       gs.score += 100;
+      sfxLevelUp();
+      pendingVfx.current.particles.push(...confettiBurst(cw/2, ch/2));
+      pendingVfx.current.pops.push(createScorePop(cw/2, ch/2, 100, '#c9a96e'));
       if (gs.level >= MAX_LEVEL) {
         gs.phase = 'won';
       } else {
@@ -506,8 +547,10 @@ export default function BrickBreaker({ onBack }: Props) {
   const handleClick = useCallback(() => {
     const gs = stateRef.current;
     if (!gs || gs.phase === 'idle') {
+      sfxTap();
       initGame();
     } else if (gs.phase === 'over' || gs.phase === 'won') {
+      sfxTap();
       initGame();
     }
   }, [initGame]);
@@ -558,7 +601,7 @@ export default function BrickBreaker({ onBack }: Props) {
   };
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
+    <div ref={containerRef} style={{ display: 'flex', justifyContent: 'center', padding: 16, position: 'relative' as const, overflow: 'hidden', ...screenShakeStyle(shakeIntensity) }}>
       <div style={cardStyle}>
         {/* header */}
         <div style={headerStyle}>
@@ -600,6 +643,12 @@ export default function BrickBreaker({ onBack }: Props) {
           }}
         />
       </div>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Heart, Zap, Trophy, RotateCcw } from 'lucide-react';
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -256,6 +258,25 @@ export default function SplitDecision({ onBack }: Props) {
   const rafRef = useRef(0);
   const answeredRef = useRef(false);
 
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const vfxRafRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  /* ---------- VFX animation loop ---------- */
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.1) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      vfxRafRef.current = requestAnimationFrame(tick);
+    };
+    vfxRafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(vfxRafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.1]);
+
   /* ---------- queue management ---------- */
   const refillQueue = useCallback(() => {
     const q = shuffle(SCENARIOS);
@@ -287,6 +308,7 @@ export default function SplitDecision({ onBack }: Props) {
         setTimerFrac(frac);
         if (frac <= 0) {
           if (!answeredRef.current) {
+            sfxWrong();
             answeredRef.current = true;
             setChosen(-1); // timeout
             setPhase('feedback');
@@ -302,6 +324,7 @@ export default function SplitDecision({ onBack }: Props) {
 
   /* ---------- start / restart ---------- */
   const startGame = useCallback(() => {
+    sfxTap();
     setRound(1);
     setScore(0);
     setLives(3);
@@ -333,8 +356,20 @@ export default function SplitDecision({ onBack }: Props) {
     let newLives = lives;
 
     if (correct) {
+      sfxCorrect();
+      const rect = containerRef.current?.getBoundingClientRect();
+      const cx = rect ? rect.width / 2 : 200;
+      const cy = rect ? rect.height / 2 : 300;
+      setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
+      setScorePops(prev => [...prev, createScorePop(cx, cy - 40, 100 + (fast ? 50 : 0), '#00c97b')]);
       newScore += 100 + (fast ? 50 : 0);
     } else {
+      sfxWrong();
+      const rect = containerRef.current?.getBoundingClientRect();
+      const cx = rect ? rect.width / 2 : 200;
+      const cy = rect ? rect.height / 2 : 300;
+      setParticles(prev => [...prev, ...wrongBurst(cx, cy)]);
+      setShakeIntensity(6);
       newLives -= 1;
     }
 
@@ -343,8 +378,11 @@ export default function SplitDecision({ onBack }: Props) {
 
     const timeout = setTimeout(() => {
       if (newLives <= 0) {
+        sfxGameOver();
+        setShakeIntensity(10);
         setPhase('gameover');
       } else {
+        sfxLevelUp();
         const newRound = round + 1;
         setRound(newRound);
         nextRound(undefined, newRound);
@@ -420,10 +458,22 @@ export default function SplitDecision({ onBack }: Props) {
     </div>
   );
 
+  /* --- VFX overlay --- */
+  const vfxOverlay = (
+    <>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
+    </>
+  );
+
   /* --- READY screen --- */
   if (phase === 'ready') {
     return (
-      <div style={containerStyle}>
+      <div ref={containerRef} style={{...containerStyle, ...screenShakeStyle(shakeIntensity)}}>
         {header(false)}
         <div
           style={{
@@ -456,6 +506,7 @@ export default function SplitDecision({ onBack }: Props) {
             Start Game
           </button>
         </div>
+        {vfxOverlay}
       </div>
     );
   }
@@ -463,7 +514,7 @@ export default function SplitDecision({ onBack }: Props) {
   /* --- GAME OVER screen --- */
   if (phase === 'gameover') {
     return (
-      <div style={containerStyle}>
+      <div ref={containerRef} style={{...containerStyle, ...screenShakeStyle(shakeIntensity)}}>
         {header(false)}
         <div
           style={{
@@ -498,6 +549,7 @@ export default function SplitDecision({ onBack }: Props) {
             Play Again
           </button>
         </div>
+        {vfxOverlay}
       </div>
     );
   }
@@ -510,7 +562,7 @@ export default function SplitDecision({ onBack }: Props) {
   const isCorrect = chosen === current.answer;
 
   return (
-    <div style={containerStyle}>
+    <div ref={containerRef} style={{...containerStyle, ...screenShakeStyle(shakeIntensity)}}>
       {header(true)}
 
       {/* Criterion badge */}
@@ -655,6 +707,7 @@ export default function SplitDecision({ onBack }: Props) {
             ? 'FAST — 1.5s timer'
             : '2s timer'}
       </p>
+      {vfxOverlay}
     </div>
   );
 }
@@ -673,6 +726,8 @@ const containerStyle: React.CSSProperties = {
   maxWidth: 480,
   margin: '0 auto',
   boxSizing: 'border-box',
+  position: 'relative',
+  overflow: 'hidden',
 };
 
 const primaryBtnStyle: React.CSSProperties = {

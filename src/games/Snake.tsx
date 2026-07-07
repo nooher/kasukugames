@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { sfxTap, sfxScore, sfxGameOver, sfxClick } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 interface Props {
   onBack: () => void;
@@ -70,6 +72,27 @@ export default function Snake({ onBack }: Props) {
   const [displayScore, setDisplayScore] = useState(0);
   const [displayLength, setDisplayLength] = useState(3);
   const [highScore, setHighScoreState] = useState(getHighScore);
+
+  // VFX state
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const vfxRafRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pendingVfx = useRef<{particles: Particle[], pops: ScorePop[], shake: number}>({particles:[], pops:[], shake:0});
+
+  // VFX animation loop
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.1) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      vfxRafRef.current = requestAnimationFrame(tick);
+    };
+    vfxRafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(vfxRafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.1]);
 
   // Responsive canvas
   useEffect(() => {
@@ -206,12 +229,21 @@ export default function Snake({ onBack }: Props) {
       // Wall collision
       if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE) {
         running.current = false;
+        sfxGameOver();
+        pendingVfx.current.particles.push(...wrongBurst(canvasSize / 2, canvasSize / 2));
+        pendingVfx.current.shake = 8;
         const finalScore = score.current;
         const hs = getHighScore();
         if (finalScore > hs) {
           setHighScore(finalScore);
           setHighScoreState(finalScore);
+          pendingVfx.current.particles.push(...confettiBurst(canvasSize / 2, canvasSize / 2));
         }
+        // Flush VFX before returning
+        setParticles(prev => [...prev, ...pendingVfx.current.particles]);
+        setScorePops(prev => [...prev, ...pendingVfx.current.pops]);
+        if (pendingVfx.current.shake > 0) setShakeIntensity(pendingVfx.current.shake);
+        pendingVfx.current = {particles:[], pops:[], shake:0};
         setGameState('over');
         draw();
         return;
@@ -220,12 +252,21 @@ export default function Snake({ onBack }: Props) {
       // Self collision
       if (snake.current.some(s => s.x === newHead.x && s.y === newHead.y)) {
         running.current = false;
+        sfxGameOver();
+        pendingVfx.current.particles.push(...wrongBurst(canvasSize / 2, canvasSize / 2));
+        pendingVfx.current.shake = 8;
         const finalScore = score.current;
         const hs = getHighScore();
         if (finalScore > hs) {
           setHighScore(finalScore);
           setHighScoreState(finalScore);
+          pendingVfx.current.particles.push(...confettiBurst(canvasSize / 2, canvasSize / 2));
         }
+        // Flush VFX before returning
+        setParticles(prev => [...prev, ...pendingVfx.current.particles]);
+        setScorePops(prev => [...prev, ...pendingVfx.current.pops]);
+        if (pendingVfx.current.shake > 0) setShakeIntensity(pendingVfx.current.shake);
+        pendingVfx.current = {particles:[], pops:[], shake:0};
         setGameState('over');
         draw();
         return;
@@ -235,15 +276,29 @@ export default function Snake({ onBack }: Props) {
 
       // Eat food
       if (newHead.x === food.current.x && newHead.y === food.current.y) {
+        sfxScore();
         score.current += 10;
         length.current += 1;
         speed.current = Math.max(MIN_SPEED, speed.current - SPEED_DECREMENT);
         setDisplayScore(score.current);
         setDisplayLength(length.current);
         spawnFood();
+        // VFX: food eaten
+        const fx = newHead.x * cellSize + cellSize / 2;
+        const fy = newHead.y * cellSize + cellSize / 2;
+        pendingVfx.current.particles.push(...correctBurst(fx, fy));
+        pendingVfx.current.pops.push(createScorePop(fx, fy, 10));
       } else {
         snake.current.pop();
       }
+    }
+
+    // Flush pending VFX
+    if (pendingVfx.current.particles.length > 0 || pendingVfx.current.pops.length > 0 || pendingVfx.current.shake > 0) {
+      setParticles(prev => [...prev, ...pendingVfx.current.particles]);
+      setScorePops(prev => [...prev, ...pendingVfx.current.pops]);
+      if (pendingVfx.current.shake > 0) setShakeIntensity(pendingVfx.current.shake);
+      pendingVfx.current = {particles:[], pops:[], shake:0};
     }
 
     draw();
@@ -252,6 +307,7 @@ export default function Snake({ onBack }: Props) {
 
   // Start game
   const startGame = useCallback(() => {
+    sfxTap();
     initGame();
     running.current = true;
     setGameState('playing');
@@ -291,6 +347,7 @@ export default function Snake({ onBack }: Props) {
       }
 
       if (running.current && mapped !== opposite[dir.current]) {
+        sfxClick();
         nextDir.current = mapped;
       }
     };
@@ -429,7 +486,7 @@ export default function Snake({ onBack }: Props) {
   };
 
   return (
-    <div style={styles.card}>
+    <div ref={containerRef} style={{...styles.card, position: 'relative' as const, overflow: 'hidden', ...screenShakeStyle(shakeIntensity)}}>
       {/* Header */}
       <div style={styles.header}>
         <button style={styles.backBtn} onClick={onBack}>Back</button>
@@ -485,6 +542,14 @@ export default function Snake({ onBack }: Props) {
             </button>
           </div>
         )}
+
+        {/* VFX particles & score pops */}
+        {particles.map(p => (
+          <div key={p.id} style={renderParticleStyle(p)} />
+        ))}
+        {scorePops.map(pop => (
+          <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+        ))}
       </div>
     </div>
   );

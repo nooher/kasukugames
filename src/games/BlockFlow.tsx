@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ArrowLeft, RotateCw, Play, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { sfxTap, sfxScore, sfxLevelUp, sfxGameOver, sfxClick } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
 
 interface Props {
   onBack: () => void;
@@ -119,6 +121,12 @@ export default function BlockFlow({ onBack }: Props) {
   const [displayLines, setDisplayLines] = useState(0);
   const [displayLevel, setDisplayLevel] = useState(1);
   const [highScore, setHighScoreState] = useState(getHighScore);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const vfxRafRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pendingVfx = useRef<{particles: Particle[], pops: ScorePop[], shake: number}>({particles:[], pops:[], shake:0});
 
   /* responsive */
   useEffect(() => {
@@ -126,6 +134,19 @@ export default function BlockFlow({ onBack }: Props) {
     window.addEventListener('resize', h);
     return () => window.removeEventListener('resize', h);
   }, []);
+
+  /* VFX animation loop */
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.1) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      vfxRafRef.current = requestAnimationFrame(tick);
+    };
+    vfxRafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(vfxRafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.1]);
 
   const cellSize = canvasWidth / COLS;
   const canvasHeight = cellSize * ROWS;
@@ -190,6 +211,9 @@ export default function BlockFlow({ onBack }: Props) {
     curY.current = -1;
     if (collides(current.current.shape, curX.current, curY.current)) {
       gameRunning.current = false;
+      sfxGameOver();
+      pendingVfx.current.particles.push(...wrongBurst(canvasWidth / 2, canvasHeight / 4));
+      pendingVfx.current.shake = 10;
       if (scoreRef.current > getHighScore()) {
         saveHighScore(scoreRef.current);
         setHighScoreState(scoreRef.current);
@@ -199,13 +223,17 @@ export default function BlockFlow({ onBack }: Props) {
   }
 
   function moveLeft() {
-    if (!collides(current.current.shape, curX.current - 1, curY.current))
+    if (!collides(current.current.shape, curX.current - 1, curY.current)) {
+      sfxClick();
       curX.current--;
+    }
   }
 
   function moveRight() {
-    if (!collides(current.current.shape, curX.current + 1, curY.current))
+    if (!collides(current.current.shape, curX.current + 1, curY.current)) {
+      sfxClick();
       curX.current++;
+    }
   }
 
   function moveDown(): boolean {
@@ -218,6 +246,7 @@ export default function BlockFlow({ onBack }: Props) {
 
   function hardDrop() {
     while (moveDown()) { /* drop */ }
+    sfxTap();
     handleLock();
   }
 
@@ -227,6 +256,7 @@ export default function BlockFlow({ onBack }: Props) {
     const kicks = [0, -1, 1, -2, 2];
     for (const dx of kicks) {
       if (!collides(rotated, curX.current + dx, curY.current)) {
+        sfxTap();
         current.current = { ...current.current, shape: rotated };
         curX.current += dx;
         return;
@@ -238,16 +268,26 @@ export default function BlockFlow({ onBack }: Props) {
     lockPiece();
     const full = getFullRows();
     if (full.length > 0) {
+      sfxScore();
+      if (full.length >= 4) sfxLevelUp();
       clearingRows.current = full;
       clearFlashStart.current = performance.now();
       const pts = (LINE_SCORES[full.length] || 0) * levelRef.current;
       scoreRef.current += pts;
       linesRef.current += full.length;
+      const prevLevel = levelRef.current;
       levelRef.current = Math.floor(linesRef.current / LINES_PER_LEVEL) + 1;
+      if (levelRef.current > prevLevel) sfxLevelUp();
       dropInterval.current = Math.max(MIN_DROP_MS, INITIAL_DROP_MS - (levelRef.current - 1) * 60);
       setDisplayScore(scoreRef.current);
       setDisplayLines(linesRef.current);
       setDisplayLevel(levelRef.current);
+      pendingVfx.current.particles.push(...correctBurst(canvasWidth / 2, full[0] * cellSize));
+      pendingVfx.current.pops.push(createScorePop(canvasWidth / 2, full[0] * cellSize, pts));
+      if (full.length >= 4) {
+        pendingVfx.current.particles.push(...confettiBurst(canvasWidth / 2, canvasHeight / 2));
+        pendingVfx.current.shake = 6;
+      }
     } else {
       spawnPiece();
     }
@@ -356,6 +396,12 @@ export default function BlockFlow({ onBack }: Props) {
     }
 
     draw(ctx, now);
+    if (pendingVfx.current.particles.length > 0 || pendingVfx.current.pops.length > 0 || pendingVfx.current.shake > 0) {
+      setParticles(prev => [...prev, ...pendingVfx.current.particles]);
+      setScorePops(prev => [...prev, ...pendingVfx.current.pops]);
+      if (pendingVfx.current.shake > 0) setShakeIntensity(pendingVfx.current.shake);
+      pendingVfx.current = {particles:[], pops:[], shake:0};
+    }
     animFrame.current = requestAnimationFrame(loop);
   }, [canvasWidth]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -499,7 +545,7 @@ export default function BlockFlow({ onBack }: Props) {
   /* ── render ─────────────────────────────────────────────────── */
 
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       background: COLORS.bg,
       minHeight: '100vh',
       display: 'flex',
@@ -508,6 +554,9 @@ export default function BlockFlow({ onBack }: Props) {
       color: COLORS.white,
       fontFamily: 'system-ui, -apple-system, sans-serif',
       paddingBottom: 32,
+      position: 'relative',
+      overflow: 'hidden',
+      ...screenShakeStyle(shakeIntensity),
     }}>
       {/* header */}
       <div style={{
@@ -621,6 +670,12 @@ export default function BlockFlow({ onBack }: Props) {
               </button>
             </div>
           )}
+          {particles.map(p => (
+            <div key={p.id} style={renderParticleStyle(p)} />
+          ))}
+          {scorePops.map(pop => (
+            <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+          ))}
         </div>
 
         {/* next piece sidebar */}

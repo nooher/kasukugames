@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Brain, Trophy, Clock, Zap, RotateCcw, ChevronRight } from 'lucide-react';
+import { sfxReveal, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxTap, sfxScore } from '../lib/sfx';
+import {
+  Particle, ScorePop,
+  correctBurst, wrongBurst, confettiBurst,
+  tickParticles, renderParticleStyle,
+  createScorePop, tickScorePops, scorePopStyle,
+  screenShakeStyle, comboGlowStyle,
+} from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -138,6 +146,60 @@ export default function MemoryMarathon({ onBack }: Props) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const peekRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /* ---------- VFX state ---------- */
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const vfxFrameRef = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  /* ---------- VFX animation loop ---------- */
+  useEffect(() => {
+    let running = true;
+    const tick = () => {
+      if (!running) return;
+      setParticles(prev => prev.length ? tickParticles(prev) : prev);
+      setScorePops(prev => prev.length ? tickScorePops(prev) : prev);
+      setShakeIntensity(prev => (prev > 0 ? prev * 0.85 : 0));
+      vfxFrameRef.current = requestAnimationFrame(tick);
+    };
+    vfxFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      running = false;
+      cancelAnimationFrame(vfxFrameRef.current);
+    };
+  }, []);
+
+  /* ---------- VFX helpers ---------- */
+  const getRelativePos = (e: React.MouseEvent): { x: number; y: number } => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 200, y: 200 };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const spawnCorrectVfx = (x: number, y: number, points: number) => {
+    setParticles(prev => [...prev, ...correctBurst(x, y)]);
+    setScorePops(prev => [...prev, createScorePop(x, y - 10, points, '#00c97b')]);
+    setShakeIntensity(1.5);
+  };
+
+  const spawnWrongVfx = (x: number, y: number) => {
+    setParticles(prev => [...prev, ...wrongBurst(x, y)]);
+    setShakeIntensity(2);
+  };
+
+  const spawnConfettiCenter = (big = false) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const cx = rect ? rect.width / 2 : 280;
+    const cy = rect ? rect.height / 2 : 300;
+    const burst = confettiBurst(cx, cy);
+    if (big) {
+      setParticles(prev => [...prev, ...burst, ...confettiBurst(cx - 60, cy), ...confettiBurst(cx + 60, cy)]);
+    } else {
+      setParticles(prev => [...prev, ...burst]);
+    }
+  };
+
   /* inject keyframes */
   useEffect(() => { ensureKeyframes(); }, []);
 
@@ -187,16 +249,22 @@ export default function MemoryMarathon({ onBack }: Props) {
   useEffect(() => {
     if (phase === 'victory' || phase === 'timeUp') {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (phase === 'timeUp') sfxGameOver();
     }
   }, [phase]);
 
   /* ---------- card click ---------- */
-  const handleClick = (idx: number) => {
+  const lastClickPos = useRef<{ x: number; y: number }>({ x: 200, y: 200 });
+
+  const handleClick = (idx: number, e?: React.MouseEvent) => {
     if (locked) return;
     if (phase !== 'play') return;
     if (flipped.includes(idx)) return;
     if (deck[idx].matched) return;
 
+    if (e) lastClickPos.current = getRelativePos(e);
+
+    sfxReveal();
     const next = [...flipped, idx];
     setFlipped(next);
 
@@ -204,14 +272,22 @@ export default function MemoryMarathon({ onBack }: Props) {
       setLocked(true);
       setMoves(m => m + 1);
       const [a, b] = next;
+      const pos = lastClickPos.current;
       if (deck[a].symbol === deck[b].symbol) {
         // match
         const newStreak = streak + 1;
         setStreak(newStreak);
         const bonus = newStreak > 1 ? 20 : 0;
-        setScore(s => s + 50 + bonus);
+        const points = 50 + bonus;
+        setScore(s => s + points);
+        sfxCorrect();
+        sfxScore();
+        if (newStreak > 1) sfxCombo(newStreak);
         const newMatches = matchesFound + 1;
         setMatchesFound(newMatches);
+
+        // VFX: correct burst + score pop
+        spawnCorrectVfx(pos.x, pos.y, points);
 
         setTimeout(() => {
           setDeck(d => d.map((c, i) => (i === a || i === b) ? { ...c, matched: true } : c));
@@ -222,18 +298,27 @@ export default function MemoryMarathon({ onBack }: Props) {
           const cfg = LEVELS[level];
           if (newMatches >= cfg.pairs) {
             if (level >= LEVELS.length - 1) {
+              sfxGameOver();
               setPhase('victory');
               setLocked(true);
+              // VFX: big confetti for victory
+              spawnConfettiCenter(true);
             } else {
+              sfxLevelUp();
               setPhase('levelComplete');
               setLocked(true);
+              // VFX: confetti for level complete
+              spawnConfettiCenter(false);
             }
           }
         }, 500);
       } else {
         // mismatch
+        sfxWrong();
         setStreak(0);
         setScore(s => Math.max(0, s - 10));
+        // VFX: wrong burst
+        spawnWrongVfx(pos.x, pos.y);
         setTimeout(() => {
           setFlipped([]);
           setLocked(false);
@@ -244,6 +329,7 @@ export default function MemoryMarathon({ onBack }: Props) {
 
   /* ---------- next level ---------- */
   const advanceLevel = () => {
+    sfxTap();
     const next = level + 1;
     setLevel(next);
     startLevel(next);
@@ -251,6 +337,7 @@ export default function MemoryMarathon({ onBack }: Props) {
 
   /* ---------- restart ---------- */
   const restart = () => {
+    sfxTap();
     setLevel(0);
     setScore(0);
     setElapsed(0);
@@ -398,7 +485,7 @@ export default function MemoryMarathon({ onBack }: Props) {
   /*  Render                                                           */
   /* ================================================================ */
   return (
-    <div style={s.wrapper}>
+    <div ref={containerRef} style={{ ...s.wrapper, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity), ...comboGlowStyle(streak, T.accent) }}>
       {/* --- Header --- */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={onBack}>
@@ -440,7 +527,7 @@ export default function MemoryMarathon({ onBack }: Props) {
         {deck.map((card, idx) => {
           const revealed = isRevealed(idx);
           return (
-            <div key={card.id} style={s.cardOuter} onClick={() => handleClick(idx)}>
+            <div key={card.id} style={s.cardOuter} onClick={(e) => handleClick(idx, e)}>
               <div style={s.cardInner(revealed, card.matched, false)}>
                 {/* Back face (face-down) */}
                 <div style={{ ...s.cardFace, ...s.cardBack }}>
@@ -526,6 +613,16 @@ export default function MemoryMarathon({ onBack }: Props) {
           </div>
         </div>
       )}
+
+      {/* --- VFX: Particles --- */}
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+
+      {/* --- VFX: Score Pops --- */}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   RotateCcw, Star, X,
 } from 'lucide-react';
 import { RADIUS, MOTION, solidBtn } from '../lib/design';
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxReveal, sfxLevelUp } from '../lib/sfx';
 
 /* ------------------------------------------------------------------ */
 /*  Theme                                                              */
@@ -267,6 +268,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
 
   const startGame = () => {
     if (!canStart) return;
+    sfxTap();
     usedTruths.current = new Set();
     usedDares.current = new Set();
     setPlayers(p => p.map(pl => ({ ...pl, completed: 0, skipped: 0, history: [] })));
@@ -289,14 +291,16 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
   }, [category]);
 
   const handleChoice = (type: 'truth' | 'dare') => {
+    sfxTap();
     setChoice(type);
     setPrompt(pickPrompt(type));
     setFlipped(false);
     setPhase('reveal');
-    setTimeout(() => setFlipped(true), 50);
+    setTimeout(() => { sfxReveal(); setFlipped(true); }, 50);
   };
 
   const handleResult = (done: boolean) => {
+    if (done) sfxCorrect(); else sfxWrong();
     setPlayers(p => p.map((pl, idx) => {
       if (idx !== currentPlayerIdx) return pl;
       return {
@@ -315,8 +319,10 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
       nextRound += 1;
     }
     if (nextRound >= ROUNDS_PER_PLAYER) {
+      sfxGameOver();
       setPhase('summary');
     } else {
+      sfxLevelUp();
       setCurrentPlayerIdx(nextPlayer);
       setCurrentRound(nextRound);
       setChoice(null);

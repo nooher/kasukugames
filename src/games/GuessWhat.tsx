@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Users, Sparkles, Eye, EyeOff, ChevronRight, Heart, Star, Crown, Check, X, UserCircle, Lock, RotateCcw, Zap } from 'lucide-react';
 import { COLOR, RADIUS, MOTION, solidBtn } from '../lib/design';
+import { sfxTap, sfxCorrect, sfxWrong, sfxReveal } from '../lib/sfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -208,12 +209,14 @@ export default function GuessWhat({ onBack }: Props) {
 
   /* ---- Subject picks answer ---- */
   const subjectPickAnswer = (optionIdx: number) => {
+    sfxTap();
     setRound(r => ({ ...r, subjectAnswer: optionIdx }));
     setPhase('pass-phone');
   };
 
   /* ---- Start guessing round ---- */
   const startGuessing = () => {
+    sfxTap();
     // Find first guesser (skip subject)
     let g = 0;
     if (g === currentSubjectIdx) g++;
@@ -223,6 +226,7 @@ export default function GuessWhat({ onBack }: Props) {
 
   /* ---- Player guesses ---- */
   const playerGuess = (optionIdx: number) => {
+    sfxTap();
     setRound(r => ({ ...r, guesses: { ...r.guesses, [currentGuesser]: optionIdx } }));
 
     // Find next guesser
@@ -231,6 +235,7 @@ export default function GuessWhat({ onBack }: Props) {
     if (next >= players.length) {
       // All guessed -> reveal
       setTimeout(() => {
+        sfxReveal();
         setRevealAnim(true);
         setPhase('reveal');
       }, 300);
@@ -255,6 +260,7 @@ export default function GuessWhat({ onBack }: Props) {
       pairStats.current[pairKey].total++;
 
       if (guess === answer) {
+        sfxCorrect();
         updatedPlayers[gIdx].score += 10;
         updatedPlayers[gIdx].correctGuesses++;
         pairStats.current[pairKey].correct++;
@@ -271,6 +277,7 @@ export default function GuessWhat({ onBack }: Props) {
 
   /* ---- Next round ---- */
   const nextRound = () => {
+    sfxTap();
     setRevealAnim(false);
     const newRoundsPlayed = roundsPlayed + 1;
     setRoundsPlayed(newRoundsPlayed);

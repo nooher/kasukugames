@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react'
+import { sfxLetterDrop, sfxLetterSettle, sfxShapesAppear, sfxLaunchComplete } from '../lib/sfx'
 
 type LaunchScreenProps = {
   onComplete: () => void
@@ -20,9 +21,9 @@ type FallingLetter = {
 
 const TITLE = 'KasukuGames'
 const BG_COLOR = '#0f0d0a'
-const STAGE1_DURATION = 2000
-const STAGE2_DURATION = 2000
-const STAGE3_DURATION = 1000
+const STAGE1_DURATION = 3500
+const STAGE2_DURATION = 3500
+const STAGE3_DURATION = 1500
 const TOTAL_DURATION = STAGE1_DURATION + STAGE2_DURATION + STAGE3_DURATION
 
 const LETTER_COLORS = [
@@ -107,6 +108,9 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
     lettersRef.current = letters
   }, [])
 
+  const lastDropSfxRef = useRef(0)
+  const settledCountRef = useRef(0)
+
   const animate = useCallback((timestamp: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -128,16 +132,20 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
 
     const inStage2 = elapsed > STAGE1_DURATION
     const convergeProgress = inStage2
-      ? Math.min((elapsed - STAGE1_DURATION) / 800, 1)
+      ? Math.min((elapsed - STAGE1_DURATION) / 1200, 1)
       : 0
 
     for (const letter of lettersRef.current) {
       if (!inStage2) {
         letter.y += letter.speed
+        if (letter.y > 0 && timestamp - lastDropSfxRef.current > 80) {
+          sfxLetterDrop()
+          lastDropSfxRef.current = timestamp
+        }
       } else if (letter.isTarget && !letter.settled) {
         const ease = convergeProgress * convergeProgress * (3 - 2 * convergeProgress)
-        letter.x = letter.x + (letter.targetX - letter.x) * ease * 0.1
-        letter.y = letter.y + (letter.targetY - letter.y) * ease * 0.1
+        letter.x = letter.x + (letter.targetX - letter.x) * ease * 0.08
+        letter.y = letter.y + (letter.targetY - letter.y) * ease * 0.08
 
         if (
           Math.abs(letter.x - letter.targetX) < 1 &&
@@ -146,10 +154,14 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
           letter.x = letter.targetX
           letter.y = letter.targetY
           letter.settled = true
+          settledCountRef.current++
+          if (settledCountRef.current === TITLE.length) {
+            sfxLetterSettle()
+          }
         }
       } else if (!letter.isTarget) {
-        letter.opacity = Math.max(0, letter.opacity - 0.01)
-        letter.y += letter.speed * 0.5
+        letter.opacity = Math.max(0, letter.opacity - 0.008)
+        letter.y += letter.speed * 0.3
       }
 
       if (letter.opacity > 0) {
@@ -185,10 +197,14 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
     window.addEventListener('resize', resize)
     animFrameRef.current = requestAnimationFrame(animate)
 
-    const stage2Timer = setTimeout(() => setStage(2), STAGE1_DURATION)
+    const stage2Timer = setTimeout(() => {
+      setStage(2)
+      sfxShapesAppear()
+    }, STAGE1_DURATION)
     const stage3Timer = setTimeout(() => {
       setStage(3)
       setFadeOut(true)
+      sfxLaunchComplete()
     }, STAGE1_DURATION + STAGE2_DURATION)
     const completeTimer = setTimeout(() => onComplete(), TOTAL_DURATION)
 
@@ -259,7 +275,7 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
     borderBottom: '16px solid #c4a882',
     top: '-8px',
     left: '-9px',
-    animation: 'orbit-triangle 3s linear infinite, shape-fade-in 0.5s ease-out',
+    animation: 'orbit-triangle 4s linear infinite, shape-fade-in 0.8s ease-out',
   }
 
   const circleStyle: CSSProperties = {
@@ -270,7 +286,7 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
     backgroundColor: '#a8b89a',
     top: '-8px',
     left: '-8px',
-    animation: 'orbit-circle 5s linear infinite, shape-fade-in 0.5s ease-out 0.2s both',
+    animation: 'orbit-circle 6s linear infinite, shape-fade-in 0.8s ease-out 0.3s both',
   }
 
   const squareStyle: CSSProperties = {
@@ -281,7 +297,7 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
     backgroundColor: '#c8847a',
     top: '-8px',
     left: '-8px',
-    animation: 'orbit-square 7s linear infinite, shape-fade-in 0.5s ease-out 0.4s both',
+    animation: 'orbit-square 8s linear infinite, shape-fade-in 0.8s ease-out 0.6s both',
   }
 
   return (

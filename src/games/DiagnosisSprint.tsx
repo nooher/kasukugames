@@ -5,6 +5,8 @@ import {
   Flame, CheckCircle2, XCircle, BarChart3
 } from 'lucide-react'
 import { COLOR, RADIUS, MOTION, solidBtn } from '../lib/design'
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver } from '../lib/sfx'
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
 
 /* ─── types ─── */
 type Category = 'Cardiology' | 'Respiratory' | 'GI' | 'Neuro' | 'Infectious' | 'Endocrine'
@@ -163,6 +165,11 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
   const [hoveredOption, setHoveredOption] = useState<number | null>(null)
   const roundStartRef = useRef(Date.now())
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [scorePops, setScorePops] = useState<ScorePop[]>([])
+  const [shakeIntensity, setShakeIntensity] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number>(0)
 
   const currentScenario = scenarios[currentIdx]
 
@@ -174,6 +181,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
   }, [])
 
   const startGame = useCallback(() => {
+    sfxTap()
     const picked = pickScenarios(ROUNDS)
     setScenarios(picked)
     setCurrentIdx(0)
@@ -204,11 +212,43 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, currentIdx])
 
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.01) return
+    const tick = () => {
+      setParticles(prev => tickParticles(prev))
+      setScorePops(prev => tickScorePops(prev))
+      setShakeIntensity(prev => prev * 0.85)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01])
+
   const handleAnswer = useCallback((answer: string | null) => {
     if (phase !== 'playing' || !currentScenario) return
     clearTimer()
     const elapsed = Date.now() - roundStartRef.current
     const isCorrect = answer === currentScenario.correct
+    if (answer !== null) {
+      if (isCorrect) sfxCorrect()
+      else sfxWrong()
+    } else {
+      sfxWrong()
+    }
+    if (isCorrect && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const cx = rect.width / 2
+      const cy = rect.height / 2
+      const timeBonus = Math.max(0, Math.round(((TIME_LIMIT - Math.min(elapsed, TIME_LIMIT)) / TIME_LIMIT) * 100))
+      const pts = 50 + timeBonus
+      setParticles(prev => [...prev, ...correctBurst(cx, cy)])
+      setScorePops(prev => [...prev, createScorePop(cx, cy - 40, pts, '#00c97b')])
+    }
+    if (!isCorrect && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      setParticles(prev => [...prev, ...wrongBurst(rect.width / 2, rect.height / 2)])
+      setShakeIntensity(3)
+    }
     setSelectedAnswer(answer)
 
     const result: RoundResult = {
@@ -226,9 +266,15 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
   const nextRound = useCallback(() => {
     const nextIdx = currentIdx + 1
     if (nextIdx >= scenarios.length) {
+      sfxGameOver()
+      if (containerRef.current && totalCorrect / scenarios.length >= 0.75) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setParticles(prev => [...prev, ...confettiBurst(rect.width / 2, rect.height / 3)])
+      }
       setPhase('results')
       return
     }
+    sfxTap()
     setCurrentIdx(nextIdx)
     setOptions(shuffleOptions(scenarios[nextIdx]))
     setTimeLeft(TIME_LIMIT)
@@ -263,7 +309,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
   /* ─── START SCREEN ─── */
   if (phase === 'start') {
     return (
-      <div style={{ minHeight: '100vh', background: BG, padding: '40px 4vw' }}>
+      <div ref={containerRef} style={{ minHeight: '100vh', background: BG, padding: '40px 4vw', position: 'relative', overflow: 'hidden' }}>
         <button
           onClick={onBack}
           style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 48, fontSize: 13, fontWeight: 600 }}
@@ -334,7 +380,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
     const timerColor = timerPercent > 50 ? ACCENT : timerPercent > 25 ? COLOR.amber : COLOR.rose
 
     return (
-      <div style={{ minHeight: '100vh', background: BG, padding: '40px 4vw' }}>
+      <div ref={containerRef} style={{ minHeight: '100vh', background: BG, padding: '40px 4vw', position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity) }}>
         {/* top bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, maxWidth: 700, margin: '0 auto 24px' }}>
           <button
@@ -517,6 +563,12 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
             </div>
           )}
         </div>
+        {particles.map(p => (
+          <div key={p.id} style={renderParticleStyle(p)} />
+        ))}
+        {scorePops.map(pop => (
+          <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+        ))}
       </div>
     )
   }
@@ -530,7 +582,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
       { label: 'Keep Practicing', color: COLOR.rose, icon: <Flame size={20} /> }
 
     return (
-      <div style={{ minHeight: '100vh', background: BG, padding: '40px 4vw' }}>
+      <div ref={containerRef} style={{ minHeight: '100vh', background: BG, padding: '40px 4vw', position: 'relative', overflow: 'hidden' }}>
         <button
           onClick={onBack}
           style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 48, fontSize: 13, fontWeight: 600 }}
@@ -657,6 +709,12 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
             </button>
           </div>
         </div>
+        {particles.map(p => (
+          <div key={p.id} style={renderParticleStyle(p)} />
+        ))}
+        {scorePops.map(pop => (
+          <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+        ))}
       </div>
     )
   }

@@ -1,18 +1,20 @@
 import { PALETTE } from './brand'
 
-export type MuhuriType = 'founder' | 'admin' | 'verified' | 'player'
+export type MuhuriType = 'founder' | 'admin' | 'creator' | 'verified' | 'player'
 
 export interface Muhuri {
   type: MuhuriType
   label: string
   color: string
+  sealColor: string
 }
 
 export const MUHURI_META: Record<MuhuriType, Muhuri> = {
-  founder:  { type: 'founder',  label: 'Creator',  color: '#c9a96e' },
-  admin:    { type: 'admin',    label: 'Admin',     color: '#8aada8' },
-  verified: { type: 'verified', label: 'Verified',  color: '#c4a882' },
-  player:   { type: 'player',   label: 'Player',    color: '#a89a86' },
+  founder:  { type: 'founder',  label: 'Founder',   color: '#c9a96e', sealColor: '#D4A017' },
+  admin:    { type: 'admin',    label: 'Admin',      color: '#8aada8', sealColor: '#33623F' },
+  creator:  { type: 'creator',  label: 'Creator',    color: '#c4a882', sealColor: '#c4a882' },
+  verified: { type: 'verified', label: 'Verified',   color: '#2F6FB0', sealColor: '#2F6FB0' },
+  player:   { type: 'player',   label: 'Player',     color: '#a89a86', sealColor: '#a89a86' },
 }
 
 const KASUKU_MUHURI: Record<string, MuhuriType> = {
@@ -21,6 +23,10 @@ const KASUKU_MUHURI: Record<string, MuhuriType> = {
 
 export function getMuhuri(username: string): MuhuriType {
   return KASUKU_MUHURI[username.toLowerCase()] || 'player'
+}
+
+export function isVerifiedTier(muhuri: MuhuriType): boolean {
+  return muhuri === 'founder' || muhuri === 'admin' || muhuri === 'creator' || muhuri === 'verified'
 }
 
 export interface PlayerProfile {

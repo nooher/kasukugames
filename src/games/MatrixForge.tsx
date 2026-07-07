@@ -1,6 +1,8 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap } from 'lucide-react'
+import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxScore, sfxTimer } from '../lib/sfx'
+import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -246,6 +248,11 @@ export default function MatrixForge({ onBack }: Props) {
   const [puzzle, setPuzzle] = useState<Puzzle>(() => generatePuzzle(1))
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS)
   const [selected, setSelected] = useState<number | null>(null)
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [scorePops, setScorePops] = useState<ScorePop[]>([])
+  const [shakeIntensity, setShakeIntensity] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number>(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef(Date.now())
 
@@ -259,6 +266,7 @@ export default function MatrixForge({ onBack }: Props) {
           if (timerRef.current) clearInterval(timerRef.current)
           return 0
         }
+        if (prev <= 6) sfxTimer()
         return prev - 1
       })
     }, 1000)
@@ -282,12 +290,35 @@ export default function MatrixForge({ onBack }: Props) {
     }
   }, [phase, puzzle, startTimer])
 
+  // VFX animation loop
+  const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0
+  useEffect(() => {
+    if (!vfxActive) return
+    const loop = () => {
+      setParticles(prev => prev.length ? tickParticles(prev) : prev)
+      setScorePops(prev => prev.length ? tickScorePops(prev) : prev)
+      setShakeIntensity(prev => prev > 0.01 ? prev * 0.85 : 0)
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    rafRef.current = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [vfxActive])
+
+  const getRelativePos = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+
   const handleWrong = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
+    sfxWrong()
+    setShakeIntensity(4)
     const newLives = lives - 1
     setLives(newLives)
     setScore(prev => Math.max(0, prev + POINTS_WRONG))
     if (newLives <= 0) {
+      sfxGameOver()
       setPhase('gameover')
     } else {
       setPhase('wrong')
@@ -304,29 +335,40 @@ export default function MatrixForge({ onBack }: Props) {
     setPhase('playing')
   }
 
-  const handleSelect = (index: number) => {
+  const handleSelect = (index: number, e: React.MouseEvent) => {
     if (phase !== 'playing' || selected !== null) return
     setSelected(index)
     if (timerRef.current) clearInterval(timerRef.current)
 
     const option = puzzle.options[index]
     if (cellEq(option, puzzle.answer)) {
+      sfxCorrect()
       const elapsed = (Date.now() - startTimeRef.current) / 1000
       const speedBonus = elapsed < SPEED_THRESHOLD ? POINTS_SPEED_BONUS : 0
       setScore(prev => prev + POINTS_CORRECT + speedBonus)
+      sfxScore()
+      const pos = getRelativePos(e)
+      setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)])
+      setScorePops(prev => [...prev, createScorePop(pos.x, pos.y, POINTS_CORRECT + speedBonus, C.success)])
       const next = level + 1
       setLevel(next)
       setHighestLevel(prev => Math.max(prev, next))
       setPhase('correct')
       setTimeout(() => {
+        sfxLevelUp()
+        setParticles(prev => [...prev, ...confettiBurst(pos.x, pos.y)])
         nextPuzzle(next)
       }, 1000)
     } else {
+      const pos = getRelativePos(e)
+      setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)])
+      setShakeIntensity(6)
       handleWrong()
     }
   }
 
   const resetGame = () => {
+    sfxTap()
     setLevel(1)
     setScore(0)
     setLives(MAX_LIVES)
@@ -515,7 +557,7 @@ export default function MatrixForge({ onBack }: Props) {
   const timerColor = timerPct > 40 ? C.accent : timerPct > 15 ? C.warn : C.error
 
   return (
-    <div style={s.root}>
+    <div ref={containerRef} style={{ ...s.root, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity) }}>
       {/* Header */}
       <div style={s.header}>
         <button style={s.backBtn} onClick={onBack} aria-label="Back">
@@ -606,7 +648,7 @@ export default function MatrixForge({ onBack }: Props) {
                 transform: isSelected ? 'scale(0.96)' : 'scale(1)',
                 opacity: phase !== 'playing' && !isSelected && !isCorrect ? 0.4 : 1,
               }}
-              onClick={() => handleSelect(i)}
+              onClick={(e) => handleSelect(i, e)}
             >
               <ShapeSVG cell={opt} cellSize={cellSizeNum} />
             </div>
@@ -636,6 +678,14 @@ export default function MatrixForge({ onBack }: Props) {
           </div>
         </div>
       )}
+
+      {/* VFX particles */}
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   )
 }

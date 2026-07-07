@@ -1,6 +1,14 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Search, ChevronRight } from 'lucide-react'
+import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxTimer } from '../lib/sfx'
+import type { Particle, ScorePop } from '../lib/vfx'
+import {
+  correctBurst, wrongBurst, confettiBurst,
+  tickParticles, renderParticleStyle,
+  createScorePop, tickScorePops, scorePopStyle,
+  screenShakeStyle, comboGlowStyle, streakGlow,
+} from '../lib/vfx'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -433,6 +441,34 @@ export default function PatternHunter({ onBack }: Props) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [highScore, setHighScore] = useState(0)
 
+  /* VFX state */
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [scorePops, setScorePops] = useState<ScorePop[]>([])
+  const [shakeIntensity, setShakeIntensity] = useState(0)
+  const vfxFrameRef = useRef<number>(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // VFX animation loop — runs whenever there are active particles, pops, or shake
+  const vfxActive = particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01
+  useEffect(() => {
+    if (!vfxActive) return
+    const tick = () => {
+      setParticles(prev => tickParticles(prev))
+      setScorePops(prev => tickScorePops(prev))
+      setShakeIntensity(prev => prev * 0.85)
+      vfxFrameRef.current = requestAnimationFrame(tick)
+    }
+    vfxFrameRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(vfxFrameRef.current)
+  }, [vfxActive])
+
+  /** Get click position relative to the game container */
+  const relativePos = (e: React.MouseEvent): { x: number; y: number } => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 200, y: 300 }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+
   // Build shuffled options when puzzle changes
   useEffect(() => {
     const allOpts = shuffle([puzzle.rule, ...puzzle.decoys.slice(0, 3)])
@@ -465,14 +501,24 @@ export default function PatternHunter({ onBack }: Props) {
 
   // Handle timer expiry
   useEffect(() => {
+    if (timer > 0 && timer <= 5 && (phase === 'rule' || phase === 'predict')) {
+      sfxTimer()
+    }
     if (timer === 0 && (phase === 'rule' || phase === 'predict')) {
       stopTimer()
+      sfxWrong()
+      // Burst at center of container on timeout
+      const cx = containerRef.current ? containerRef.current.clientWidth / 2 : 200
+      const cy = containerRef.current ? containerRef.current.clientHeight / 2 : 300
+      setParticles(prev => [...prev, ...wrongBurst(cx, cy)])
+      setShakeIntensity(5)
       const newLives = lives - 1
       setLives(newLives)
       setStreak(0)
       if (newLives <= 0) {
         setPhase('gameover')
         setHighScore(prev => Math.max(prev, score))
+        setParticles(prev => [...prev, ...confettiBurst(cx, cy)])
       } else {
         setResultMsg('Time ran out!')
         setResultOk(false)
@@ -489,16 +535,21 @@ export default function PatternHunter({ onBack }: Props) {
     return () => stopTimer()
   }, [phase, level, startTimer, stopTimer])
 
-  const handleRuleSelect = (idx: number) => {
+  const handleRuleSelect = (idx: number, e?: React.MouseEvent) => {
     if (selectedRule !== null) return
+    sfxTap()
     setSelectedRule(idx)
     stopTimer()
 
     const chosen = options[idx]
     const correct = chosen.label === puzzle.rule.label
+    const pos = e ? relativePos(e) : { x: 200, y: 300 }
 
     if (correct) {
+      sfxCorrect()
       setRuleCorrect(true)
+      setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)])
+      setShakeIntensity(3)
       // Build prediction options
       const wrongPredictions: SequenceElement[] = []
       const next = puzzle.nextElement
@@ -537,11 +588,16 @@ export default function PatternHunter({ onBack }: Props) {
         startTimer()
       }, 800)
     } else {
+      sfxWrong()
+      setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)])
+      setShakeIntensity(5)
       const newLives = lives - 1
       setLives(newLives)
       setStreak(0)
       if (newLives <= 0) {
+        sfxGameOver()
         setHighScore(prev => Math.max(prev, score))
+        setParticles(prev => [...prev, ...confettiBurst(pos.x, pos.y)])
         setPhase('gameover')
       } else {
         setResultMsg(`Wrong rule! The pattern was: ${puzzle.rule.label}`)
@@ -551,29 +607,41 @@ export default function PatternHunter({ onBack }: Props) {
     }
   }
 
-  const handlePrediction = (idx: number) => {
+  const handlePrediction = (idx: number, e?: React.MouseEvent) => {
     if (selectedPrediction !== null) return
+    sfxTap()
     setSelectedPrediction(idx)
     stopTimer()
 
     const chosen = predictionOptions[idx]
     const correct = chosen.value === puzzle.nextElement.value && chosen.kind === puzzle.nextElement.kind
+    const pos = e ? relativePos(e) : { x: 200, y: 300 }
 
     if (correct) {
+      sfxCorrect()
       const timeBonus = Math.floor(timer * 2)
       const streakBonus = streak * 5
       const levelPoints = 10 + level * 5 + timeBonus + streakBonus
       const newScore = score + levelPoints
       setScore(newScore)
+      sfxCombo(streak + 1)
       setStreak(s => s + 1)
+      setParticles(prev => [...prev, ...correctBurst(pos.x, pos.y)])
+      setScorePops(prev => [...prev, createScorePop(pos.x, pos.y - 20, levelPoints)])
+      setShakeIntensity(4)
       setResultMsg(`+${levelPoints} points! (${timeBonus} time bonus, ${streakBonus} streak bonus)`)
       setResultOk(true)
     } else {
+      sfxWrong()
+      setParticles(prev => [...prev, ...wrongBurst(pos.x, pos.y)])
+      setShakeIntensity(6)
       const newLives = lives - 1
       setLives(newLives)
       setStreak(0)
       if (newLives <= 0) {
+        sfxGameOver()
         setHighScore(prev => Math.max(prev, score))
+        setParticles(prev => [...prev, ...confettiBurst(pos.x, pos.y)])
         setPhase('gameover')
         return
       }
@@ -584,6 +652,7 @@ export default function PatternHunter({ onBack }: Props) {
   }
 
   const nextRound = () => {
+    if (resultOk) sfxLevelUp()
     const newLevel = resultOk ? level + 1 : level
     setLevel(newLevel)
     const newPuzzle = buildPuzzle(newLevel)
@@ -671,9 +740,14 @@ export default function PatternHunter({ onBack }: Props) {
   void setPrediction
 
   return (
-    <div style={{
+    <div ref={containerRef} style={{
       minHeight: '100vh', background: C.bg, color: C.text, fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex', flexDirection: 'column',
+      position: 'relative', overflow: 'hidden',
+      ...screenShakeStyle(shakeIntensity),
+      ...comboGlowStyle(streak, C.accent),
+      backgroundColor: streakGlow(streak) !== 'transparent' ? undefined : C.bg,
+      backgroundImage: streakGlow(streak) !== 'transparent' ? `radial-gradient(ellipse at center, ${streakGlow(streak)}, ${C.bg} 70%)` : undefined,
     }}>
       {/* Header */}
       <div style={{
@@ -778,7 +852,7 @@ export default function PatternHunter({ onBack }: Props) {
                 return (
                   <button
                     key={i}
-                    onClick={() => handleRuleSelect(i)}
+                    onClick={(e) => handleRuleSelect(i, e)}
                     disabled={selectedRule !== null}
                     style={{
                       background: bg, color: textColor, border: `1px solid ${showResult && isCorrect ? C.accent : C.border}`,
@@ -851,7 +925,7 @@ export default function PatternHunter({ onBack }: Props) {
                   return (
                     <button
                       key={i}
-                      onClick={() => handlePrediction(i)}
+                      onClick={(e) => handlePrediction(i, e)}
                       disabled={selectedPrediction !== null}
                       style={{
                         background: bg, color: textColor, border: `1px solid ${showResult && isCorrect ? C.accent : C.border}`,
@@ -936,6 +1010,16 @@ export default function PatternHunter({ onBack }: Props) {
           </div>
         )}
       </div>
+
+      {/* VFX particles */}
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+
+      {/* VFX score pops */}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   )
 }

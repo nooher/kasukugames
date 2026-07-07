@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Zap,
 } from 'lucide-react';
+import { sfxTap, sfxScore, sfxWrong, sfxLevelUp, sfxGameOver, sfxTimer } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -215,6 +217,11 @@ export default function ImpossibleUses({ onBack }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const usesEndRef = useRef<HTMLDivElement>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
 
   const currentObject = objects[currentRound] ?? '';
 
@@ -240,6 +247,9 @@ export default function ImpossibleUses({ onBack }: Props) {
     if (phase === 'playing' && timeLeft === 0) {
       endRound();
     }
+    if (phase === 'playing' && timeLeft > 0 && timeLeft <= 5) {
+      sfxTimer();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, phase]);
 
@@ -255,8 +265,22 @@ export default function ImpossibleUses({ onBack }: Props) {
     }
   }, [phase, currentRound]);
 
+  /* ---- VFX animation loop ---- */
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.01) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01]);
+
   /* ---- Handlers ---- */
   const startGame = useCallback(() => {
+    sfxTap();
     const picked = pickObjects(ROUNDS_PER_GAME);
     setObjects(picked);
     setCurrentRound(0);
@@ -281,12 +305,18 @@ export default function ImpossibleUses({ onBack }: Props) {
     };
     setRoundResults((prev) => [...prev, result]);
     setPhase('roundEnd');
+    if (containerRef.current && uses.length >= 5) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setParticles(prev => [...prev, ...confettiBurst(rect.width / 2, rect.height / 3)]);
+    }
   }, [uses, currentObject]);
 
   const nextRound = useCallback(() => {
     if (currentRound + 1 >= ROUNDS_PER_GAME) {
+      sfxGameOver();
       setPhase('gameEnd');
     } else {
+      sfxLevelUp();
       setCurrentRound((r) => r + 1);
       setUses([]);
       setInput('');
@@ -300,12 +330,22 @@ export default function ImpossibleUses({ onBack }: Props) {
     if (!trimmed || phase !== 'playing') return;
     // Duplicate check
     if (uses.some((u) => u.text.toLowerCase() === trimmed.toLowerCase())) {
+      sfxWrong();
+      setShakeIntensity(2);
       setShake(true);
       setTimeout(() => setShake(false), 400);
       return;
     }
     const categories = detectCategories(trimmed);
     const points = scoreUse(trimmed, uses);
+    sfxScore();
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
+      setScorePops(prev => [...prev, createScorePop(cx, cy - 60, points, '#7b2ff7')]);
+    }
     setUses((prev) => [...prev, { text: trimmed, points, categories }]);
     setInput('');
   }, [input, phase, uses]);
@@ -389,7 +429,7 @@ export default function ImpossibleUses({ onBack }: Props) {
   /* ================================================================== */
   if (phase === 'menu') {
     return (
-      <div style={containerStyle}>
+      <div ref={containerRef} style={{ ...containerStyle, position: 'relative', overflow: 'hidden' }}>
         <div style={headerStyle}>
           <button style={backBtnStyle} onClick={onBack}>
             <ArrowLeft size={20} />
@@ -485,7 +525,7 @@ export default function ImpossibleUses({ onBack }: Props) {
     const roundPoints = uses.reduce((s, u) => s + u.points, 0);
 
     return (
-      <div style={containerStyle}>
+      <div ref={containerRef} style={{ ...containerStyle, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity), ...comboGlowStyle(uses.length, '#7b2ff7') }}>
         <div style={headerStyle}>
           <button style={backBtnStyle} onClick={onBack}>
             <ArrowLeft size={20} />
@@ -718,6 +758,13 @@ export default function ImpossibleUses({ onBack }: Props) {
           </div>
         </div>
 
+        {particles.map(p => (
+          <div key={p.id} style={renderParticleStyle(p)} />
+        ))}
+        {scorePops.map(pop => (
+          <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+        ))}
+
         <style>{`
           @keyframes fadeSlideIn {
             from { opacity: 0; transform: translateY(8px); }
@@ -745,7 +792,7 @@ export default function ImpossibleUses({ onBack }: Props) {
     const total = lastResult.totalPoints + divBonus;
 
     return (
-      <div style={containerStyle}>
+      <div ref={containerRef} style={{ ...containerStyle, position: 'relative', overflow: 'hidden' }}>
         <div style={headerStyle}>
           <button style={backBtnStyle} onClick={onBack}>
             <ArrowLeft size={20} />
@@ -1033,7 +1080,7 @@ export default function ImpossibleUses({ onBack }: Props) {
   const allCategories = new Set(allUses.flatMap((u) => u.categories));
 
   return (
-    <div style={containerStyle}>
+    <div ref={containerRef} style={{ ...containerStyle, position: 'relative', overflow: 'hidden' }}>
       <div style={headerStyle}>
         <button style={backBtnStyle} onClick={onBack}>
           <ArrowLeft size={20} />

@@ -10,6 +10,7 @@ import {
   Flame,
   ChevronRight,
 } from 'lucide-react';
+import { sfxTap, sfxClick, sfxLevelUp } from '../lib/sfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -248,10 +249,12 @@ export default function RiskAppetite({ onBack }: Props) {
   const progress = SCENARIOS.length > 0 ? ((idx) / SCENARIOS.length) * 100 : 0;
 
   const advance = useCallback((score: number) => {
+    sfxTap();
     setAnimating(true);
     setAnswers(prev => [...prev, score]);
     setTimeout(() => {
       if (idx + 1 >= SCENARIOS.length) {
+        sfxLevelUp();
         setPhase('results');
       } else {
         setIdx(prev => prev + 1);
@@ -335,7 +338,7 @@ export default function RiskAppetite({ onBack }: Props) {
           </div>
 
           <button
-            onClick={() => setPhase('scenario')}
+            onClick={() => { sfxClick(); setPhase('scenario'); }}
             style={{
               background: C.amber, color: C.obsidian, border: 'none',
               borderRadius: C.radius.md, padding: '14px 48px', fontSize: 16,
@@ -439,7 +442,7 @@ export default function RiskAppetite({ onBack }: Props) {
 
           {/* Play again */}
           <button
-            onClick={() => { setPhase('intro'); setIdx(0); setAnswers([]); setSliderVal(50); }}
+            onClick={() => { sfxTap(); setPhase('intro'); setIdx(0); setAnswers([]); setSliderVal(50); }}
             style={{
               width: '100%', background: C.surface, color: C.amber, border: `1px solid ${C.border}`,
               borderRadius: C.radius.md, padding: '14px 0', fontSize: 15,

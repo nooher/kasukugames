@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Heart, Zap, Trophy, RotateCcw, Clock, Brain } from 'lucide-react';
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxCombo } from '../lib/sfx';
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -210,6 +212,11 @@ export default function SequenceCollapse({ onBack }: Props) {
   const [fadeIn, setFadeIn] = useState(false);
   const [streakBonus, setStreakBonus] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [scorePops, setScorePops] = useState<ScorePop[]>([]);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
   const mountRef = useRef(true);
 
   /* cleanup on unmount */
@@ -220,6 +227,18 @@ export default function SequenceCollapse({ onBack }: Props) {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (particles.length === 0 && scorePops.length === 0 && shakeIntensity <= 0.01) return;
+    const tick = () => {
+      setParticles(prev => tickParticles(prev));
+      setScorePops(prev => tickScorePops(prev));
+      setShakeIntensity(prev => prev * 0.85);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [particles.length > 0 || scorePops.length > 0 || shakeIntensity > 0.01]);
 
   /* start a new puzzle */
   const nextPuzzle = useCallback(
@@ -244,9 +263,11 @@ export default function SequenceCollapse({ onBack }: Props) {
           if (t <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
             /* time-out counts as wrong */
+            sfxWrong();
             setLives((prev) => {
               const next = prev - 1;
               if (next <= 0) {
+                sfxGameOver();
                 setState('gameover');
               } else {
                 setState('wrong');
@@ -271,18 +292,35 @@ export default function SequenceCollapse({ onBack }: Props) {
       setSelected(value);
 
       if (value === puzzle.answer) {
+        sfxCorrect();
         const timeBonus = Math.floor(timer * 5);
         const levelBonus = level * 10;
         const streak = streakBonus + 1;
         const streakPts = streak >= 3 ? streak * 5 : 0;
+        if (streak >= 3) sfxCombo(streak);
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          const cx = rect.width / 2;
+          const cy = rect.height / 2;
+          setParticles(prev => [...prev, ...correctBurst(cx, cy)]);
+          const pts = levelBonus + timeBonus + streakPts;
+          setScorePops(prev => [...prev, createScorePop(cx, cy - 40, pts, '#00c97b')]);
+        }
         setScore((s) => s + levelBonus + timeBonus + streakPts);
         setStreakBonus(streak);
         setState('correct');
       } else {
+        sfxWrong();
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          setParticles(prev => [...prev, ...wrongBurst(rect.width / 2, rect.height / 2)]);
+          setShakeIntensity(3);
+        }
         setStreakBonus(0);
         setLives((prev) => {
           const next = prev - 1;
           if (next <= 0) {
+            sfxGameOver();
             setState('gameover');
           } else {
             setState('wrong');
@@ -297,16 +335,23 @@ export default function SequenceCollapse({ onBack }: Props) {
   /* advance after correct/wrong feedback */
   const advance = useCallback(() => {
     if (state === 'correct') {
+      sfxLevelUp();
+      if (containerRef.current && (level + 1) % 5 === 0) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setParticles(prev => [...prev, ...confettiBurst(rect.width / 2, rect.height / 3)]);
+      }
       const next = level + 1;
       setLevel(next);
       nextPuzzle(next);
     } else if (state === 'wrong') {
+      sfxTap();
       nextPuzzle(level);
     }
   }, [state, level, nextPuzzle]);
 
   /* start game */
   const startGame = useCallback(() => {
+    sfxTap();
     setLevel(1);
     setScore(0);
     setLives(3);
@@ -519,7 +564,7 @@ export default function SequenceCollapse({ onBack }: Props) {
   /* ---------------------------------------------------------------- */
   if (state === 'menu') {
     return (
-      <div style={wrap}>
+      <div ref={containerRef} style={{ ...wrap, position: 'relative', overflow: 'hidden' }}>
         <style>{keyframesStyle}</style>
         <div style={headerRow}>
           <button style={backBtn} onClick={onBack}>
@@ -567,7 +612,7 @@ export default function SequenceCollapse({ onBack }: Props) {
   /* ---------------------------------------------------------------- */
   if (state === 'gameover') {
     return (
-      <div style={wrap}>
+      <div ref={containerRef} style={{ ...wrap, position: 'relative', overflow: 'hidden' }}>
         <style>{keyframesStyle}</style>
         <div style={headerRow}>
           <button style={backBtn} onClick={onBack}>
@@ -612,7 +657,7 @@ export default function SequenceCollapse({ onBack }: Props) {
   /*  Playing / correct / wrong screens                                */
   /* ---------------------------------------------------------------- */
   return (
-    <div style={wrap}>
+    <div ref={containerRef} style={{ ...wrap, position: 'relative', overflow: 'hidden', ...screenShakeStyle(shakeIntensity), ...comboGlowStyle(streakBonus, '#f59e0b') }}>
       <style>{keyframesStyle}</style>
 
       {/* Header */}
@@ -727,6 +772,12 @@ export default function SequenceCollapse({ onBack }: Props) {
           </>
         )}
       </div>
+      {particles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {scorePops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   );
 }

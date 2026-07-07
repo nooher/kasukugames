@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ArrowLeft, Plus, X, Play, Heart, Skull, Trophy, Crown, Sparkles, Users, Shuffle, ChevronRight, RotateCcw, Hand } from 'lucide-react';
 import { RADIUS, MOTION, solidBtn } from '../lib/design';
+import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxReveal, sfxLevelUp } from '../lib/sfx';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -245,6 +246,7 @@ export default function NeverHaveIEver({ onBack }: { onBack: () => void }) {
     const validNames = playerNames.filter(n => n.trim().length > 0);
     if (validNames.length < 2) return;
     if (selectedCategories.size === 0) return;
+    sfxTap();
 
     const pool = buildStatementPool();
     const stmts = pool.map(p => p.statement);
@@ -294,6 +296,7 @@ export default function NeverHaveIEver({ onBack }: { onBack: () => void }) {
 
   // Handle player response
   const handleResponse = useCallback((playerIndex: number, iHave: boolean) => {
+    if (iHave) sfxWrong(); else sfxCorrect();
     setResponses(prev => {
       const next = new Map(prev);
       next.set(playerIndex, iHave);
@@ -309,6 +312,7 @@ export default function NeverHaveIEver({ onBack }: { onBack: () => void }) {
   // Submit round responses
   const submitRound = useCallback(() => {
     if (!allResponded) return;
+    sfxReveal();
 
     setPlayers(prev => {
       const next = prev.map((p, i) => {
@@ -341,10 +345,12 @@ export default function NeverHaveIEver({ onBack }: { onBack: () => void }) {
     });
 
     if (remaining.length <= 1 || round + 1 >= MAX_ROUNDS || round + 1 >= statements.length) {
+      sfxGameOver();
       setPhase('results');
       return;
     }
 
+    sfxLevelUp();
     setRound(r => r + 1);
     setPhase('playing');
   }, [players, responses, round, statements.length]);

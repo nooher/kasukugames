@@ -1,6 +1,8 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Building2, Eye, Hash, Palette, Brain } from 'lucide-react'
+import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxReveal } from '../lib/sfx'
+import { Particle, ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -287,6 +289,12 @@ export default function FocusTower({ onBack }: Props) {
   /* ---- Flashing distractor state for color match ---- */
   const [flashActive, setFlashActive] = useState<Set<number>>(new Set())
 
+  /* ---- VFX state ---- */
+  const [vfxParticles, setVfxParticles] = useState<Particle[]>([])
+  const [vfxPops, setVfxPops] = useState<ScorePop[]>([])
+  const [shakeIntensity, setShakeIntensity] = useState(0)
+  const vfxRafRef = useRef(0)
+
   /* ---- Cleanup ---- */
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -297,8 +305,22 @@ export default function FocusTower({ onBack }: Props) {
 
   useEffect(() => () => clearTimer(), [clearTimer])
 
+  /* ---- VFX animation loop ---- */
+  useEffect(() => {
+    if (vfxParticles.length === 0 && vfxPops.length === 0 && shakeIntensity <= 0.1) return
+    const tick = () => {
+      setVfxParticles(prev => tickParticles(prev))
+      setVfxPops(prev => tickScorePops(prev))
+      setShakeIntensity(prev => prev * 0.85)
+      vfxRafRef.current = requestAnimationFrame(tick)
+    }
+    vfxRafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(vfxRafRef.current)
+  }, [vfxParticles.length > 0 || vfxPops.length > 0 || shakeIntensity > 0.1])
+
   /* ---- Start a new game ---- */
   const startGame = useCallback(() => {
+    sfxTap()
     setPhase('playing')
     setFloor(0)
     setLives(MAX_LIVES)
@@ -311,6 +333,7 @@ export default function FocusTower({ onBack }: Props) {
 
   /* ---- Start a floor ---- */
   const startFloor = useCallback((floorNum: number) => {
+    sfxReveal()
     const task = TASK_TYPES[floorNum % TASK_TYPES.length]
     setCurrentTask(task)
     setPhase('task_intro')
@@ -387,10 +410,18 @@ export default function FocusTower({ onBack }: Props) {
 
   /* ---- Floor complete ---- */
   const handleSuccess = useCallback(() => {
+    sfxCorrect()
+    sfxLevelUp()
     clearTimer()
     const elapsed = (Date.now() - taskStartRef.current) / 1000
     const speedBonus = elapsed < timerMax * 0.4 ? 50 : elapsed < timerMax * 0.6 ? 25 : 0
     const floorScore = 100 + speedBonus
+
+    const rect = containerRef.current?.getBoundingClientRect()
+    const cx = rect ? rect.width / 2 : 200
+    const cy = rect ? rect.height / 2 : 300
+    setVfxParticles(prev => [...prev, ...confettiBurst(cx, cy)])
+    setVfxPops(prev => [...prev, createScorePop(cx, cy - 40, floorScore, '#00c97b')])
 
     const newBlock: FloorBlock = {
       color: FLOOR_COLORS[floor % FLOOR_COLORS.length],
@@ -413,10 +444,18 @@ export default function FocusTower({ onBack }: Props) {
 
   /* ---- Floor failed ---- */
   const handleFailure = useCallback(() => {
+    sfxWrong()
     clearTimer()
+    const rect = containerRef.current?.getBoundingClientRect()
+    const cx = rect ? rect.width / 2 : 200
+    const cy = rect ? rect.height / 2 : 300
+    setVfxParticles(prev => [...prev, ...wrongBurst(cx, cy)])
+    setShakeIntensity(8)
     setLives(prev => {
       const next = prev - 1
       if (next <= 0) {
+        sfxGameOver()
+        setShakeIntensity(12)
         setPhase('game_over')
         setScore(s => {
           const final = s
@@ -799,6 +838,7 @@ export default function FocusTower({ onBack }: Props) {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         position: 'relative',
         overflow: 'hidden',
+        ...screenShakeStyle(shakeIntensity),
       }}
     >
       {/* Header */}
@@ -1206,6 +1246,13 @@ export default function FocusTower({ onBack }: Props) {
           </button>
         </div>
       )}
+      {/* VFX particles */}
+      {vfxParticles.map(p => (
+        <div key={p.id} style={renderParticleStyle(p)} />
+      ))}
+      {vfxPops.map(pop => (
+        <div key={pop.id} style={scorePopStyle(pop)}>{pop.text}</div>
+      ))}
     </div>
   )
 }
