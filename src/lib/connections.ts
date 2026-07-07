@@ -166,7 +166,7 @@ export function generateInviteMessage(_fromName: string, conn: Connection, gameT
 
 export function generateWhatsAppInvite(fromName: string, conn: Connection, gameType: string, gameName: string): string {
   const msg = generateInviteMessage(fromName, conn, gameType, gameName)
-  const link = `https://kasukugames.laetoli.tz/play?invite=${gameType}&from=${encodeURIComponent(fromName)}`
+  const link = `https://games.kasuku.tz/play?invite=${gameType}&from=${encodeURIComponent(fromName)}`
   return `https://wa.me/${conn.contactValue.replace(/\D/g, '')}?text=${encodeURIComponent(`${msg}\n\n🎮 ${link}`)}`
 }
 

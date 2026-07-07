@@ -647,7 +647,11 @@ export default function App() {
           <Logo size={22} textColor={P.text} mutedColor={P.textMuted} />
           <div>
             <span style={{ fontSize: 12, fontWeight: 600, color: P.textMuted }}>{BRAND.sub}</span>
-            <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: P.textDim, display: 'block', marginTop: 2, textDecoration: 'none' }}>by <span style={{ textDecoration: 'underline', textDecorationColor: P.textDim + '40', textUnderlineOffset: 2 }}>{BRAND.by}</span></a>
+            <span style={{ fontSize: 11, color: P.textDim, display: 'block', marginTop: 2 }}>
+              Part of <a href="https://kasuku.tz" target="_blank" rel="noopener noreferrer" style={{ color: '#e0913f', fontWeight: 700, textDecoration: 'none' }}>Kasuku</a>
+              {' · by '}
+              <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ color: '#e0913f', fontWeight: 700, textDecoration: 'none' }}>{BRAND.by}</a>
+            </span>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -1628,8 +1632,10 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
           )}
         </div>
 
-        <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
-          <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: P.textDim, fontWeight: 600, textDecoration: 'none' }}>Built by <span style={{ textDecoration: 'underline', textDecorationColor: P.textDim + '40', textUnderlineOffset: 2 }}>Laetoli</span></a>
+        <div style={{ textAlign: 'center', padding: '16px 0 8px', fontSize: 11, color: P.textDim, fontWeight: 600 }}>
+          Part of <a href="https://kasuku.tz" target="_blank" rel="noopener noreferrer" style={{ color: '#e0913f', fontWeight: 700, textDecoration: 'none' }}>Kasuku</a>
+          {' · Built by '}
+          <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ color: '#e0913f', fontWeight: 700, textDecoration: 'none' }}>Laetoli</a>
         </div>
 
         <button onClick={() => { localStorage.removeItem('kg_profile'); setProfile(null) }} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textDim, borderRadius: RADIUS.lg, padding: '11px 24px', fontSize: 13, cursor: 'pointer', width: '100%', boxShadow: isDark ? GLASS.highlight : 'none' }}>{t('logout')}</button>
