@@ -14,6 +14,16 @@ function esc(s: string) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 }
 
+// Full-res uploads can be several MB — too big for WhatsApp to fetch as a
+// preview thumbnail. Serve a 600px, quality-75 render (~90KB) for Supabase
+// storage images; leave any other URL untouched.
+function ogSized(u: string) {
+  if (u.includes('/storage/v1/object/public/')) {
+    return u.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/') + '?width=600&height=600&resize=cover&quality=75'
+  }
+  return u
+}
+
 export default async function handler(
   req: { query?: Record<string, string | string[]> },
   res: { setHeader: (k: string, v: string) => void; status: (n: number) => { send: (b: string) => void } },
@@ -35,7 +45,7 @@ export default async function handler(
         const rows = await r.json() as Array<{ name?: string; avatar_url?: string }>
         if (Array.isArray(rows) && rows[0]) {
           if (rows[0].name) name = rows[0].name
-          if (rows[0].avatar_url) pic = rows[0].avatar_url
+          if (rows[0].avatar_url) pic = ogSized(rows[0].avatar_url)
         }
       }
     } catch { /* fall back to name + default image */ }
