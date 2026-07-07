@@ -22,23 +22,23 @@ export type CognitiveTarget =
   | 'visual-perception'
 
 export const TARGET_META: Record<CognitiveTarget, { label: string; color: string; icon: string }> = {
-  'working-memory': { label: 'Working Memory', color: '#7b2ff7', icon: 'brain' },
-  'executive-function': { label: 'Executive Function', color: '#3a86ff', icon: 'cpu' },
-  'pattern-recognition': { label: 'Pattern Recognition', color: '#00c97b', icon: 'scan' },
-  'processing-speed': { label: 'Processing Speed', color: '#f59e0b', icon: 'zap' },
-  'social-intelligence': { label: 'Social Intelligence', color: '#f43f5e', icon: 'users' },
-  'emotional-intelligence': { label: 'Emotional Intelligence', color: '#ec4899', icon: 'heart' },
-  'negotiation': { label: 'Negotiation', color: '#f97316', icon: 'handshake' },
-  'creativity': { label: 'Creativity', color: '#e879f9', icon: 'lightbulb' },
-  'strategic-planning': { label: 'Strategic Planning', color: '#06b6d4', icon: 'target' },
-  'linguistic-fluency': { label: 'Linguistic Fluency', color: '#00b4d8', icon: 'languages' },
-  'probabilistic-reasoning': { label: 'Probabilistic Reasoning', color: '#8b5cf6', icon: 'dice5' },
-  'cognitive-flexibility': { label: 'Cognitive Flexibility', color: '#14b8a6', icon: 'shuffle' },
-  'theory-of-mind': { label: 'Theory of Mind', color: '#f472b6', icon: 'eye' },
-  'decision-making': { label: 'Decision Making', color: '#ef4444', icon: 'crosshair' },
-  'sustained-attention': { label: 'Sustained Attention', color: '#0ea5e9', icon: 'focus' },
-  'spatial-reasoning': { label: 'Spatial Reasoning', color: '#a855f7', icon: 'box' },
-  'visual-perception': { label: 'Visual Perception', color: '#22d3ee', icon: 'eye' },
+  'working-memory': { label: 'Working Memory', color: '#b8a0c8', icon: 'brain' },
+  'executive-function': { label: 'Executive Function', color: '#c4a882', icon: 'cpu' },
+  'pattern-recognition': { label: 'Pattern Recognition', color: '#a8b89a', icon: 'scan' },
+  'processing-speed': { label: 'Processing Speed', color: '#c9a96e', icon: 'zap' },
+  'social-intelligence': { label: 'Social Intelligence', color: '#c8847a', icon: 'users' },
+  'emotional-intelligence': { label: 'Emotional Intelligence', color: '#c89ab8', icon: 'heart' },
+  'negotiation': { label: 'Negotiation', color: '#c8986a', icon: 'handshake' },
+  'creativity': { label: 'Creativity', color: '#c89ab8', icon: 'lightbulb' },
+  'strategic-planning': { label: 'Strategic Planning', color: '#8ab8c8', icon: 'target' },
+  'linguistic-fluency': { label: 'Linguistic Fluency', color: '#8aada8', icon: 'languages' },
+  'probabilistic-reasoning': { label: 'Probabilistic Reasoning', color: '#b8a0c8', icon: 'dice5' },
+  'cognitive-flexibility': { label: 'Cognitive Flexibility', color: '#8aada8', icon: 'shuffle' },
+  'theory-of-mind': { label: 'Theory of Mind', color: '#c89ab8', icon: 'eye' },
+  'decision-making': { label: 'Decision Making', color: '#c8847a', icon: 'crosshair' },
+  'sustained-attention': { label: 'Sustained Attention', color: '#8ab8c8', icon: 'focus' },
+  'spatial-reasoning': { label: 'Spatial Reasoning', color: '#b8a0c8', icon: 'box' },
+  'visual-perception': { label: 'Visual Perception', color: '#8ab8c8', icon: 'eye' },
 }
 
 export type GameCategory =
@@ -55,17 +55,17 @@ export type GameCategory =
   | 'classic'
 
 export const CATEGORY_META: Record<GameCategory, { label: string; sub: string; color: string }> = {
-  'iq-arena': { label: 'IQ Arena', sub: 'Classic intelligence challenges', color: '#3a86ff' },
-  'fast-brain': { label: 'Fast Brain', sub: 'Reaction + thinking', color: '#f59e0b' },
-  'language-arena': { label: 'Language Arena', sub: 'Linguistic mastery', color: '#00b4d8' },
-  'creativity-lab': { label: 'Creativity Lab', sub: 'Divergent thinking', color: '#e879f9' },
-  'psychological': { label: 'Psychological', sub: 'Self-discovery', color: '#f43f5e' },
-  'social': { label: 'Social Games', sub: 'Human connection', color: '#f97316' },
-  'party': { label: 'Party', sub: 'Multiplayer & couples', color: '#ec4899' },
-  'mental-endurance': { label: 'Mental Endurance', sub: 'Cognitive marathons', color: '#06b6d4' },
-  'medical': { label: 'Medical', sub: 'Clinical reasoning', color: '#00c97b' },
-  'ai-games': { label: 'AI Games', sub: 'Human vs machine', color: '#7b2ff7' },
-  'classic': { label: 'Classic', sub: 'Timeless arcade', color: '#64748b' },
+  'iq-arena': { label: 'IQ Arena', sub: 'Classic intelligence challenges', color: '#c4a882' },
+  'fast-brain': { label: 'Fast Brain', sub: 'Reaction + thinking', color: '#c9a96e' },
+  'language-arena': { label: 'Language Arena', sub: 'Linguistic mastery', color: '#8aada8' },
+  'creativity-lab': { label: 'Creativity Lab', sub: 'Divergent thinking', color: '#c89ab8' },
+  'psychological': { label: 'Psychological', sub: 'Self-discovery', color: '#c8847a' },
+  'social': { label: 'Social Games', sub: 'Human connection', color: '#c8986a' },
+  'party': { label: 'Party', sub: 'Multiplayer & couples', color: '#c89ab8' },
+  'mental-endurance': { label: 'Mental Endurance', sub: 'Cognitive marathons', color: '#8ab8c8' },
+  'medical': { label: 'Medical', sub: 'Clinical reasoning', color: '#a8b89a' },
+  'ai-games': { label: 'AI Games', sub: 'Human vs machine', color: '#b8a0c8' },
+  'classic': { label: 'Classic', sub: 'Timeless arcade', color: '#a8a098' },
 }
 
 export interface GameDef {

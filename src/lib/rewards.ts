@@ -1,10 +1,35 @@
 import { PALETTE } from './brand'
 
+export type MuhuriType = 'founder' | 'admin' | 'verified' | 'player'
+
+export interface Muhuri {
+  type: MuhuriType
+  label: string
+  color: string
+}
+
+export const MUHURI_META: Record<MuhuriType, Muhuri> = {
+  founder:  { type: 'founder',  label: 'Creator',  color: '#c9a96e' },
+  admin:    { type: 'admin',    label: 'Admin',     color: '#8aada8' },
+  verified: { type: 'verified', label: 'Verified',  color: '#c4a882' },
+  player:   { type: 'player',   label: 'Player',    color: '#a89a86' },
+}
+
+const KASUKU_MUHURI: Record<string, MuhuriType> = {
+  anaim: 'founder',
+}
+
+export function getMuhuri(username: string): MuhuriType {
+  return KASUKU_MUHURI[username.toLowerCase()] || 'player'
+}
+
 export interface PlayerProfile {
   id: string
   username: string
   displayName: string
   avatar: string
+  photoUrl: string | null
+  muhuri: MuhuriType
   level: number
   xp: number
   totalGames: number
@@ -23,13 +48,13 @@ export interface PlayerProfile {
 export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master' | 'legend'
 
 export const RANK_META: Record<RankTier, { label: string; minXP: number; color: string; icon: string }> = {
-  bronze:   { label: 'Bronze',   minXP: 0,      color: '#cd7f32', icon: 'shield' },
-  silver:   { label: 'Silver',   minXP: 5000,   color: '#b0b8c4', icon: 'shield' },
-  gold:     { label: 'Gold',     minXP: 15000,  color: '#fbbf24', icon: 'award' },
-  platinum: { label: 'Platinum', minXP: 40000,  color: '#00b4d8', icon: 'crown' },
-  diamond:  { label: 'Diamond',  minXP: 100000, color: '#7b2ff7', icon: 'gem' },
-  master:   { label: 'Master',   minXP: 250000, color: '#f43f5e', icon: 'trophy' },
-  legend:   { label: 'Legend',   minXP: 500000, color: '#ff6b6b', icon: 'flame' },
+  bronze:   { label: 'Bronze',   minXP: 0,      color: '#b8936e', icon: 'shield' },
+  silver:   { label: 'Silver',   minXP: 5000,   color: '#a8a098', icon: 'shield' },
+  gold:     { label: 'Gold',     minXP: 15000,  color: '#c9a96e', icon: 'award' },
+  platinum: { label: 'Platinum', minXP: 40000,  color: '#8aada8', icon: 'crown' },
+  diamond:  { label: 'Diamond',  minXP: 100000, color: '#b8a0c8', icon: 'gem' },
+  master:   { label: 'Master',   minXP: 250000, color: '#c8847a', icon: 'trophy' },
+  legend:   { label: 'Legend',   minXP: 500000, color: '#c4a882', icon: 'flame' },
 }
 
 export function getRankForXP(xp: number): RankTier {
@@ -125,7 +150,14 @@ const PROFILE_KEY = 'kg_profile'
 export function loadProfile(): PlayerProfile | null {
   try {
     const data = localStorage.getItem(PROFILE_KEY)
-    return data ? JSON.parse(data) : null
+    if (!data) return null
+    const p = JSON.parse(data) as PlayerProfile
+    if (!p.muhuri) {
+      p.muhuri = getMuhuri(p.username)
+      p.photoUrl = p.photoUrl ?? null
+      saveProfile(p)
+    }
+    return p
   } catch { return null }
 }
 
@@ -139,6 +171,8 @@ export function createProfile(username: string, displayName: string): PlayerProf
     username,
     displayName,
     avatar: '🧠',
+    photoUrl: null,
+    muhuri: getMuhuri(username),
     level: 1,
     xp: 0,
     totalGames: 0,

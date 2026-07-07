@@ -15,6 +15,7 @@ import { CATEGORY_META, TARGET_META, type GameCategory } from './lib/cognitive'
 import {
   loadProfile, createProfile, updateProfileAfterGame,
   xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
+  MUHURI_META,
   type PlayerProfile,
 } from './lib/rewards'
 import {
@@ -367,6 +368,9 @@ export default function App() {
               ...navBtnStyle, background: section === 'profile' ? P.sapphire + '20' : 'none', gap: 6,
             }}>
               <span style={{ fontSize: 18 }}>{profile.avatar}</span>
+              {profile.muhuri && profile.muhuri !== 'player' && (
+                <span style={{ fontSize: 7, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUHURI_META[profile.muhuri].color, background: MUHURI_META[profile.muhuri].color + '18', padding: '2px 6px', borderRadius: RADIUS.full, border: `1px solid ${MUHURI_META[profile.muhuri].color}30` }}>{MUHURI_META[profile.muhuri].label}</span>
+              )}
               <span style={{ fontSize: 11, fontWeight: 800, color: RANK_META[profile.rank].color }}>{profile.level}</span>
             </button>
           ) : (
@@ -1178,7 +1182,21 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
         {isDark && <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', width: 120, height: 60, borderRadius: '50%', ...heroGlow(rankColor), pointerEvents: 'none' }} />}
         <div style={{ fontSize: 56, marginBottom: 10, position: 'relative', filter: isDark ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' : 'none' }}>{profile.avatar}</div>
         <h2 style={{ margin: '0 0 4px', ...TYPOGRAPHY.heading, color: P.text }}>{profile.displayName}</h2>
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: P.textMuted }}>@{profile.username}</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '0 0 16px' }}>
+          <span style={{ fontSize: 13, color: P.textMuted }}>@{profile.username}</span>
+          {profile.muhuri && profile.muhuri !== 'player' && (
+            <span style={{
+              fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: MUHURI_META[profile.muhuri].color,
+              background: MUHURI_META[profile.muhuri].color + '18',
+              padding: '3px 10px', borderRadius: RADIUS.full,
+              border: `1px solid ${MUHURI_META[profile.muhuri].color}30`,
+            }}>{MUHURI_META[profile.muhuri].label}</span>
+          )}
+          {profile.muhuri === 'founder' && (
+            <span style={{ fontSize: 10, color: P.textDim, fontWeight: 600 }}>Mtengenezaji</span>
+          )}
+        </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: RADIUS.full, background: rankColor + '18', border: `1px solid ${rankColor}30`, boxShadow: SHADOW.glow(rankColor) }}>
           <Crown size={16} color={rankColor} />
           <span style={{ fontSize: 14, fontWeight: 800, color: rankColor }}>{RANK_META[profile.rank].label}</span>
@@ -1263,6 +1281,10 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
             <button style={{ background: 'none', border: `1px solid ${P.rose}40`, color: P.rose, borderRadius: RADIUS.full, padding: '8px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: isDark ? GLASS.highlight : 'none' }}><Heart size={13} /> {t('connect')}</button>
           </div>
         )}
+      </div>
+
+      <div style={{ textAlign: 'center', padding: '20px 0 8px' }}>
+        <span style={{ fontSize: 11, color: P.textDim, fontWeight: 600 }}>Built by Laetoli</span>
       </div>
 
       <button onClick={() => { localStorage.removeItem('kg_profile'); setProfile(null) }} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textDim, borderRadius: RADIUS.lg, padding: '12px 24px', fontSize: 13, cursor: 'pointer', width: '100%', boxShadow: isDark ? GLASS.highlight : 'none' }}>{t('logout')}</button>

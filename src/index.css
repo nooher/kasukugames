@@ -1,30 +1,30 @@
 /* KasukuGames — Cognitive Performance Platform */
-/* $5B design system. Solid fills, glass finish, zero gradients. */
+/* Warm cream organic design system. Solid fills, glass finish, zero gradients. */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0b0f14;
-  --bg-deep: #060a10;
-  --surface: #151d2b;
-  --card: #1a2230;
-  --card-active: #1e2a3e;
-  --carbon: #141c28;
-  --border: #1f2d3d;
-  --dim: #3d4f63;
-  --muted: #7a8ba0;
-  --white: #f0f4f8;
-  --emerald: #00c97b;
-  --teal: #00b4d8;
-  --sapphire: #3a86ff;
-  --violet: #7b2ff7;
-  --amber: #f59e0b;
-  --rose: #f43f5e;
-  --gold: #fbbf24;
-  --coral: #ff6b6b;
-  --success: #00c97b;
-  --warning: #f59e0b;
-  --error: #f43f5e;
+  --bg: #f5f0e8;
+  --bg-deep: #f0ebe2;
+  --surface: #faf7f2;
+  --card: #ffffff;
+  --card-active: #f9f5ee;
+  --carbon: #faf7f2;
+  --border: #e8e0d4;
+  --dim: #b5a997;
+  --muted: #8a7e6e;
+  --white: #2c2418;
+  --emerald: #a8b89a;
+  --teal: #8aada8;
+  --sapphire: #c4a882;
+  --violet: #b8a0c8;
+  --amber: #c9a96e;
+  --rose: #c8847a;
+  --gold: #c9a96e;
+  --coral: #d4937a;
+  --success: #a8b89a;
+  --warning: #c9a96e;
+  --error: #c8847a;
 }
 
 html {
@@ -51,15 +51,15 @@ body {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: #c4b8a6;
   border-radius: 3px;
   transition: background 0.2s ease;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+::-webkit-scrollbar-thumb:hover { background: #a89a86; }
 
 /* ── Selection ──────────────────────────────────────── */
 
-::selection { background: #3a86ff40; color: var(--white); }
+::selection { background: #c9a96e40; color: var(--white); }
 
 /* ── Base resets ────────────────────────────────────── */
 

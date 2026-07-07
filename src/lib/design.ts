@@ -1,54 +1,54 @@
 import type { CSSProperties } from 'react'
 
 // KasukuGames — Cognitive Performance Platform
-// $5B design system. Solid filled, thick fluid colors. Glass FINISH
+// Warm cream organic design system. Solid filled, warm tones. Glass FINISH
 // (edge highlight + float shadow), NOT translucent/blur.
 // Crispy, silky, slick, smooth. Better than Spotify + Calm + Duolingo.
 
 export const COLOR = {
-  // Deep fluid fills — thick, saturated, opaque
-  obsidian: '#0b0f14',
-  ink: '#111820',
-  slate: '#1a2230',
-  carbon: '#141c28',
+  // Warm cream fills
+  obsidian: '#1a1610',
+  ink: '#221e16',
+  slate: '#2a2418',
+  carbon: '#221e16',
 
   // Deep hero backdrop
-  bgDeep: '#060a10',
+  bgDeep: '#f5f0e8',
 
   // Active/interactive surface
-  cardActive: '#1e2a3e',
+  cardActive: '#f9f5ee',
 
-  // Jewel accents — solid, punchy
-  emerald: '#00c97b',
-  teal: '#00b4d8',
-  sapphire: '#3a86ff',
-  violet: '#7b2ff7',
-  amber: '#f59e0b',
-  rose: '#f43f5e',
-  gold: '#fbbf24',
-  coral: '#ff6b6b',
+  // Warm accents — solid, organic
+  emerald: '#a8b89a',
+  teal: '#8aada8',
+  sapphire: '#c4a882',
+  violet: '#b8a0c8',
+  amber: '#c9a96e',
+  rose: '#c8847a',
+  gold: '#c9a96e',
+  coral: '#d4937a',
 
   // Semantic
-  success: '#00c97b',
-  warning: '#f59e0b',
-  error: '#f43f5e',
+  success: '#a8b89a',
+  warning: '#c9a96e',
+  error: '#c8847a',
 
   // Cognitive target palette
-  memory: '#7b2ff7',
-  executive: '#3a86ff',
-  pattern: '#00c97b',
-  speed: '#f59e0b',
-  social: '#f43f5e',
-  language: '#00b4d8',
-  creativity: '#e879f9',
-  strategy: '#06b6d4',
+  memory: '#b8a0c8',
+  executive: '#c4a882',
+  pattern: '#a8b89a',
+  speed: '#c9a96e',
+  social: '#c8847a',
+  language: '#8aada8',
+  creativity: '#c89ab8',
+  strategy: '#8ab8c8',
 
   // Neutrals
-  white: '#f0f4f8',
-  muted: '#7a8ba0',
-  dim: '#3d4f63',
-  border: '#1f2d3d',
-  surface: '#151d2b',
+  white: '#2c2418',
+  muted: '#8a7e6e',
+  dim: '#b5a997',
+  border: '#e8e0d4',
+  surface: '#faf7f2',
 } as const
 
 export const RADIUS = {
@@ -114,31 +114,31 @@ export const SPACING = {
 } as const
 
 export const SHADOW = {
-  sm: '0 2px 8px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2)',
-  md: '0 4px 20px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3)',
-  lg: '0 8px 40px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35)',
-  xl: '0 16px 64px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4)',
+  sm: '0 2px 8px rgba(44,36,24,0.06), 0 1px 3px rgba(44,36,24,0.04)',
+  md: '0 4px 20px rgba(44,36,24,0.08), 0 2px 8px rgba(44,36,24,0.05)',
+  lg: '0 8px 40px rgba(44,36,24,0.10), 0 4px 16px rgba(44,36,24,0.06)',
+  xl: '0 16px 64px rgba(44,36,24,0.12), 0 8px 24px rgba(44,36,24,0.08)',
   glow: (color: string) =>
-    `0 4px 24px ${color}35, 0 8px 48px ${color}20, 0 0 2px ${color}50`,
+    `0 4px 24px ${color}25, 0 8px 48px ${color}15, 0 0 2px ${color}35`,
 } as const
 
 export const GLASS = {
-  highlight: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-  edge: '0 0 0 1px rgba(255,255,255,0.04)',
+  highlight: 'inset 0 1px 0 rgba(255,255,255,0.5)',
+  edge: '0 1px 3px rgba(44,36,24,0.08)',
 } as const
 
 // ── Style functions ──────────────────────────────────────────
 
 export function card(accent?: string): CSSProperties {
   return {
-    background: COLOR.slate,
-    border: `1px solid ${accent ? accent + '30' : COLOR.border}`,
+    background: '#ffffff',
+    border: `1px solid ${accent ? accent + '30' : '#e8e0d4'}`,
     borderRadius: RADIUS.lg,
     boxShadow: [
       GLASS.highlight,
       GLASS.edge,
-      '0 6px 28px rgba(0,0,0,0.5)',
-      '0 2px 8px rgba(0,0,0,0.35)',
+      '0 6px 28px rgba(44,36,24,0.06)',
+      '0 2px 8px rgba(44,36,24,0.04)',
     ].join(', '),
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }
@@ -149,25 +149,25 @@ export function cardHover(accent?: string): CSSProperties {
   return {
     transform: 'translateY(-3px) scale(1.005)',
     boxShadow: [
-      'inset 0 1px 0 rgba(255,255,255,0.08)',
+      'inset 0 1px 0 rgba(255,255,255,0.5)',
       `0 0 0 1px ${accentColor}40`,
-      '0 12px 40px rgba(0,0,0,0.6)',
-      '0 4px 12px rgba(0,0,0,0.4)',
-      `0 0 24px ${accentColor}15`,
+      '0 12px 40px rgba(44,36,24,0.10)',
+      '0 4px 12px rgba(44,36,24,0.06)',
+      `0 0 24px ${accentColor}10`,
     ].join(', '),
   }
 }
 
 export function glassCard(): CSSProperties {
   return {
-    background: COLOR.slate,
-    border: `1px solid ${COLOR.border}`,
+    background: '#ffffff',
+    border: '1px solid #e8e0d4',
     borderRadius: RADIUS.lg,
     boxShadow: [
       GLASS.highlight,
       GLASS.edge,
-      '0 8px 40px rgba(0,0,0,0.55)',
-      '0 4px 16px rgba(0,0,0,0.35)',
+      '0 8px 40px rgba(44,36,24,0.08)',
+      '0 4px 16px rgba(44,36,24,0.05)',
     ].join(', '),
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }
@@ -176,9 +176,9 @@ export function glassCard(): CSSProperties {
 export function heroGlow(color: string): CSSProperties {
   return {
     boxShadow: [
-      `0 0 60px ${color}20`,
-      `0 0 120px ${color}12`,
-      `0 0 200px ${color}08`,
+      `0 0 60px ${color}15`,
+      `0 0 120px ${color}08`,
+      `0 0 200px ${color}05`,
     ].join(', '),
   }
 }
@@ -197,9 +197,9 @@ export function premiumBtn(color: string): CSSProperties {
     alignItems: 'center',
     gap: 8,
     boxShadow: [
-      `inset 0 1px 0 rgba(255,255,255,0.15)`,
-      `0 4px 20px ${color}40`,
-      `0 2px 8px ${color}30`,
+      `inset 0 1px 0 rgba(255,255,255,0.25)`,
+      `0 4px 20px ${color}30`,
+      `0 2px 8px ${color}20`,
     ].join(', '),
     transition: `transform ${MOTION.snap}, box-shadow ${MOTION.snap}`,
   }
@@ -220,9 +220,9 @@ export function solidBtn(color: string): CSSProperties {
     gap: 8,
     transition: `transform ${MOTION.snap}, box-shadow ${MOTION.snap}`,
     boxShadow: [
-      'inset 0 1px 0 rgba(255,255,255,0.12)',
-      `0 4px 16px ${color}40`,
-      `0 2px 6px ${color}25`,
+      'inset 0 1px 0 rgba(255,255,255,0.2)',
+      `0 4px 16px ${color}30`,
+      `0 2px 6px ${color}20`,
     ].join(', '),
   }
 }
