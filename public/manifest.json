@@ -1,17 +1,50 @@
 {
   "name": "KasukuGames — Olympics of the Mind",
   "short_name": "KasukuGames",
-  "description": "Cognitive performance platform. Train your brain with 17+ premium games. Compete, earn, grow.",
+  "description": "21 premium cognitive games. Train working memory, processing speed, creativity, and strategic thinking. Compete with friends.",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#080c12",
-  "theme_color": "#3a86ff",
+  "theme_color": "#080c12",
   "orientation": "any",
+  "lang": "sw",
+  "dir": "ltr",
   "categories": ["games", "education", "entertainment"],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ],
-  "screenshots": [],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "scope": "/",
+  "handle_links": "preferred"
 }

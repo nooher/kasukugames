@@ -1,4 +1,31 @@
+/* KasukuGames — Cognitive Performance Platform */
+/* $5B design system. Solid fills, glass finish, zero gradients. */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0b0f14;
+  --bg-deep: #060a10;
+  --surface: #151d2b;
+  --card: #1a2230;
+  --card-active: #1e2a3e;
+  --carbon: #141c28;
+  --border: #1f2d3d;
+  --dim: #3d4f63;
+  --muted: #7a8ba0;
+  --white: #f0f4f8;
+  --emerald: #00c97b;
+  --teal: #00b4d8;
+  --sapphire: #3a86ff;
+  --violet: #7b2ff7;
+  --amber: #f59e0b;
+  --rose: #f43f5e;
+  --gold: #fbbf24;
+  --coral: #ff6b6b;
+  --success: #00c97b;
+  --warning: #f59e0b;
+  --error: #f43f5e;
+}
 
 html {
   -webkit-font-smoothing: antialiased;
@@ -7,28 +34,41 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  background: #080c12;
-  color: #e8edf5;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--white);
   overflow-x: hidden;
   min-height: 100vh;
+  line-height: 1.6;
 }
 
 #root {
   min-height: 100vh;
 }
 
+/* ── Scrollbar ──────────────────────────────────────── */
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1f2d3d; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3d4f63; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
 
-::selection { background: #3a86ff40; color: #f0f4f8; }
+/* ── Selection ──────────────────────────────────────── */
 
-button { font-family: inherit; }
-input { font-family: inherit; }
+::selection { background: #3a86ff40; color: var(--white); }
 
+/* ── Base resets ────────────────────────────────────── */
+
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
 a { text-decoration: none; color: inherit; }
+img { display: block; max-width: 100%; }
+
+/* ── Animations ─────────────────────────────────────── */
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -40,13 +80,65 @@ a { text-decoration: none; color: inherit; }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.fade-in { animation: fadeIn 0.4s cubic-bezier(.16,1,.3,1) both; }
-.slide-up { animation: slideUp 0.5s cubic-bezier(.16,1,.3,1) both; }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ── Animation utility classes ──────────────────────── */
+
+.fade-in {
+  animation: fadeIn 0.4s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.slide-up {
+  animation: slideUp 0.5s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.scale-in {
+  animation: scaleIn 0.35s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+/* ── Stagger delays ─────────────────────────────────── */
+
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+.stagger-6 { animation-delay: 300ms; }
+
+/* ── Layout ─────────────────────────────────────────── */
+
+.hero-section {
+  padding: 64px 4vw;
+  width: 100%;
+}
+
+.section {
+  padding: 32px 4vw;
+  width: 100%;
+}
 
 .game-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
   padding: 0 4vw;
 }
 
@@ -54,5 +146,14 @@ a { text-decoration: none; color: inherit; }
   .game-grid {
     grid-template-columns: 1fr;
     padding: 0 16px;
+    gap: 16px;
+  }
+
+  .hero-section {
+    padding: 40px 16px;
+  }
+
+  .section {
+    padding: 24px 16px;
   }
 }
