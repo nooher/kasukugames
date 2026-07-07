@@ -3,17 +3,18 @@ import {
   Brain, Heart,
   Gamepad2, Trophy, ArrowLeft, Users, PartyPopper,
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
-  BarChart3, Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
+  Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
+  Edit3, Camera, ChevronRight,
 } from 'lucide-react'
-import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, heroGlow, premiumBtn } from './lib/design'
+import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, premiumBtn } from './lib/design'
 import { BRAND } from './lib/brand'
 import { t, loadLang, saveLang, type Lang } from './lib/i18n'
 import { loadTheme, saveTheme, getPalette, type Theme } from './lib/theme'
 import { GAMES } from './lib/games'
 import { CATEGORY_META, type GameCategory } from './lib/cognitive'
 import {
-  loadProfile, createProfile, updateProfileAfterGame,
+  loadProfile, createProfile, updateProfileAfterGame, saveProfile,
   xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
   MUHURI_META, isVerifiedTier, setMuhuri, getAllMuhuriAssignments, isFounderOrAdmin,
   type PlayerProfile, type MuhuriType,
@@ -1136,6 +1137,15 @@ function NotificationsSection({ P, cs, gct }: { P: PaletteType; cs: CSSPropertie
 /* ================================================================
    PROFILE
    ================================================================ */
+const COVER_COLORS = [
+  '#33623F', '#2F6FB0', '#8B4A2B', '#5C3D6E', '#1A4A5A', '#7A3B3B', '#2A4A2A',
+  '#c4a882', '#8aada8', '#b8a0c8', '#c8847a', '#c9a96e', '#a8b89a', '#c89ab8', '#8ab8c8', '#d4937a',
+] as const
+
+const COVER_KEY = 'kg_cover_color'
+function loadCover(): string { return localStorage.getItem(COVER_KEY) || COVER_COLORS[0] }
+function saveCover(c: string) { localStorage.setItem(COVER_KEY, c) }
+
 function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, onLangToggle, onThemeToggle, gct }: {
   profile: PlayerProfile; setProfile: (p: PlayerProfile | null) => void; wallet?: TokenWallet
   P: PaletteType; isDark: boolean; lang: Lang; theme: Theme; onLangToggle: () => void; onThemeToggle: () => void; gct: () => CSSProperties
@@ -1148,169 +1158,419 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
   const showAdmin = isFounderOrAdmin(profile.muhuri)
   const rankColor = RANK_META[profile.rank].color
 
+  const [sheet, setSheet] = useState<'edit' | 'avatar' | 'cover' | null>(null)
+  const [editName, setEditName] = useState(profile.displayName)
+  const [coverColor, setCoverColor] = useState(loadCover)
+
+  const completionChecks = [
+    profile.displayName !== profile.username,
+    profile.avatar !== '🧠',
+    !!profile.photoUrl,
+    profile.totalGames > 0,
+    profile.badges.length > 0,
+  ]
+  const completion = completionChecks.filter(Boolean).length / completionChecks.length
+
+  const updateField = (fields: Partial<PlayerProfile>) => {
+    const updated = { ...profile, ...fields }
+    saveProfile(updated)
+    setProfile(updated)
+  }
+
+  const inputStyle: CSSProperties = {
+    width: '100%', padding: '12px 16px', borderRadius: RADIUS.md,
+    border: `1px solid ${P.border}`, background: P.surface, color: P.text,
+    fontSize: 14, fontWeight: 600, outline: 'none', boxSizing: 'border-box',
+  }
+
+  const sheetRowStyle: CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '14px 0', borderBottom: `1px solid ${P.border}`,
+    cursor: 'pointer',
+  }
+
   return (
-    <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
-      <div style={{ ...gct(), padding: '36px 32px', textAlign: 'center', marginBottom: 24, position: 'relative', overflow: 'visible' }}>
-        {isDark && <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', width: 120, height: 60, borderRadius: '50%', ...heroGlow(rankColor), pointerEvents: 'none' }} />}
-        <div style={{ fontSize: 72, marginBottom: 10, position: 'relative', filter: isDark ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' : 'none' }}>{profile.avatar}</div>
-        <h2 style={{ margin: '0 0 4px', fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.1, color: P.text }}>{profile.displayName}</h2>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '0 0 16px' }}>
-          <span style={{ fontSize: 14, color: P.textMuted }}>@{profile.username}</span>
-          <VerifiedBadge muhuri={profile.muhuri} size={18} />
-          {isVerifiedTier(profile.muhuri) && (
-            <span style={{
-              fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-              color: MUHURI_META[profile.muhuri].color,
-              background: MUHURI_META[profile.muhuri].color + '12',
-              padding: '3px 10px', borderRadius: RADIUS.full,
-            }}>{MUHURI_META[profile.muhuri].label}</span>
-          )}
-        </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: RADIUS.full, background: rankColor + '18', border: `1px solid ${rankColor}30`, boxShadow: SHADOW.glow(rankColor) }}>
-          <Crown size={16} color={rankColor} />
-          <span style={{ fontSize: 15, fontWeight: 600, color: rankColor }}>{RANK_META[profile.rank].label}</span>
-          <span style={{ fontSize: 12, color: P.textMuted, fontWeight: 600 }}>{t('level')} {profile.level}</span>
-        </div>
-        <div style={{ marginTop: 20, maxWidth: 360, margin: '20px auto 0' }}><XPBar xp={profile.xp} large P={P} /></div>
-      </div>
+    <div style={{ padding: '0 0 40px', maxWidth: 640 }}>
+      {/* Cover header */}
+      <div style={{
+        background: coverColor, padding: '48px 24px 0', position: 'relative',
+        borderRadius: `0 0 ${RADIUS.xl}px ${RADIUS.xl}px`,
+        marginBottom: 60,
+      }}>
+        <button
+          onClick={() => setSheet('cover')}
+          style={{
+            position: 'absolute', top: 12, right: 12, background: 'rgba(0,0,0,0.3)',
+            border: 'none', borderRadius: RADIUS.full, padding: '6px 12px',
+            color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}
+        ><Edit3 size={12} /> {t('edit')}</button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatCard icon={<BarChart3 size={18} />} color={P.sapphire} label={t('total_xp')} value={profile.xp.toLocaleString()} P={P} gct={gct} />
-        <StatCard icon={<Coins size={18} />} color={P.gold} label={t('tokens')} value={wallet?.balance.toLocaleString() || '0'} P={P} gct={gct} />
-        <StatCard icon={<Gamepad2 size={18} />} color={P.emerald} label={t('games_played')} value={profile.totalGames.toString()} P={P} gct={gct} />
-        <StatCard icon={<Flame size={18} />} color={P.amber} label={t('streak')} value={`${profile.streakDays} ${t('days')}`} P={P} gct={gct} />
-        <StatCard icon={<Trophy size={18} />} color={P.gold} label={t('total_score')} value={profile.totalScore.toLocaleString()} P={P} gct={gct} />
-        <StatCard icon={<TrendingUp size={18} />} color={P.teal} label={t('longest_streak')} value={`${profile.longestStreak} ${t('days')}`} P={P} gct={gct} />
-        <StatCard icon={<Award size={18} />} color={P.violet} label={t('badges')} value={earnedBadges.length.toString()} P={P} gct={gct} />
-      </div>
-
-      {/* Settings */}
-      <div style={{ ...gct(), padding: '28px 32px', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 600, color: P.text }}>{t('settings')}</h3>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Globe size={16} color={P.textMuted} /><span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('language')}</span></div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {(['en', 'sw'] as const).map(l => (
-              <button key={l} onClick={() => { saveLang(l); onLangToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: lang === l ? P.sapphire : P.surface, color: lang === l ? '#fff' : P.textMuted, border: `1px solid ${lang === l ? P.sapphire : P.border}`, cursor: 'pointer', textTransform: 'uppercase' }}>{l}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{isDark ? <Moon size={16} color={P.textMuted} /> : <Sun size={16} color={P.textMuted} />}<span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('theme')}</span></div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => { if (theme !== 'light') onThemeToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: theme === 'light' ? P.sapphire : P.surface, color: theme === 'light' ? '#fff' : P.textMuted, border: `1px solid ${theme === 'light' ? P.sapphire : P.border}`, cursor: 'pointer' }}>{t('light')}</button>
-            <button onClick={() => { if (theme !== 'dark') onThemeToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: theme === 'dark' ? P.sapphire : P.surface, color: theme === 'dark' ? '#fff' : P.textMuted, border: `1px solid ${theme === 'dark' ? P.sapphire : P.border}`, cursor: 'pointer' }}>{t('dark')}</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Badges */}
-      <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Award size={18} color={P.violet} /> {t('badges')}</h3>
-        {earnedBadges.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
-            {earnedBadges.map(b => (
-              <div key={b.id} style={{ padding: '10px 16px', borderRadius: RADIUS.md, background: b.color + '15', border: `1px solid ${b.color}25`, display: 'flex', alignItems: 'center', gap: 8, boxShadow: isDark ? GLASS.highlight : 'none' }}>
-                <Star size={13} color={b.color} />
-                <div><div style={{ fontSize: 12, fontWeight: 600, color: b.color }}>{b.name}</div><div style={{ fontSize: 10, color: P.textMuted }}>{b.description}</div></div>
+        <div style={{ textAlign: 'center', paddingBottom: 0, transform: 'translateY(40px)' }}>
+          {/* Avatar with completion ring */}
+          <div style={{ position: 'relative', display: 'inline-block', marginBottom: 12 }}>
+            <div style={{
+              width: 88, height: 88, borderRadius: 22, position: 'relative',
+              background: `conic-gradient(${P.sapphire} ${completion * 360}deg, ${P.border}40 ${completion * 360}deg)`,
+              display: 'grid', placeItems: 'center', padding: 3,
+            }}>
+              <div style={{
+                width: 82, height: 82, borderRadius: 20, background: isDark ? P.card : '#fff',
+                display: 'grid', placeItems: 'center', fontSize: 44,
+                boxShadow: SHADOW.md,
+                backgroundImage: profile.photoUrl ? `url(${profile.photoUrl})` : 'none',
+                backgroundSize: 'cover', backgroundPosition: 'center',
+              }}>
+                {!profile.photoUrl && profile.avatar}
               </div>
-            ))}
+            </div>
+            <button
+              onClick={() => setSheet('avatar')}
+              style={{
+                position: 'absolute', bottom: -4, right: -4, width: 28, height: 28,
+                borderRadius: RADIUS.full, background: P.sapphire, border: `2px solid ${isDark ? P.card : '#fff'}`,
+                display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0,
+              }}
+            ><Camera size={13} color="#fff" /></button>
           </div>
-        )}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {unearnedBadges.slice(0, 8).map(b => (
-            <div key={b.id} style={{ padding: '8px 14px', borderRadius: RADIUS.md, background: P.surface, border: `1px solid ${P.border}`, display: 'flex', alignItems: 'center', gap: 8, opacity: 0.5 }}>
-              <Star size={11} color={P.textDim} />
-              <div><div style={{ fontSize: 11, fontWeight: 600, color: P.textDim }}>{b.name}</div><div style={{ fontSize: 9, color: P.textDim }}>{b.requirement}</div></div>
+
+          <h2 style={{ margin: '0 0 2px', fontSize: 23, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#fff', textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}>
+            {profile.displayName}
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>@{profile.username}</span>
+            <VerifiedBadge muhuri={profile.muhuri} size={16} />
+            {isVerifiedTier(profile.muhuri) && (
+              <span style={{
+                fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: '#fff', background: 'rgba(255,255,255,0.2)',
+                padding: '2px 8px', borderRadius: RADIUS.full,
+              }}>{MUHURI_META[profile.muhuri].label}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '0 4vw' }}>
+        {/* Rank + XP */}
+        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20, textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: RADIUS.full, background: rankColor + '15', border: `1px solid ${rankColor}25` }}>
+            <Crown size={15} color={rankColor} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: rankColor }}>{RANK_META[profile.rank].label}</span>
+            <span style={{ fontSize: 11, color: P.textMuted, fontWeight: 600 }}>{t('level')} {profile.level}</span>
+          </div>
+          <div style={{ marginTop: 14, maxWidth: 340, margin: '14px auto 0' }}><XPBar xp={profile.xp} large P={P} /></div>
+        </div>
+
+        {/* Stats — Kasuku-style 4-col grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+          {[
+            { v: profile.xp.toLocaleString(), l: 'XP', c: P.sapphire },
+            { v: profile.totalGames.toString(), l: t('games_played'), c: P.emerald },
+            { v: `${profile.streakDays}`, l: t('streak'), c: P.amber },
+            { v: earnedBadges.length.toString(), l: t('badges'), c: P.violet },
+          ].map((s, i) => (
+            <div key={i} style={{ ...gct(), padding: '16px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 21, fontWeight: 700, color: P.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{s.v}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.04em', color: P.textMuted, marginTop: 4, textTransform: 'uppercase' }}>{s.l}</div>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Admin — Muhuri Assignment */}
-      {showAdmin && (
-        <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Crown size={18} color={MUHURI_META.admin.sealColor} /> Verification Admin
-          </h3>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <input
-              value={adminUser}
-              onChange={e => setAdminUser(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              placeholder="username"
-              style={{ flex: 1, padding: '10px 14px', borderRadius: RADIUS.md, border: `1px solid ${P.border}`, background: P.surface, color: P.text, fontSize: 13, fontWeight: 600, outline: 'none' }}
-            />
-            <select
-              value={adminTier}
-              onChange={e => setAdminTier(e.target.value as MuhuriType)}
-              style={{ padding: '10px 14px', borderRadius: RADIUS.md, border: `1px solid ${P.border}`, background: P.surface, color: P.text, fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}
-            >
-              <option value="verified">Verified</option>
-              <option value="creator">Creator</option>
-              {profile.muhuri === 'founder' && <option value="admin">Admin</option>}
-            </select>
-            <button
-              onClick={() => {
-                if (!adminUser.trim()) return
-                setMuhuri(adminUser.trim(), adminTier)
-                setAdminAssignments(getAllMuhuriAssignments())
-                setAdminUser('')
-              }}
-              style={{ ...premiumBtn(MUHURI_META[adminTier].sealColor), fontSize: 13, padding: '10px 18px', whiteSpace: 'nowrap' }}
-            >
-              <Check size={14} /> Assign
-            </button>
+        {/* More stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 24 }}>
+          {[
+            { icon: <Coins size={15} />, v: wallet?.balance.toLocaleString() || '0', l: t('tokens'), c: P.gold },
+            { icon: <Trophy size={15} />, v: profile.totalScore.toLocaleString(), l: t('total_score'), c: P.gold },
+            { icon: <TrendingUp size={15} />, v: `${profile.longestStreak} ${t('days')}`, l: t('longest_streak'), c: P.teal },
+          ].map((s, i) => (
+            <div key={i} style={{ ...gct(), padding: '14px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: RADIUS.sm, background: s.c + '15', display: 'grid', placeItems: 'center', color: s.c, flexShrink: 0 }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: P.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{s.v}</div>
+                <div style={{ fontSize: 9, color: P.textMuted, marginTop: 2 }}>{s.l}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Edit Profile row */}
+        <div style={{ ...gct(), padding: '6px 24px', marginBottom: 20 }}>
+          <button onClick={() => { setEditName(profile.displayName); setSheet('edit') }} style={{ ...sheetRowStyle, border: 'none', background: 'none', width: '100%', borderBottom: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Edit3 size={16} color={P.textMuted} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('edit')} {t('profile')}</span>
+            </div>
+            <ChevronRight size={16} color={P.textDim} />
+          </button>
+        </div>
+
+        {/* Settings */}
+        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
+          <div style={{ ...sheetRowStyle }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Globe size={16} color={P.textMuted} /><span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('language')}</span></div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['en', 'sw'] as const).map(l => (
+                <button key={l} onClick={() => { saveLang(l); onLangToggle() }} style={{
+                  padding: '5px 14px', borderRadius: RADIUS.full, fontSize: 11, fontWeight: 600,
+                  background: lang === l ? P.sapphire : 'transparent', color: lang === l ? '#fff' : P.textMuted,
+                  border: `1px solid ${lang === l ? P.sapphire : P.border}`, cursor: 'pointer', textTransform: 'uppercase',
+                }}>{l}</button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {Object.entries(adminAssignments).map(([user, tier]) => (
-              <div key={user} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: RADIUS.md, background: P.surface, border: `1px solid ${P.border}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <VerifiedBadge muhuri={tier} size={16} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>@{user}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUHURI_META[tier].color, background: MUHURI_META[tier].color + '12', padding: '2px 8px', borderRadius: RADIUS.full }}>{MUHURI_META[tier].label}</span>
+          <div style={{ ...sheetRowStyle, borderBottom: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{isDark ? <Moon size={16} color={P.textMuted} /> : <Sun size={16} color={P.textMuted} />}<span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('theme')}</span></div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button onClick={() => { if (theme !== 'light') onThemeToggle() }} style={{
+                padding: '5px 14px', borderRadius: RADIUS.full, fontSize: 11, fontWeight: 600,
+                background: theme === 'light' ? P.sapphire : 'transparent', color: theme === 'light' ? '#fff' : P.textMuted,
+                border: `1px solid ${theme === 'light' ? P.sapphire : P.border}`, cursor: 'pointer',
+              }}>{t('light')}</button>
+              <button onClick={() => { if (theme !== 'dark') onThemeToggle() }} style={{
+                padding: '5px 14px', borderRadius: RADIUS.full, fontSize: 11, fontWeight: 600,
+                background: theme === 'dark' ? P.sapphire : 'transparent', color: theme === 'dark' ? '#fff' : P.textMuted,
+                border: `1px solid ${theme === 'dark' ? P.sapphire : P.border}`, cursor: 'pointer',
+              }}>{t('dark')}</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Award size={16} color={P.violet} /> {t('badges')}</h3>
+          {earnedBadges.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              {earnedBadges.map(b => (
+                <div key={b.id} style={{ padding: '8px 14px', borderRadius: RADIUS.md, background: b.color + '12', border: `1px solid ${b.color}20`, display: 'flex', alignItems: 'center', gap: 7, boxShadow: isDark ? GLASS.highlight : 'none' }}>
+                  <Star size={12} color={b.color} />
+                  <div><div style={{ fontSize: 11, fontWeight: 600, color: b.color }}>{b.name}</div><div style={{ fontSize: 9, color: P.textMuted }}>{b.description}</div></div>
                 </div>
-                {tier !== 'founder' && (
-                  <button
-                    onClick={() => { setMuhuri(user, 'player'); setAdminAssignments(getAllMuhuriAssignments()) }}
-                    style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 4 }}
-                  ><Trash2 size={14} /></button>
-                )}
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {unearnedBadges.slice(0, 8).map(b => (
+              <div key={b.id} style={{ padding: '6px 12px', borderRadius: RADIUS.md, background: P.surface, border: `1px solid ${P.border}`, display: 'flex', alignItems: 'center', gap: 6, opacity: 0.45 }}>
+                <Star size={10} color={P.textDim} />
+                <div><div style={{ fontSize: 10, fontWeight: 600, color: P.textDim }}>{b.name}</div><div style={{ fontSize: 8, color: P.textDim }}>{b.requirement}</div></div>
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Teams */}
-      <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={18} color={P.teal} /> {t('teams_friends')}</h3>
-        {profile.teamId ? <div style={{ fontSize: 13, color: P.textMuted }}>Team member</div> : (
-          <div style={{ textAlign: 'center', padding: '14px 0' }}>
-            <p style={{ fontSize: 13, color: P.textMuted, margin: '0 0 14px' }}>{t('no_team_yet')}</p>
-            <button style={{ ...premiumBtn(P.teal), fontSize: 13, padding: '10px 24px' }}><Users size={14} /> {t('create_team')}</button>
+        {/* Admin — Muhuri Assignment */}
+        {showAdmin && (
+          <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Crown size={16} color={MUHURI_META.admin.sealColor} /> Verification Admin
+            </h3>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input
+                value={adminUser}
+                onChange={e => setAdminUser(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="username"
+                style={{ ...inputStyle, flex: 1, padding: '10px 14px', fontSize: 13 }}
+              />
+              <select
+                value={adminTier}
+                onChange={e => setAdminTier(e.target.value as MuhuriType)}
+                style={{ padding: '10px 14px', borderRadius: RADIUS.md, border: `1px solid ${P.border}`, background: P.surface, color: P.text, fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="verified">Verified</option>
+                <option value="creator">Creator</option>
+                {profile.muhuri === 'founder' && <option value="admin">Admin</option>}
+              </select>
+              <button
+                onClick={() => {
+                  if (!adminUser.trim()) return
+                  setMuhuri(adminUser.trim(), adminTier)
+                  setAdminAssignments(getAllMuhuriAssignments())
+                  setAdminUser('')
+                }}
+                style={{ ...premiumBtn(MUHURI_META[adminTier].sealColor), fontSize: 12, padding: '10px 16px', whiteSpace: 'nowrap' }}
+              >
+                <Check size={13} /> Assign
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {Object.entries(adminAssignments).map(([user, tier]) => (
+                <div key={user} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: RADIUS.md, background: P.surface, border: `1px solid ${P.border}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <VerifiedBadge muhuri={tier} size={14} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: P.text }}>@{user}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUHURI_META[tier].color, background: MUHURI_META[tier].color + '12', padding: '2px 7px', borderRadius: RADIUS.full }}>{MUHURI_META[tier].label}</span>
+                  </div>
+                  {tier !== 'founder' && (
+                    <button
+                      onClick={() => { setMuhuri(user, 'player'); setAdminAssignments(getAllMuhuriAssignments()) }}
+                      style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 4 }}
+                    ><Trash2 size={13} /></button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
-        <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${P.border}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: P.textMuted }}>{t('friends_count')} ({profile.friendIds.length})</span>
-            <button style={{ background: 'none', border: 'none', color: P.sapphire, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ {t('add')}</button>
+
+        {/* Teams & Friends */}
+        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={16} color={P.teal} /> {t('teams_friends')}</h3>
+          {profile.teamId ? <div style={{ fontSize: 13, color: P.textMuted }}>Team member</div> : (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 12px' }}>{t('no_team_yet')}</p>
+              <button style={{ ...premiumBtn(P.teal), fontSize: 12, padding: '9px 22px' }}><Users size={13} /> {t('create_team')}</button>
+            </div>
+          )}
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${P.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: P.textMuted }}>{t('friends_count')} ({profile.friendIds.length})</span>
+              <button style={{ background: 'none', border: 'none', color: P.sapphire, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ {t('add')}</button>
+            </div>
+            {profile.friendIds.length === 0 && <p style={{ fontSize: 11, color: P.textDim, margin: 0, lineHeight: 1.5 }}>{t('share_link')}</p>}
           </div>
-          {profile.friendIds.length === 0 && <p style={{ fontSize: 12, color: P.textDim, margin: 0, lineHeight: 1.5 }}>{t('share_link')}</p>}
+          {profile.coupledWith === null && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${P.border}`, textAlign: 'center' }}>
+              <Heart size={16} color={P.rose} style={{ marginBottom: 6 }} />
+              <p style={{ fontSize: 11, color: P.textMuted, margin: '0 0 8px' }}>{t('couple_challenge')}</p>
+              <button style={{ background: 'none', border: `1px solid ${P.rose}35`, color: P.rose, borderRadius: RADIUS.full, padding: '7px 18px', fontSize: 11, fontWeight: 600, cursor: 'pointer', boxShadow: isDark ? GLASS.highlight : 'none' }}><Heart size={12} /> {t('connect')}</button>
+            </div>
+          )}
         </div>
-        {profile.coupledWith === null && (
-          <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${P.border}`, textAlign: 'center' }}>
-            <Heart size={18} color={P.rose} style={{ marginBottom: 8 }} />
-            <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 10px' }}>{t('couple_challenge')}</p>
-            <button style={{ background: 'none', border: `1px solid ${P.rose}40`, color: P.rose, borderRadius: RADIUS.full, padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', boxShadow: isDark ? GLASS.highlight : 'none' }}><Heart size={13} /> {t('connect')}</button>
+
+        <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+          <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: P.textDim, fontWeight: 600, textDecoration: 'none' }}>Built by <span style={{ textDecoration: 'underline', textDecorationColor: P.textDim + '40', textUnderlineOffset: 2 }}>Laetoli</span></a>
+        </div>
+
+        <button onClick={() => { localStorage.removeItem('kg_profile'); setProfile(null) }} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textDim, borderRadius: RADIUS.lg, padding: '11px 24px', fontSize: 13, cursor: 'pointer', width: '100%', boxShadow: isDark ? GLASS.highlight : 'none' }}>{t('logout')}</button>
+      </div>
+
+      {/* Bottom sheets */}
+      {sheet && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setSheet(null)}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'relative', width: '100%', maxWidth: 480, maxHeight: '85vh',
+              background: isDark ? P.card : '#fff', borderRadius: `${RADIUS.xl}px ${RADIUS.xl}px 0 0`,
+              padding: '16px 24px 32px', overflowY: 'auto',
+              boxShadow: '0 -4px 32px rgba(0,0,0,0.15)',
+              animation: 'sheetUp 300ms cubic-bezier(.34,1.56,.64,1)',
+            }}
+          >
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: P.border, margin: '0 auto 20px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: P.text }}>
+                {sheet === 'edit' ? `${t('edit')} ${t('profile')}` : sheet === 'avatar' ? 'Avatar' : 'Cover'}
+              </h3>
+              <button onClick={() => setSheet(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textMuted, padding: 4 }}><X size={20} /></button>
+            </div>
+
+            {sheet === 'edit' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: P.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{t('display_name')}</label>
+                  <input value={editName} onChange={e => setEditName(e.target.value.slice(0, 40))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: P.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>@{t('username')}</label>
+                  <input value={profile.username} disabled style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }} />
+                </div>
+                <button
+                  onClick={() => {
+                    if (editName.trim()) {
+                      updateField({ displayName: editName.trim() })
+                      setSheet(null)
+                    }
+                  }}
+                  style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', fontSize: 14, padding: '12px 0' }}
+                >{t('save')}</button>
+              </div>
+            )}
+
+            {sheet === 'avatar' && (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                  {AVATAR_OPTIONS.map(a => (
+                    <button
+                      key={a}
+                      onClick={() => { updateField({ avatar: a, photoUrl: null }); setSheet(null) }}
+                      style={{
+                        fontSize: 36, padding: '14px 0', borderRadius: RADIUS.lg, cursor: 'pointer',
+                        background: profile.avatar === a ? P.sapphire + '20' : P.surface,
+                        border: profile.avatar === a ? `2px solid ${P.sapphire}` : `1px solid ${P.border}`,
+                        transition: `all ${MOTION.fast}`,
+                      }}
+                    >{a}</button>
+                  ))}
+                </div>
+                <label style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px 0', borderRadius: RADIUS.lg, border: `1px solid ${P.border}`,
+                  cursor: 'pointer', fontSize: 13, fontWeight: 600, color: P.textMuted,
+                }}>
+                  <Camera size={15} /> Upload photo
+                  <input
+                    type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const reader = new FileReader()
+                      reader.onload = ev => {
+                        const img = new Image()
+                        img.onload = () => {
+                          const canvas = document.createElement('canvas')
+                          const size = 160
+                          canvas.width = size; canvas.height = size
+                          const ctx = canvas.getContext('2d')
+                          if (!ctx) return
+                          const min = Math.min(img.width, img.height)
+                          const sx = (img.width - min) / 2
+                          const sy = (img.height - min) / 2
+                          ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size)
+                          updateField({ photoUrl: canvas.toDataURL('image/jpeg', 0.85) })
+                          setSheet(null)
+                        }
+                        img.src = ev.target?.result as string
+                      }
+                      reader.readAsDataURL(file)
+                    }}
+                  />
+                </label>
+                {profile.photoUrl && (
+                  <button
+                    onClick={() => { updateField({ photoUrl: null }); setSheet(null) }}
+                    style={{ background: 'none', border: 'none', color: P.rose, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%', padding: '12px 0', marginTop: 8 }}
+                  ><Trash2 size={13} /> Remove photo</button>
+                )}
+              </div>
+            )}
+
+            {sheet === 'cover' && (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 8, marginBottom: 16 }}>
+                  {COVER_COLORS.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => { setCoverColor(c); saveCover(c) }}
+                      style={{
+                        width: '100%', aspectRatio: '1.4', borderRadius: RADIUS.sm, cursor: 'pointer',
+                        background: c, border: coverColor === c ? `2.5px solid ${P.sapphire}` : '2px solid transparent',
+                        boxShadow: coverColor === c ? SHADOW.glow(P.sapphire) : 'none',
+                        transition: `all ${MOTION.fast}`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <button onClick={() => setSheet(null)} style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', fontSize: 14, padding: '12px 0' }}>{t('save')}</button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      <div style={{ textAlign: 'center', padding: '20px 0 8px' }}>
-        <a href="https://laetoli.tz" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: P.textDim, fontWeight: 600, textDecoration: 'none' }}>Built by <span style={{ textDecoration: 'underline', textDecorationColor: P.textDim + '40', textUnderlineOffset: 2 }}>Laetoli</span></a>
-      </div>
-
-      <button onClick={() => { localStorage.removeItem('kg_profile'); setProfile(null) }} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textDim, borderRadius: RADIUS.lg, padding: '12px 24px', fontSize: 13, cursor: 'pointer', width: '100%', boxShadow: isDark ? GLASS.highlight : 'none' }}>{t('logout')}</button>
+        </div>
+      )}
+      <style>{`@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>
   )
 }
@@ -1336,17 +1596,6 @@ function XPBar({ xp, large, P }: { xp: number; large?: boolean; P: PaletteType }
   )
 }
 
-function StatCard({ icon, color, label, value, P, gct }: { icon: React.ReactNode; color: string; label: string; value: string; P: PaletteType; gct: () => CSSProperties }) {
-  return (
-    <div style={{ ...gct(), padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{ width: 36, height: 36, borderRadius: RADIUS.md, background: color + '15', display: 'grid', placeItems: 'center', color }}>{icon}</div>
-      <div>
-        <div style={{ fontSize: 18, fontWeight: 600, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-        <div style={{ fontSize: 11, color: P.textMuted }}>{label}</div>
-      </div>
-    </div>
-  )
-}
 
 function NavBtn({ icon, label, active, onClick, accent, P, style: btnStyle }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; accent?: string; P: PaletteType; style: CSSProperties }) {
   return (

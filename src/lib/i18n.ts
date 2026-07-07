@@ -128,4 +128,6 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   not_played_yet: { en: 'Not played yet', sw: 'Bado hamjacheza' },
   xp_to_next: { en: 'XP to next level', sw: 'XP hadi ngazi inayofuata' },
   play_daily_streak: { en: 'Play daily to grow your streak and earn XP bonus', sw: 'Cheza kila siku kupata mfuatano mrefu na XP bonus' },
+  edit: { en: 'Edit', sw: 'Hariri' },
+  save: { en: 'Save', sw: 'Hifadhi' },
 }
