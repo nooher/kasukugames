@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense, useEffect, useCallback, type CSSProperties } from 'react'
 import {
   Brain, Zap, Languages, Lightbulb, Heart, Timer, Stethoscope,
-  Bot, Gamepad2, Music, Trophy, Search, ArrowLeft, Users, PartyPopper,
+  Bot, Gamepad2, Trophy, Search, ArrowLeft, Users, PartyPopper,
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
   BarChart3, Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon,
@@ -327,15 +327,19 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', background: P.bg }}>
       {/* HEADER */}
+      {/* TOP HEADER — slim on mobile */}
       <header style={headerStyle}>
         <button onClick={() => setSection('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           <Logo size={36} showText />
         </button>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <NavBtn icon={<Calendar size={18} />} label={t('daily')} active={section === 'daily'} onClick={() => setSection('daily')} P={P} style={navBtnStyle} />
-          <NavBtn icon={<Trophy size={18} />} label={t('ranks')} active={section === 'leaderboard'} onClick={() => setSection('leaderboard')} P={P} style={navBtnStyle} />
-          <NavBtn icon={<Users size={18} />} label={t('people')} active={section === 'connections'} onClick={() => setSection('connections')} P={P} style={navBtnStyle} />
-          <NavBtn icon={<ShoppingBag size={18} />} label={t('shop')} active={section === 'shop'} onClick={() => setSection('shop')} P={P} style={navBtnStyle} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* Desktop-only nav links */}
+          <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <NavBtn icon={<Calendar size={18} />} label={t('daily')} active={section === 'daily'} onClick={() => setSection('daily')} P={P} style={navBtnStyle} />
+            <NavBtn icon={<Trophy size={18} />} label={t('ranks')} active={section === 'leaderboard'} onClick={() => setSection('leaderboard')} P={P} style={navBtnStyle} />
+            <NavBtn icon={<Users size={18} />} label={t('people')} active={section === 'connections'} onClick={() => setSection('connections')} P={P} style={navBtnStyle} />
+            <NavBtn icon={<ShoppingBag size={18} />} label={t('shop')} active={section === 'shop'} onClick={() => setSection('shop')} P={P} style={navBtnStyle} />
+          </nav>
           <button onClick={() => { setSection('notifications'); markAllRead(); setUnreadNotifs(0) }} style={{ ...navBtnStyle, position: 'relative' }}>
             <Bell size={18} />
             {unreadNotifs > 0 && (
@@ -350,7 +354,6 @@ export default function App() {
           </button>
           <button onClick={handleLangToggle} title={t('language')} style={navBtnStyle}>
             <Globe size={16} />
-            <span className="nav-label" style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}>{lang}</span>
           </button>
           <button onClick={handleThemeToggle} title={t('theme')} style={navBtnStyle}>
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
@@ -358,7 +361,7 @@ export default function App() {
           <button onClick={handleInstall} title={t('get_the_app')} style={{ ...navBtnStyle, color: P.emerald }}>
             <Download size={16} />
           </button>
-          <NavBtn icon={<Music size={18} />} label="" active={playerVisible} onClick={() => setPlayerVisible(pv => !pv)} accent={playerVisible ? P.amber : undefined} P={P} style={navBtnStyle} />
+          <span className="desktop-nav">
           {profile ? (
             <button onClick={() => setSection('profile')} style={{
               ...navBtnStyle, background: section === 'profile' ? P.sapphire + '20' : 'none', gap: 6,
@@ -381,8 +384,24 @@ export default function App() {
               <span style={{ fontSize: 12, fontWeight: 800, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance}</span>
             </div>
           )}
-        </nav>
+          </span>
+        </div>
       </header>
+
+      {/* MOBILE BOTTOM TAB BAR */}
+      <nav className="mobile-tab-bar" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+        display: 'none', justifyContent: 'space-around', alignItems: 'center',
+        height: 56, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: P.bg, borderTop: `1px solid ${P.border}`,
+        boxShadow: isDark ? '0 -4px 20px rgba(0,0,0,0.5)' : '0 -2px 8px rgba(0,0,0,0.08)',
+      }}>
+        <MobileTab icon={<Brain size={20} />} label={t('daily')} active={section === 'home' || section === 'daily'} onClick={() => setSection('home')} P={P} />
+        <MobileTab icon={<Trophy size={20} />} label={t('ranks')} active={section === 'leaderboard'} onClick={() => setSection('leaderboard')} P={P} />
+        <MobileTab icon={<Users size={20} />} label={t('people')} active={section === 'connections'} onClick={() => setSection('connections')} P={P} />
+        <MobileTab icon={<ShoppingBag size={20} />} label={t('shop')} active={section === 'shop'} onClick={() => setSection('shop')} P={P} />
+        <MobileTab icon={profile ? <span style={{ fontSize: 20 }}>{profile.avatar}</span> : <LogIn size={20} />} label={profile ? t('profile') : t('sign_in')} active={section === 'profile'} onClick={() => profile ? setSection('profile') : setShowLogin(true)} P={P} />
+      </nav>
 
       {/* LOGIN MODAL */}
       {showLogin && (
@@ -1298,6 +1317,21 @@ function NavBtn({ icon, label, active, onClick, accent, P, style: btnStyle }: { 
     <button onClick={onClick} style={{ ...btnStyle, color: accent || (active ? P.text : P.textMuted), background: active && !accent ? P.sapphire + '15' : 'none', borderRadius: RADIUS.md }}>
       {icon}
       {label && <span className="nav-label" style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>}
+    </button>
+  )
+}
+
+function MobileTab({ icon, label, active, onClick, P }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; P: PaletteType }) {
+  return (
+    <button onClick={onClick} style={{
+      background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+      color: active ? P.sapphire : P.textMuted,
+      transition: `color 0.15s ease`,
+      minWidth: 56,
+    }}>
+      {icon}
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.02em' }}>{label}</span>
     </button>
   )
 }

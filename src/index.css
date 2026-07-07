@@ -160,6 +160,20 @@ img { display: block; max-width: 100%; }
   .nav-label {
     display: none !important;
   }
+
+  /* Hide desktop nav, show mobile bottom tabs */
+  .desktop-nav {
+    display: none !important;
+  }
+
+  .mobile-tab-bar {
+    display: flex !important;
+  }
+
+  /* Add bottom padding so content isn't hidden behind tab bar */
+  #root > div {
+    padding-bottom: 64px;
+  }
 }
 
 /* Safe-area for notched devices */
