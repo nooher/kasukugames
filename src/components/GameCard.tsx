@@ -90,7 +90,7 @@ export default function GameCard({ game, onPlay }: Props) {
             display: 'grid',
             placeItems: 'center',
             fontSize: 16,
-            fontWeight: 800,
+            fontWeight: 600,
             color: cat.color,
             lineHeight: 1,
             flexShrink: 0,

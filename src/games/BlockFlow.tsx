@@ -588,7 +588,7 @@ export default function BlockFlow({ onBack }: Props) {
               background: 'rgba(11,15,20,0.85)',
               borderRadius: 8,
             }}>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>Block Flow</div>
+              <div style={{ fontSize: 28, fontWeight: 600 }}>Block Flow</div>
               <div style={{ fontSize: 13, color: COLORS.muted, textAlign: 'center', maxWidth: 200, lineHeight: 1.5 }}>
                 Arrow keys or swipe to move. Up / tap to rotate. Space to hard drop.
               </div>
@@ -611,7 +611,7 @@ export default function BlockFlow({ onBack }: Props) {
               background: 'rgba(11,15,20,0.85)',
               borderRadius: 8,
             }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: COLORS.rose }}>Game Over</div>
+              <div style={{ fontSize: 28, fontWeight: 600, color: COLORS.rose }}>Game Over</div>
               <div style={{ fontSize: 15, color: COLORS.muted }}>Score: {displayScore}</div>
               {displayScore >= highScore && displayScore > 0 && (
                 <div style={{ fontSize: 13, color: COLORS.amber, fontWeight: 600 }}>New High Score!</div>

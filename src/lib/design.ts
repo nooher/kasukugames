@@ -130,10 +130,10 @@ export const GLASS = {
 
 // -- Style functions --
 
-export function card(accent?: string): CSSProperties {
+export function card(accent?: string, bg = '#ffffff', border = '#e8e0d4'): CSSProperties {
   return {
-    background: '#ffffff',
-    border: `1px solid ${accent ? accent + '30' : '#e8e0d4'}`,
+    background: bg,
+    border: `1px solid ${accent ? accent + '30' : border}`,
     borderRadius: 20,
     boxShadow: [
       GLASS.highlight,
@@ -159,10 +159,10 @@ export function cardHover(accent?: string): CSSProperties {
   }
 }
 
-export function glassCard(): CSSProperties {
+export function glassCard(bg = '#ffffff', border = '#e8e0d4'): CSSProperties {
   return {
-    background: '#ffffff',
-    border: '1px solid #e8e0d4',
+    background: bg,
+    border: `1px solid ${border}`,
     borderRadius: 20,
     boxShadow: [
       GLASS.highlight,
@@ -215,7 +215,7 @@ export function solidBtn(color: string): CSSProperties {
     borderRadius: RADIUS.full,
     padding: '10px 24px',
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 600,
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
@@ -237,7 +237,7 @@ export function chip(color: string): CSSProperties {
     borderRadius: RADIUS.full,
     padding: '4px 12px',
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 600,
     letterSpacing: '0.04em',
     display: 'inline-flex',
     alignItems: 'center',

@@ -503,7 +503,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
             </div>
 
             <span style={{ fontSize: 56, marginBottom: 12 }}>{currentPlayer.avatar}</span>
-            <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, marginBottom: 4 }}>
+            <h2 style={{ margin: 0, fontSize: 26, fontWeight: 600, marginBottom: 4 }}>
               {currentPlayer.name}
             </h2>
             <span style={{ fontSize: 13, color: C.muted, fontWeight: 500, marginBottom: 8 }}>
@@ -572,7 +572,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
                 }}>
                   <Sparkles size={28} />
                 </div>
-                <span style={{ fontSize: 22, fontWeight: 800, color: C.truth }}>Ukweli</span>
+                <span style={{ fontSize: 22, fontWeight: 600, color: C.truth }}>Ukweli</span>
                 <span style={{ fontSize: 12, color: C.muted }}>Truth</span>
               </button>
 
@@ -607,7 +607,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
                 }}>
                   <Flame size={28} />
                 </div>
-                <span style={{ fontSize: 22, fontWeight: 800, color: C.dare }}>Changamoto</span>
+                <span style={{ fontSize: 22, fontWeight: 600, color: C.dare }}>Changamoto</span>
                 <span style={{ fontSize: 12, color: C.muted }}>Dare</span>
               </button>
             </div>
@@ -748,7 +748,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
             <div style={{ paddingTop: 32, animation: 'fadeSlideIn 400ms ease' }}>
               <div style={{ textAlign: 'center', marginBottom: 32 }}>
                 <Trophy size={40} style={{ color: C.funny, marginBottom: 8 }} />
-                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Mchezo Umekwisha!</h2>
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Mchezo Umekwisha!</h2>
                 <span style={{ fontSize: 13, color: C.muted }}>Game Over</span>
               </div>
 
@@ -796,7 +796,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
                     boxShadow: C.glass,
                   }}>
                     <span style={{
-                      fontSize: 14, fontWeight: 800,
+                      fontSize: 14, fontWeight: 600,
                       color: i === 0 ? C.funny : C.dim,
                       width: 20, textAlign: 'center',
                     }}>
@@ -814,7 +814,7 @@ export default function TruthOrDare({ onBack }: { onBack: () => void }) {
                       color: catMeta.color,
                       borderRadius: RADIUS.full,
                       padding: '4px 12px',
-                      fontSize: 13, fontWeight: 800,
+                      fontSize: 13, fontWeight: 600,
                     }}>
                       {p.completed}
                     </div>

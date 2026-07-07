@@ -408,7 +408,7 @@ export default function CognitiveOverload({ onBack }: Props) {
             <div style={{ fontSize: 64, marginBottom: 16 }}>
               <AlertTriangle size={64} color={T.rose} />
             </div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: T.rose }}>Cognitive Overload</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, color: T.rose }}>Cognitive Overload</h1>
             <p style={{ color: T.muted, marginTop: 8, fontSize: 14, maxWidth: 380, lineHeight: 1.5 }}>
               Emergency dispatch is flooding in. Triage incoming incidents by priority -- critical first, then high, medium, low. Miss a critical item and you lose a life.
             </p>
@@ -459,13 +459,13 @@ export default function CognitiveOverload({ onBack }: Props) {
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 32 }}>
           <Trophy size={56} color={T.rose} />
-          <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Shift Over</h2>
+          <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Shift Over</h2>
           <div style={{
             background: T.surface, borderRadius: T.radius.md, padding: 24, width: '100%', maxWidth: 300,
             display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'center', ...GLASS,
           }}>
             <div>
-              <div style={{ fontSize: 40, fontWeight: 800, color: T.rose }}>{score}</div>
+              <div style={{ fontSize: 40, fontWeight: 600, color: T.rose }}>{score}</div>
               <div style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>TOTAL SCORE</div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-around' }}>
@@ -548,7 +548,7 @@ export default function CognitiveOverload({ onBack }: Props) {
         <div style={{
           position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
           background: T.surface, color: feedback.color, padding: '8px 20px',
-          borderRadius: 999, fontSize: 16, fontWeight: 800, zIndex: 100,
+          borderRadius: 999, fontSize: 16, fontWeight: 600, zIndex: 100,
           border: `2px solid ${feedback.color}`,
           ...GLASS,
         }}>

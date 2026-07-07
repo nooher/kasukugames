@@ -583,7 +583,7 @@ export default function WordForge({ onBack }: Props) {
       alignItems: 'center',
       justifyContent: 'center',
       fontSize: 28,
-      fontWeight: 800,
+      fontWeight: 600,
       cursor: 'pointer',
       transition: 'transform 0.1s ease, background 0.15s ease, border-color 0.15s ease',
       position: 'relative' as const,
@@ -669,7 +669,7 @@ export default function WordForge({ onBack }: Props) {
     },
     modalTitle: {
       fontSize: 24,
-      fontWeight: 800,
+      fontWeight: 600,
       marginBottom: 4,
     },
     modalStat: {

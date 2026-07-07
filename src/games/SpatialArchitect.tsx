@@ -596,7 +596,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
     },
     menuTitle: {
       fontSize: 32,
-      fontWeight: 800,
+      fontWeight: 600,
       marginBottom: 8,
       color: C.white,
     },
@@ -752,7 +752,7 @@ export default function SpatialArchitect({ onBack }: { onBack: () => void }) {
         <div style={S.card}>
           <Trophy size={48} color={isNewHigh ? C.amber : C.muted} style={{ marginBottom: 16 }} />
           <div style={S.menuTitle}>{isNewHigh ? 'New High Score!' : 'Game Over'}</div>
-          <div style={{ fontSize: 48, fontWeight: 800, color: C.violet, margin: '16px 0' }}>{score}</div>
+          <div style={{ fontSize: 48, fontWeight: 600, color: C.violet, margin: '16px 0' }}>{score}</div>
           <div style={{ fontSize: 14, color: C.muted, marginBottom: 8 }}>Level {level} reached</div>
           {highScore > 0 && (
             <div style={S.badge}><Trophy size={12} color={C.amber} /> Best: {highScore}</div>

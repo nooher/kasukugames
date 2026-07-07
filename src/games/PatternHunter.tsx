@@ -910,7 +910,7 @@ export default function PatternHunter({ onBack }: Props) {
             width: '100%', maxWidth: 420, marginTop: 40, ...GLASS,
           }}>
             <Trophy size={48} color={C.accent} />
-            <p style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Game Over</p>
+            <p style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Game Over</p>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <p style={{ fontSize: 16, color: C.muted, margin: 0 }}>
                 Final Score: <span style={{ color: C.accent, fontWeight: 700 }}>{score}</span>

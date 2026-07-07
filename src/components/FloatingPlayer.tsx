@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react'
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   Repeat, Shuffle, ChevronDown, ChevronUp, Music, X,
   BookOpen, Waves, Upload, List,
 } from 'lucide-react'
-import { COLOR, RADIUS, MOTION } from '../lib/design'
+import { RADIUS, MOTION } from '../lib/design'
+import { getPalette, type Theme } from '../lib/theme'
 import {
   BUILT_IN_TRACKS, formatTime, getLocalTracks, addLocalTrack,
   type AudioTrack, type PlayerState, initialPlayerState,
@@ -13,9 +14,13 @@ import {
 interface Props {
   visible: boolean
   onToggle: () => void
+  theme?: Theme
 }
 
-export default function FloatingPlayer({ visible, onToggle }: Props) {
+export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Props) {
+  const P = getPalette(theme)
+  const isDark = theme === 'dark'
+
   const [state, setState] = useState<PlayerState>(initialPlayerState)
   const [expanded, setExpanded] = useState(false)
   const [tab, setTab] = useState<'queue' | 'library'>('library')
@@ -56,7 +61,7 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
   const nextTrack = () => {
     const { queue, queueIndex, shuffle } = state
     if (queue.length === 0) return
-    let next = shuffle ? Math.floor(Math.random() * queue.length) : (queueIndex + 1) % queue.length
+    const next = shuffle ? Math.floor(Math.random() * queue.length) : (queueIndex + 1) % queue.length
     playTrack(queue[next], queue)
   }
 
@@ -110,7 +115,6 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
     }
   }
 
-  // Drag handling
   const onDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     setDragging(true)
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
@@ -143,6 +147,32 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
     }
   }, [dragging])
 
+  const iconBtn: CSSProperties = useMemo(() => ({
+    background: 'none',
+    border: 'none',
+    color: P.textMuted,
+    cursor: 'pointer',
+    padding: 4,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+  }), [P.textMuted])
+
+  const playBtnStyle: CSSProperties = useMemo(() => ({
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    background: P.amber,
+    color: isDark ? '#000' : '#fff',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: `0 2px 12px ${P.amber}50`,
+  }), [P.amber, isDark])
+
   if (!visible) return null
 
   const pct = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
@@ -155,11 +185,11 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
   }
   const catColor = (cat: AudioTrack['category']) => {
     switch (cat) {
-      case 'quran': return COLOR.emerald
-      case 'bible': return COLOR.sapphire
-      case 'soundbath': return COLOR.violet
-      case 'ambient': return COLOR.teal
-      default: return COLOR.amber
+      case 'quran': return P.emerald
+      case 'bible': return P.sapphire
+      case 'soundbath': return P.violet
+      case 'ambient': return P.teal
+      default: return P.amber
     }
   }
 
@@ -174,10 +204,12 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
           top: dragPos.y,
           zIndex: 9999,
           width: expanded ? 320 : 300,
-          background: COLOR.ink,
-          border: `1px solid ${COLOR.border}`,
+          background: P.card,
+          border: `1px solid ${P.border}`,
           borderRadius: RADIUS.lg,
-          boxShadow: '0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)',
+          boxShadow: isDark
+            ? '0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)'
+            : '0 8px 40px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6)',
           overflow: 'hidden',
           transition: dragging ? 'none' : `height ${MOTION.med}`,
           userSelect: 'none',
@@ -196,8 +228,8 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Music size={14} color={COLOR.amber} />
-            <span style={{ fontSize: 11, color: COLOR.muted, fontWeight: 600 }}>KasukuPlayer</span>
+            <Music size={14} color={P.amber} />
+            <span style={{ fontSize: 11, color: P.textMuted, fontWeight: 600 }}>KasukuPlayer</span>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
             <button onClick={() => setExpanded(e => !e)} style={iconBtn}>
@@ -211,10 +243,10 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
 
         {/* Now playing */}
         <div style={{ padding: '4px 14px 10px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: COLOR.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {state.track?.title || 'Hakuna nyimbo'}
           </div>
-          <div style={{ fontSize: 11, color: COLOR.muted }}>
+          <div style={{ fontSize: 11, color: P.textMuted }}>
             {state.track?.artist || 'Chagua nyimbo kutoka maktaba'}
           </div>
         </div>
@@ -222,26 +254,26 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
         {/* Progress bar */}
         <div
           onClick={seek}
-          style={{ height: 4, background: COLOR.border, cursor: 'pointer', margin: '0 14px', borderRadius: 2 }}
+          style={{ height: 4, background: P.border, cursor: 'pointer', margin: '0 14px', borderRadius: 2 }}
         >
-          <div style={{ height: '100%', width: `${pct}%`, background: COLOR.amber, borderRadius: 2, transition: 'width 0.3s linear' }} />
+          <div style={{ height: '100%', width: `${pct}%`, background: P.amber, borderRadius: 2, transition: 'width 0.3s linear' }} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 14px 0', fontSize: 10, color: COLOR.dim }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 14px 0', fontSize: 10, color: P.textDim }}>
           <span>{formatTime(state.currentTime)}</span>
           <span>{formatTime(state.duration)}</span>
         </div>
 
         {/* Controls */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '6px 14px 10px' }}>
-          <button onClick={() => setState(s => ({ ...s, shuffle: !s.shuffle }))} style={{ ...iconBtn, color: state.shuffle ? COLOR.amber : COLOR.muted }}>
+          <button onClick={() => setState(s => ({ ...s, shuffle: !s.shuffle }))} style={{ ...iconBtn, color: state.shuffle ? P.amber : P.textMuted }}>
             <Shuffle size={14} />
           </button>
           <button onClick={prevTrack} style={iconBtn}><SkipBack size={16} /></button>
-          <button onClick={togglePlay} style={playBtn}>
+          <button onClick={togglePlay} style={playBtnStyle}>
             {state.playing ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: 2 }} />}
           </button>
           <button onClick={nextTrack} style={iconBtn}><SkipForward size={16} /></button>
-          <button onClick={() => setState(s => ({ ...s, repeat: !s.repeat }))} style={{ ...iconBtn, color: state.repeat ? COLOR.amber : COLOR.muted }}>
+          <button onClick={() => setState(s => ({ ...s, repeat: !s.repeat }))} style={{ ...iconBtn, color: state.repeat ? P.amber : P.textMuted }}>
             <Repeat size={14} />
           </button>
           <button onClick={() => setState(s => ({ ...s, volume: s.volume > 0 ? 0 : 0.8 }))} style={iconBtn}>
@@ -251,7 +283,7 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
 
         {/* Expanded: library/queue */}
         {expanded && (
-          <div style={{ borderTop: `1px solid ${COLOR.border}` }}>
+          <div style={{ borderTop: `1px solid ${P.border}` }}>
             <div style={{ display: 'flex', gap: 0 }}>
               {(['library', 'queue'] as const).map(t => (
                 <button
@@ -259,8 +291,8 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
                   onClick={() => setTab(t)}
                   style={{
                     flex: 1, padding: '8px 0', background: 'none', border: 'none',
-                    borderBottom: `2px solid ${tab === t ? COLOR.amber : 'transparent'}`,
-                    color: tab === t ? COLOR.white : COLOR.muted,
+                    borderBottom: `2px solid ${tab === t ? P.amber : 'transparent'}`,
+                    color: tab === t ? P.text : P.textMuted,
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
@@ -272,7 +304,7 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
             <div style={{ maxHeight: 240, overflowY: 'auto', padding: '8px 0' }}>
               {tab === 'library' && (
                 <>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', cursor: 'pointer', color: COLOR.amber, fontSize: 12, fontWeight: 600 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', cursor: 'pointer', color: P.amber, fontSize: 12, fontWeight: 600 }}>
                     <Upload size={14} /> Pakia muziki wako
                     <input type="file" accept="audio/*" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
                   </label>
@@ -282,7 +314,7 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
                       onClick={() => playTrack(t)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                        padding: '8px 14px', background: state.track?.id === t.id ? COLOR.surface : 'none',
+                        padding: '8px 14px', background: state.track?.id === t.id ? P.surface : 'transparent',
                         border: 'none', cursor: 'pointer', textAlign: 'left',
                       }}
                     >
@@ -290,8 +322,8 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
                         {catIcon(t.category)}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: state.track?.id === t.id ? COLOR.amber : COLOR.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
-                        <div style={{ fontSize: 10, color: COLOR.dim }}>{t.artist}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: state.track?.id === t.id ? P.amber : P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
+                        <div style={{ fontSize: 10, color: P.textDim }}>{t.artist}</div>
                       </div>
                     </button>
                   ))}
@@ -299,7 +331,7 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
               )}
               {tab === 'queue' && (
                 state.queue.length === 0 ? (
-                  <div style={{ padding: '20px 14px', textAlign: 'center', color: COLOR.dim, fontSize: 12 }}>
+                  <div style={{ padding: '20px 14px', textAlign: 'center', color: P.textDim, fontSize: 12 }}>
                     <List size={20} style={{ marginBottom: 6, opacity: 0.4 }} />
                     <p style={{ margin: 0 }}>Hakuna nyimbo kwenye foleni</p>
                   </div>
@@ -309,14 +341,14 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
                     onClick={() => playTrack(t, state.queue)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                      padding: '8px 14px', background: i === state.queueIndex ? COLOR.surface : 'none',
+                      padding: '8px 14px', background: i === state.queueIndex ? P.surface : 'transparent',
                       border: 'none', cursor: 'pointer', textAlign: 'left',
                     }}
                   >
-                    <span style={{ fontSize: 11, color: COLOR.dim, width: 18 }}>{i + 1}</span>
+                    <span style={{ fontSize: 11, color: P.textDim, width: 18 }}>{i + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: i === state.queueIndex ? COLOR.amber : COLOR.white, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
-                      <div style={{ fontSize: 10, color: COLOR.dim }}>{t.artist}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: i === state.queueIndex ? P.amber : P.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
+                      <div style={{ fontSize: 10, color: P.textDim }}>{t.artist}</div>
                     </div>
                   </button>
                 ))
@@ -327,30 +359,4 @@ export default function FloatingPlayer({ visible, onToggle }: Props) {
       </div>
     </>
   )
-}
-
-const iconBtn: CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: COLOR.muted,
-  cursor: 'pointer',
-  padding: 4,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: 999,
-}
-
-const playBtn: CSSProperties = {
-  width: 40,
-  height: 40,
-  borderRadius: '50%',
-  background: COLOR.amber,
-  color: '#000',
-  border: 'none',
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  boxShadow: `0 2px 12px ${COLOR.amber}50`,
 }

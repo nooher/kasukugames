@@ -843,7 +843,7 @@ export default function NeverHaveIEver({ onBack }: { onBack: () => void }) {
             <div style={{ fontSize: 13, color: C.gold, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
               Winner
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}>
+            <div style={{ fontSize: 28, fontWeight: 600, marginBottom: 4 }}>
               {lastStanding.name}
             </div>
             <div style={{ fontSize: 14, color: C.muted }}>

@@ -869,7 +869,7 @@ export default function FocusTower({ onBack }: Props) {
           </div>
 
           <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, color: C.accent }}>
+            <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 8, color: C.accent }}>
               Focus Tower
             </h1>
             <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, maxWidth: 320 }}>
@@ -1147,7 +1147,7 @@ export default function FocusTower({ onBack }: Props) {
             {renderTower(12)}
           </div>
 
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: C.error }}>
+          <h1 style={{ fontSize: 28, fontWeight: 600, color: C.error }}>
             Tower Collapsed!
           </h1>
           <p style={{ color: C.muted, fontSize: 14 }}>
@@ -1167,7 +1167,7 @@ export default function FocusTower({ onBack }: Props) {
               ...GLASS,
             }}>
               <Zap size={20} color={C.amber} />
-              <p style={{ fontSize: 24, fontWeight: 800, color: C.text, marginTop: 4 }}>{score}</p>
+              <p style={{ fontSize: 24, fontWeight: 600, color: C.text, marginTop: 4 }}>{score}</p>
               <p style={{ fontSize: 11, color: C.muted }}>Score</p>
             </div>
             <div style={{
@@ -1178,7 +1178,7 @@ export default function FocusTower({ onBack }: Props) {
               ...GLASS,
             }}>
               <Trophy size={20} color={C.amber} />
-              <p style={{ fontSize: 24, fontWeight: 800, color: C.amber, marginTop: 4 }}>{highScore}</p>
+              <p style={{ fontSize: 24, fontWeight: 600, color: C.amber, marginTop: 4 }}>{highScore}</p>
               <p style={{ fontSize: 11, color: C.muted }}>Best</p>
             </div>
           </div>

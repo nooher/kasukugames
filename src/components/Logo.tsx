@@ -4,9 +4,11 @@ interface Props {
   size?: number
   showText?: boolean
   style?: CSSProperties
+  textColor?: string
+  mutedColor?: string
 }
 
-export default function Logo({ size = 40, showText = false, style }: Props) {
+export default function Logo({ size = 40, showText = false, style, textColor = '#2c2418', mutedColor = '#8a7e6e' }: Props) {
   const s = size
 
   return (
@@ -68,7 +70,7 @@ export default function Logo({ size = 40, showText = false, style }: Props) {
           <div style={{
             fontSize: s * 0.42,
             fontWeight: 600,
-            color: '#2c2418',
+            color: textColor,
             letterSpacing: '-0.02em',
             lineHeight: 1,
           }}>
@@ -77,7 +79,7 @@ export default function Logo({ size = 40, showText = false, style }: Props) {
           <div style={{
             fontSize: s * 0.13,
             fontWeight: 500,
-            color: '#8a7e6e',
+            color: mutedColor,
             letterSpacing: '0.12em',
             textTransform: 'uppercase' as const,
             marginTop: s * 0.06,

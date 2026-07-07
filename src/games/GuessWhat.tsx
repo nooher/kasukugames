@@ -406,7 +406,7 @@ export default function GuessWhat({ onBack }: Props) {
         <div style={headerStyle}>
           <button style={backBtn} onClick={onBack}><ArrowLeft size={18} /></button>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Guess What</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Guess What</h1>
             <p style={{ margin: 0, fontSize: 12, color: C.muted }}>How well do you really know each other?</p>
           </div>
         </div>
@@ -467,7 +467,7 @@ export default function GuessWhat({ onBack }: Props) {
         <div style={headerStyle}>
           <button style={backBtn} onClick={() => setPhase('setup')}><ArrowLeft size={18} /></button>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Pick a Category</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Pick a Category</h1>
             <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{players.length} players, {totalRounds} rounds</p>
           </div>
         </div>
@@ -565,7 +565,7 @@ export default function GuessWhat({ onBack }: Props) {
             <p style={{ fontSize: 13, color: C.muted, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
               Pass the phone to
             </p>
-            <h2 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: PLAYER_COLORS[nextPlayer] }}>
+            <h2 style={{ fontSize: 28, fontWeight: 600, margin: 0, color: PLAYER_COLORS[nextPlayer] }}>
               {players[nextPlayer].name}
             </h2>
             <p style={{ fontSize: 13, color: C.dim, marginTop: 8 }}>
@@ -751,7 +751,7 @@ export default function GuessWhat({ onBack }: Props) {
       <div style={containerStyle}>
         <div style={headerStyle}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Game Over</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em' }}>Game Over</h1>
             <p style={{ margin: 0, fontSize: 12, color: C.muted }}>{CATEGORY_META[category!].label} — {totalRounds} rounds</p>
           </div>
         </div>
@@ -759,8 +759,8 @@ export default function GuessWhat({ onBack }: Props) {
         {/* Podium */}
         <div style={{ ...cardStyle(C.gold), marginBottom: 16, textAlign: 'center' }}>
           <Crown size={28} color={C.gold} style={{ marginBottom: 8 }} />
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: C.gold }}>{sorted[0].name}</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 800 }}>{sorted[0].score} pts</p>
+          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 600, color: C.gold }}>{sorted[0].name}</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 28, fontWeight: 600 }}>{sorted[0].score} pts</p>
         </div>
 
         {/* Scoreboard */}
@@ -770,7 +770,7 @@ export default function GuessWhat({ onBack }: Props) {
             const origIdx = players.indexOf(p);
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < sorted.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                <span style={{ fontWeight: 800, fontSize: 16, color: i === 0 ? C.gold : C.dim, width: 24, textAlign: 'center' }}>
+                <span style={{ fontWeight: 600, fontSize: 16, color: i === 0 ? C.gold : C.dim, width: 24, textAlign: 'center' }}>
                   {i + 1}
                 </span>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: PLAYER_COLORS[origIdx] }} />
@@ -811,7 +811,7 @@ export default function GuessWhat({ onBack }: Props) {
                     <span style={{ color: PLAYER_COLORS[pair.i], fontWeight: 600, fontSize: 13 }}>{players[pair.i].name}</span>
                     <span style={{ color: C.dim, fontSize: 11 }}>&</span>
                     <span style={{ color: PLAYER_COLORS[pair.j], fontWeight: 600, fontSize: 13 }}>{players[pair.j].name}</span>
-                    <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 15, color: pair.pct >= 70 ? C.emerald : pair.pct >= 40 ? C.amber : C.accent }}>
+                    <span style={{ marginLeft: 'auto', fontWeight: 600, fontSize: 15, color: pair.pct >= 70 ? C.emerald : pair.pct >= 40 ? C.amber : C.accent }}>
                       {pair.pct}%
                     </span>
                   </div>

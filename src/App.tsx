@@ -292,7 +292,7 @@ export default function App() {
       return (
         <Suspense fallback={<LoadingView P={P} />}>
           <GameComponent onBack={handleGameBack} />
-          <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} />
+          <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} theme={theme} />
         </Suspense>
       )
     }
@@ -314,7 +314,7 @@ export default function App() {
       {/* TOP HEADER — slim on mobile */}
       <header style={headerStyle}>
         <button onClick={() => setSection('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-          <Logo size={36} showText />
+          <Logo size={36} showText textColor={P.text} mutedColor={P.textMuted} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {/* Desktop-only nav links */}
@@ -330,7 +330,7 @@ export default function App() {
               <span style={{
                 position: 'absolute', top: 0, right: 0,
                 width: 16, height: 16, borderRadius: '50%',
-                background: P.rose, fontSize: 8, fontWeight: 800,
+                background: P.rose, fontSize: 8, fontWeight: 600,
                 display: 'grid', placeItems: 'center', color: '#fff',
                 border: `2px solid ${P.bg}`,
               }}>{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>
@@ -355,9 +355,9 @@ export default function App() {
             }}>
               <span style={{ fontSize: 18 }}>{profile.avatar}</span>
               {profile.muhuri && profile.muhuri !== 'player' && (
-                <span style={{ fontSize: 7, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUHURI_META[profile.muhuri].color, background: MUHURI_META[profile.muhuri].color + '18', padding: '2px 6px', borderRadius: RADIUS.full, border: `1px solid ${MUHURI_META[profile.muhuri].color}30` }}>{MUHURI_META[profile.muhuri].label}</span>
+                <span style={{ fontSize: 7, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUHURI_META[profile.muhuri].color, background: MUHURI_META[profile.muhuri].color + '18', padding: '2px 6px', borderRadius: RADIUS.full, border: `1px solid ${MUHURI_META[profile.muhuri].color}30` }}>{MUHURI_META[profile.muhuri].label}</span>
               )}
-              <span style={{ fontSize: 11, fontWeight: 800, color: RANK_META[profile.rank].color }}>{profile.level}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: RANK_META[profile.rank].color }}>{profile.level}</span>
             </button>
           ) : (
             <button onClick={() => setShowLogin(true)} style={{ ...premiumBtn(P.sapphire), padding: '8px 18px', fontSize: 13 }}>
@@ -371,7 +371,7 @@ export default function App() {
               background: P.gold + '12', border: `1px solid ${P.gold}20`, marginLeft: 4,
             }}>
               <Coins size={13} color={P.gold} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance}</span>
             </div>
           )}
           </span>
@@ -397,7 +397,7 @@ export default function App() {
       {showLogin && (
         <div style={modalOverlay} onClick={() => setShowLogin(false)}>
           <div style={modalCard} onClick={e => e.stopPropagation()}>
-            <Logo size={40} style={{ marginBottom: SPACING.lg }} />
+            <Logo size={40} style={{ marginBottom: SPACING.lg }} textColor={P.text} mutedColor={P.textMuted} />
             <h2 style={{ margin: '0 0 6px', ...TYPOGRAPHY.heading, color: P.text, textAlign: 'center' }}>
               {loginMode === 'signup' ? t('join_kasukugames') : t('sign_in')}
             </h2>
@@ -436,11 +436,11 @@ export default function App() {
             <p style={{ margin: '20px 0 0', fontSize: 13, color: P.textMuted, textAlign: 'center' }}>
               {loginMode === 'signin' ? (
                 <>{t('no_account')}{' '}
-                  <button onClick={() => setLoginMode('signup')} style={{ background: 'none', border: 'none', color: P.sapphire, cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: 0 }}>{t('sign_up')}</button>
+                  <button onClick={() => setLoginMode('signup')} style={{ background: 'none', border: 'none', color: P.sapphire, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0 }}>{t('sign_up')}</button>
                 </>
               ) : (
                 <>{t('have_account')}{' '}
-                  <button onClick={() => setLoginMode('signin')} style={{ background: 'none', border: 'none', color: P.sapphire, cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: 0 }}>{t('sign_in')}</button>
+                  <button onClick={() => setLoginMode('signin')} style={{ background: 'none', border: 'none', color: P.sapphire, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0 }}>{t('sign_in')}</button>
                 </>
               )}
             </p>
@@ -483,7 +483,7 @@ export default function App() {
         }}>
           <Gift size={22} color={P.gold} />
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>
               {loginReward.isComeback ? t('welcome_back') : tpl('login_day_reward', { day: loginReward.day })}
             </div>
             <div style={{ fontSize: 12, color: P.gold, fontWeight: 600 }}>+{loginReward.tokens} {t('tokens')}</div>
@@ -502,8 +502,8 @@ export default function App() {
           zIndex: 1200, animation: 'slideUp 0.3s cubic-bezier(.16,1,.3,1) both',
         }}>
           <Sparkles size={36} color={P.gold} style={{ marginBottom: 16 }} />
-          <div style={{ fontSize: 36, fontWeight: 900, color: P.gold, marginBottom: 6, letterSpacing: '-0.02em' }}>+{luckyResult.tokens}</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{luckyResult.label}</div>
+          <div style={{ fontSize: 36, fontWeight: 600, color: P.gold, marginBottom: 6, letterSpacing: '-0.02em' }}>+{luckyResult.tokens}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: P.text }}>{luckyResult.label}</div>
         </div>
       )}
 
@@ -517,7 +517,7 @@ export default function App() {
         }}>
           <Download size={22} color={P.sapphire} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{t('download_kasukugames')}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('download_kasukugames')}</div>
             <div style={{ fontSize: 12, color: P.textMuted }}>{t('play_offline')}</div>
           </div>
           <button onClick={handleInstall} style={{ ...premiumBtn(P.sapphire), padding: '10px 22px', fontSize: 13 }}>{t('download')}</button>
@@ -531,9 +531,9 @@ export default function App() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Logo size={22} />
+          <Logo size={22} textColor={P.text} mutedColor={P.textMuted} />
           <div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: P.textMuted }}>{BRAND.sub}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: P.textMuted }}>{BRAND.sub}</span>
             <span style={{ fontSize: 11, color: P.textDim, display: 'block', marginTop: 2 }}>by {BRAND.by}</span>
           </div>
         </div>
@@ -546,7 +546,7 @@ export default function App() {
         </div>
       </footer>
 
-      <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} />
+      <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} theme={theme} />
     </div>
   )
 }
@@ -568,7 +568,7 @@ function HomeSection({ onPlay, P, isDark, gct }: {
     <section style={{ padding: '100px 4vw 80px', maxWidth: 600, margin: '0 auto' }}>
       {/* Hero */}
       <div className="fade-in" style={{ textAlign: 'center', marginBottom: 64 }}>
-        <Logo size={48} style={{ marginBottom: 32 }} />
+        <Logo size={48} style={{ marginBottom: 32 }} textColor={P.text} mutedColor={P.textMuted} />
         <h1 style={{
           margin: 0, fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 600,
           color: P.text, letterSpacing: '-0.02em', lineHeight: 1.1,
@@ -582,7 +582,7 @@ function HomeSection({ onPlay, P, isDark, gct }: {
         value={selectedCat}
         onChange={e => setSelectedCat(e.target.value as GameCategory | 'all')}
         style={{
-          width: '100%', background: P.card, border: `1px solid ${P.border}`,
+          width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
           color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
           outline: 'none', cursor: 'pointer', appearance: 'none',
           WebkitAppearance: 'none', MozAppearance: 'none',
@@ -610,7 +610,7 @@ function HomeSection({ onPlay, P, isDark, gct }: {
             }}
           >
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: P.text, marginBottom: 4 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: P.text, marginBottom: 4 }}>
                 {game.title}
               </div>
               <div style={{ fontSize: 13, color: P.textMuted, lineHeight: 1.4 }}>
@@ -671,7 +671,7 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
 
       {profile && (
         <div style={{ ...gct(), padding: '22px 26px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 16 }}>{t('login_rewards')}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: P.text, marginBottom: 16 }}>{t('login_rewards')}</div>
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             <div style={{ position: 'absolute', top: '50%', left: 20, right: 20, height: 2, background: P.border, transform: 'translateY(-50%)', zIndex: 0 }} />
             <div style={{ position: 'absolute', top: '50%', left: 20, height: 2, background: P.emerald, transform: 'translateY(-50%)', width: `${Math.min(100, (eng.consecutiveLogins / LOGIN_REWARD_SCHEDULE.length) * 100)}%`, maxWidth: 'calc(100% - 40px)', zIndex: 0, transition: `width ${MOTION.med}` }} />
@@ -680,7 +680,7 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
               return (
                 <div key={i} style={{ flex: 1, textAlign: 'center', position: 'relative', zIndex: 1 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: collected ? P.emerald : r.special ? P.gold + '20' : P.surface, border: `2px solid ${collected ? P.emerald : r.special ? P.gold + '50' : P.border}`, display: 'grid', placeItems: 'center', margin: '0 auto 6px', boxShadow: collected ? SHADOW.glow(P.emerald) : r.special ? SHADOW.glow(P.gold) : 'none', transition: `all ${MOTION.med}` }}>
-                    {collected ? <Check size={14} color="#fff" /> : <span style={{ fontSize: 10, fontWeight: 800, color: r.special ? P.gold : P.textMuted }}>+{r.tokens}</span>}
+                    {collected ? <Check size={14} color="#fff" /> : <span style={{ fontSize: 10, fontWeight: 600, color: r.special ? P.gold : P.textMuted }}>+{r.tokens}</span>}
                   </div>
                   <div style={{ fontSize: 9, color: collected ? P.emerald : P.textDim, fontWeight: 600 }}>{r.label}</div>
                 </div>
@@ -701,7 +701,7 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
             <Gift size={24} color={P.gold} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: P.text }}>{t('lucky_draw')}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: P.text }}>{t('lucky_draw')}</div>
             <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{t('lucky_draw_desc')}</div>
           </div>
           <Sparkles size={22} color={P.gold} />
@@ -714,12 +714,12 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
           <button key={ch.id} onClick={() => onPlay(ch.gameId)} style={{ ...gct(), display: 'flex', alignItems: 'center', gap: 18, padding: '20px 24px', marginBottom: 14, width: '100%', cursor: 'pointer', textAlign: 'left' }}>
             <div style={{ width: 48, height: 48, borderRadius: RADIUS.lg, background: P.amber + '18', display: 'grid', placeItems: 'center' }}><Target size={22} color={P.amber} /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{ch.title}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: P.text }}>{ch.title}</div>
               <div style={{ fontSize: 12, color: P.textMuted, marginTop: 3, lineHeight: 1.4 }}>{ch.description}</div>
               {game && <div style={{ fontSize: 10, color: P.textDim, marginTop: 5 }}>{game.title}</div>}
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 16, fontWeight: 900, color: P.gold }}>+{ch.xpReward}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: P.gold }}>+{ch.xpReward}</div>
               <div style={{ fontSize: 10, color: P.textDim, fontWeight: 600 }}>XP</div>
             </div>
           </button>
@@ -730,7 +730,7 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
         <div style={{ ...gct(), padding: '24px 28px', marginTop: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <Flame size={18} color={P.amber} />
-            <span style={{ fontSize: 16, fontWeight: 800, color: P.text }}>{t('your_streak')}: {profile.streakDays} {t('days')}</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: P.text }}>{t('your_streak')}: {profile.streakDays} {t('days')}</span>
           </div>
           <p style={{ fontSize: 13, color: P.textMuted, margin: 0, lineHeight: 1.5 }}>{t('play_daily_streak')} +{Math.min(profile.streakDays * 5, 50)}%</p>
         </div>
@@ -786,10 +786,10 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
               <div style={{ width: avatarSizes[i], height: avatarSizes[i], borderRadius: '50%', background: color.bg, border: `2px solid ${color.border}`, display: 'grid', placeItems: 'center', boxShadow: isChampion ? SHADOW.glow(P.gold) : 'none', marginBottom: 6 }}>
                 <span style={{ fontSize: avatarSizes[i] * 0.45 }}>{e.avatar}</span>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: P.text, marginTop: 2, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.displayName}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: P.text, marginTop: 2, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.displayName}</span>
               <span style={{ fontSize: 10, color: P.textMuted, fontVariantNumeric: 'tabular-nums' }}>{e.score.toLocaleString()}</span>
               <div style={{ width: avatarSizes[i] + 12, height: heights[i], marginTop: 10, borderRadius: `${RADIUS.md}px ${RADIUS.md}px 0 0`, background: color.bg, border: `1px solid ${color.border}40`, borderBottom: 'none', display: 'grid', placeItems: 'end center', paddingBottom: 10, boxShadow: isChampion ? (isDark ? `${GLASS.highlight}, 0 0 30px ${P.gold}15` : `0 0 20px ${P.gold}10`) : (isDark ? GLASS.highlight : 'none') }}>
-                <span style={{ fontSize: 28, fontWeight: 900, color: color.text }}>#{pos}</span>
+                <span style={{ fontSize: 28, fontWeight: 600, color: color.text }}>#{pos}</span>
               </div>
             </div>
           )
@@ -799,19 +799,19 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
       <div style={cs}>
         {entries.map((e, i) => (
           <div key={e.playerId} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderBottom: i < entries.length - 1 ? `1px solid ${P.border}` : 'none', background: profile && e.username === profile.username ? P.sapphire + '10' : 'transparent' }}>
-            <span style={{ width: 28, fontSize: 13, fontWeight: 800, color: i < 3 ? [P.gold, '#b0b8c4', '#cd7f32'][i] : P.textDim, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+            <span style={{ width: 28, fontSize: 13, fontWeight: 600, color: i < 3 ? [P.gold, '#b0b8c4', '#cd7f32'][i] : P.textDim, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
             <span style={{ fontSize: 20 }}>{e.avatar}</span>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{e.displayName}</span>
-                {e.teamTag && <span style={{ fontSize: 9, fontWeight: 700, color: P.teal, background: P.teal + '15', padding: '2px 8px', borderRadius: RADIUS.full }}>[{e.teamTag}]</span>}
+                <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{e.displayName}</span>
+                {e.teamTag && <span style={{ fontSize: 9, fontWeight: 600, color: P.teal, background: P.teal + '15', padding: '2px 8px', borderRadius: RADIUS.full }}>[{e.teamTag}]</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: RANK_META[e.rank as keyof typeof RANK_META]?.color || P.textDim }}>{RANK_META[e.rank as keyof typeof RANK_META]?.label || e.rank}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: RANK_META[e.rank as keyof typeof RANK_META]?.color || P.textDim }}>{RANK_META[e.rank as keyof typeof RANK_META]?.label || e.rank}</span>
                 <span style={{ fontSize: 10, color: P.textDim }}>Lv.{e.level}</span>
               </div>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 800, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{e.score.toLocaleString()}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{e.score.toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -820,10 +820,10 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
         <div style={{ ...gct(), marginTop: 20, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${P.sapphire}25` }}>
           <span style={{ fontSize: 22 }}>{profile.avatar}</span>
           <div style={{ flex: 1 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{t('you')}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{t('you')}</span>
             <div style={{ fontSize: 11, color: P.textMuted, marginTop: 2 }}>{RANK_META[profile.rank].label} · {t('level')} {profile.level}</div>
           </div>
-          <span style={{ fontSize: 16, fontWeight: 900, color: P.sapphire, fontVariantNumeric: 'tabular-nums' }}>{profile.totalScore.toLocaleString()}</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: P.sapphire, fontVariantNumeric: 'tabular-nums' }}>{profile.totalScore.toLocaleString()}</span>
         </div>
       )}
     </div>
@@ -891,14 +891,14 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
       </div>
 
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: P.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: P.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           <PartyPopper size={18} color={P.fuchsia} /> {t('party_games')}
         </div>
         <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
           {PARTY_GAMES.map(g => (
             <button key={g.id} onClick={() => onPlay(g.id)} style={{ ...gct(), padding: '16px 20px', minWidth: 160, cursor: 'pointer', textAlign: 'left', flexShrink: 0, border: `1px solid ${g.color}25` }}>
               <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>{g.icon}</span>
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{g.name}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{g.name}</div>
               <div style={{ fontSize: 11, color: P.textMuted, marginTop: 3 }}>{g.minPlayers}-{g.maxPlayers} {t('players')}</div>
             </button>
           ))}
@@ -908,7 +908,7 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
       {connections.length === 0 ? (
         <div style={{ ...gct(), padding: '56px 28px', textAlign: 'center' }}>
           <Heart size={36} color={P.textDim} style={{ marginBottom: 14 }} />
-          <p style={{ fontSize: 15, fontWeight: 700, color: P.text, margin: '0 0 6px' }}>{t('no_people_yet')}</p>
+          <p style={{ fontSize: 15, fontWeight: 600, color: P.text, margin: '0 0 6px' }}>{t('no_people_yet')}</p>
           <p style={{ fontSize: 13, color: P.textMuted, margin: '0 0 20px', lineHeight: 1.5 }}>{t('add_loved_ones')}</p>
           <button onClick={() => setShowAdd(true)} style={premiumBtn(P.emerald)}><UserPlus size={14} /> {t('add_first_person')}</button>
         </div>
@@ -925,8 +925,8 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
                   <span style={{ fontSize: 26 }}>{conn.avatar}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{conn.displayName}</span>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: meta.color, background: meta.color + '15', padding: '3px 10px', borderRadius: RADIUS.full }}>{meta.emoji} {meta.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{conn.displayName}</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: meta.color, background: meta.color + '15', padding: '3px 10px', borderRadius: RADIUS.full }}>{meta.emoji} {meta.label}</span>
                     </div>
                     <div style={{ fontSize: 11, color: P.textDim, marginTop: 3 }}>
                       {conn.gamesPlayed > 0 ? `${conn.gamesPlayed} ${t('games_played').toLowerCase()} · ${conn.wins}W-${conn.losses}L` : t('not_played_yet')}
@@ -978,7 +978,7 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <span style={{ fontSize: 32 }}>{inviteConn.avatar}</span>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: P.text }}>{inviteConn.displayName}</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: P.text }}>{inviteConn.displayName}</div>
                 <div style={{ fontSize: 12, color: RELATION_META[inviteConn.relation].color }}>{RELATION_META[inviteConn.relation].emoji} {RELATION_META[inviteConn.relation].label}</div>
               </div>
             </div>
@@ -986,7 +986,7 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
             {PARTY_GAMES.map(g => (
               <button key={g.id} onClick={() => handleInvite(inviteConn, g.id, g.name)} style={{ ...gct(), width: '100%', padding: '16px 20px', marginBottom: 10, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ fontSize: 24 }}>{g.icon}</span>
-                <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{g.name}</div><div style={{ fontSize: 11, color: P.textMuted }}>{g.description}</div></div>
+                <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{g.name}</div><div style={{ fontSize: 11, color: P.textMuted }}>{g.description}</div></div>
                 <Send size={14} color={g.color} />
               </button>
             ))}
@@ -1026,7 +1026,7 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
         <Coins size={18} color={P.gold} />
-        <span style={{ fontSize: 22, fontWeight: 900, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance.toLocaleString()}</span>
+        <span style={{ fontSize: 22, fontWeight: 600, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance.toLocaleString()}</span>
         <span style={{ fontSize: 13, color: P.textMuted }}>{t('tokens')}</span>
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
@@ -1046,10 +1046,10 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
                   <span style={{ fontSize: 20 }}>{item.icon === 'shield' ? '🛡️' : item.icon === 'zap' ? '⚡' : item.icon === 'heart' ? '❤️' : item.icon === 'clock' ? '⏱️' : item.icon === 'lightbulb' ? '💡' : item.icon === 'flame' ? '🔥' : item.icon === 'gem' ? '💎' : item.icon === 'crown' ? '👑' : item.icon === 'sparkles' ? '✨' : '🏳️'}</span>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{item.name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{item.name}</div>
                   <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{item.description}</div>
                 </div>
-                <button onClick={() => handleBuy(item)} disabled={owned || !canAfford} style={{ padding: '8px 18px', borderRadius: RADIUS.full, background: owned ? P.emerald + '20' : canAfford ? item.color : P.surface, color: owned ? P.emerald : canAfford ? '#fff' : P.textDim, border: 'none', fontSize: 12, fontWeight: 700, cursor: owned || !canAfford ? 'default' : 'pointer', opacity: !canAfford && !owned ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 5, boxShadow: canAfford && !owned ? `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${item.color}30` : 'none' }}>
+                <button onClick={() => handleBuy(item)} disabled={owned || !canAfford} style={{ padding: '8px 18px', borderRadius: RADIUS.full, background: owned ? P.emerald + '20' : canAfford ? item.color : P.surface, color: owned ? P.emerald : canAfford ? '#fff' : P.textDim, border: 'none', fontSize: 12, fontWeight: 600, cursor: owned || !canAfford ? 'default' : 'pointer', opacity: !canAfford && !owned ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 5, boxShadow: canAfford && !owned ? `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${item.color}30` : 'none' }}>
                   {owned ? <><Check size={12} /> {t('purchased')}</> : <><Coins size={11} /> {item.price}</>}
                 </button>
               </div>
@@ -1064,9 +1064,9 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
             <button key={pack.id} onClick={() => { const w = purchaseTokens(pack.tokens, pack.label); setWallet(w) }} style={{ ...gct(), padding: '24px 20px', textAlign: 'center', cursor: 'pointer', border: pack.label === 'Best Value' ? `2px solid ${P.gold}50` : `1px solid ${P.border}`, boxShadow: pack.label === 'Best Value' ? (isDark ? `${GLASS.highlight}, ${SHADOW.glow(P.gold)}` : `0 2px 12px rgba(0,0,0,0.06), ${SHADOW.glow(P.gold)}`) : (isDark ? `${GLASS.highlight}, ${SHADOW.md}` : '0 1px 6px rgba(0,0,0,0.06)') }}>
               {pack.label === 'Best Value' && <div style={{ ...TYPOGRAPHY.caption, color: P.gold, marginBottom: 10 }}>{t('best_value')}</div>}
               <Coins size={28} color={P.gold} style={{ marginBottom: 10 }} />
-              <div style={{ fontSize: 26, fontWeight: 900, color: P.text }}>{pack.tokens.toLocaleString()}</div>
-              {pack.bonus > 0 && <div style={{ fontSize: 11, color: P.emerald, fontWeight: 700, marginTop: 2 }}>+{pack.bonus} bonus</div>}
-              <div style={{ fontSize: 14, fontWeight: 700, color: P.gold, marginTop: 10 }}>TSh {pack.price.toLocaleString()}</div>
+              <div style={{ fontSize: 26, fontWeight: 600, color: P.text }}>{pack.tokens.toLocaleString()}</div>
+              {pack.bonus > 0 && <div style={{ fontSize: 11, color: P.emerald, fontWeight: 600, marginTop: 2 }}>+{pack.bonus} bonus</div>}
+              <div style={{ fontSize: 14, fontWeight: 600, color: P.gold, marginTop: 10 }}>TSh {pack.price.toLocaleString()}</div>
             </button>
           ))}
         </div>
@@ -1085,7 +1085,7 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
                 <div style={{ fontSize: 13, color: P.text }}>{tx.reason}</div>
                 <div style={{ fontSize: 10, color: P.textDim }}>{new Date(tx.timestamp).toLocaleDateString()}</div>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 800, color: tx.type === 'spend' ? P.rose : P.emerald, fontVariantNumeric: 'tabular-nums' }}>{tx.type === 'spend' ? '-' : '+'}{tx.amount}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: tx.type === 'spend' ? P.rose : P.emerald, fontVariantNumeric: 'tabular-nums' }}>{tx.type === 'spend' ? '-' : '+'}{tx.amount}</span>
             </div>
           ))}
         </div>
@@ -1118,7 +1118,7 @@ function NotificationsSection({ P, cs, gct }: { P: PaletteType; cs: CSSPropertie
                 {n.type === 'record_broken' ? <Trophy size={18} color={n.color || P.gold} /> : n.type === 'achievement' ? <Award size={18} color={n.color || P.violet} /> : n.type === 'reward' ? <Gift size={18} color={n.color || P.emerald} /> : n.type === 'milestone' ? <Star size={18} color={n.color || P.gold} /> : <Bell size={18} color={n.color || P.sapphire} />}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{n.title}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{n.title}</div>
                 <div style={{ fontSize: 12, color: P.textMuted, marginTop: 3, lineHeight: 1.4 }}>{n.message}</div>
                 <div style={{ fontSize: 10, color: P.textDim, marginTop: 5 }}>{new Date(n.timestamp).toLocaleDateString()} {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
               </div>
@@ -1146,12 +1146,12 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
       <div style={{ ...gct(), padding: '36px 32px', textAlign: 'center', marginBottom: 24, position: 'relative', overflow: 'visible' }}>
         {isDark && <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', width: 120, height: 60, borderRadius: '50%', ...heroGlow(rankColor), pointerEvents: 'none' }} />}
         <div style={{ fontSize: 72, marginBottom: 10, position: 'relative', filter: isDark ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' : 'none' }}>{profile.avatar}</div>
-        <h2 style={{ margin: '0 0 4px', fontSize: 32, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.1, color: P.text }}>{profile.displayName}</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 32, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.1, color: P.text }}>{profile.displayName}</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '0 0 16px' }}>
           <span style={{ fontSize: 14, color: P.textMuted }}>@{profile.username}</span>
           {profile.muhuri && profile.muhuri !== 'player' && (
             <span style={{
-              fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
+              fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
               color: MUHURI_META[profile.muhuri].color,
               background: MUHURI_META[profile.muhuri].color + '18',
               padding: '4px 14px', borderRadius: RADIUS.full,
@@ -1164,7 +1164,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: RADIUS.full, background: rankColor + '18', border: `1px solid ${rankColor}30`, boxShadow: SHADOW.glow(rankColor) }}>
           <Crown size={16} color={rankColor} />
-          <span style={{ fontSize: 15, fontWeight: 800, color: rankColor }}>{RANK_META[profile.rank].label}</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: rankColor }}>{RANK_META[profile.rank].label}</span>
           <span style={{ fontSize: 12, color: P.textMuted, fontWeight: 600 }}>{t('level')} {profile.level}</span>
         </div>
         <div style={{ marginTop: 20, maxWidth: 360, margin: '20px auto 0' }}><XPBar xp={profile.xp} large P={P} /></div>
@@ -1182,33 +1182,33 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
 
       {/* Settings */}
       <div style={{ ...gct(), padding: '28px 32px', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 700, color: P.text }}>{t('settings')}</h3>
+        <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 600, color: P.text }}>{t('settings')}</h3>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Globe size={16} color={P.textMuted} /><span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('language')}</span></div>
           <div style={{ display: 'flex', gap: 6 }}>
             {(['en', 'sw'] as const).map(l => (
-              <button key={l} onClick={() => { saveLang(l); onLangToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 700, background: lang === l ? P.sapphire : P.surface, color: lang === l ? '#fff' : P.textMuted, border: `1px solid ${lang === l ? P.sapphire : P.border}`, cursor: 'pointer', textTransform: 'uppercase' }}>{l}</button>
+              <button key={l} onClick={() => { saveLang(l); onLangToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: lang === l ? P.sapphire : P.surface, color: lang === l ? '#fff' : P.textMuted, border: `1px solid ${lang === l ? P.sapphire : P.border}`, cursor: 'pointer', textTransform: 'uppercase' }}>{l}</button>
             ))}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{isDark ? <Moon size={16} color={P.textMuted} /> : <Sun size={16} color={P.textMuted} />}<span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('theme')}</span></div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => { if (theme !== 'light') onThemeToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 700, background: theme === 'light' ? P.sapphire : P.surface, color: theme === 'light' ? '#fff' : P.textMuted, border: `1px solid ${theme === 'light' ? P.sapphire : P.border}`, cursor: 'pointer' }}>{t('light')}</button>
-            <button onClick={() => { if (theme !== 'dark') onThemeToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 700, background: theme === 'dark' ? P.sapphire : P.surface, color: theme === 'dark' ? '#fff' : P.textMuted, border: `1px solid ${theme === 'dark' ? P.sapphire : P.border}`, cursor: 'pointer' }}>{t('dark')}</button>
+            <button onClick={() => { if (theme !== 'light') onThemeToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: theme === 'light' ? P.sapphire : P.surface, color: theme === 'light' ? '#fff' : P.textMuted, border: `1px solid ${theme === 'light' ? P.sapphire : P.border}`, cursor: 'pointer' }}>{t('light')}</button>
+            <button onClick={() => { if (theme !== 'dark') onThemeToggle() }} style={{ padding: '6px 16px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: theme === 'dark' ? P.sapphire : P.surface, color: theme === 'dark' ? '#fff' : P.textMuted, border: `1px solid ${theme === 'dark' ? P.sapphire : P.border}`, cursor: 'pointer' }}>{t('dark')}</button>
           </div>
         </div>
       </div>
 
       {/* Badges */}
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Award size={18} color={P.violet} /> {t('badges')}</h3>
+        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Award size={18} color={P.violet} /> {t('badges')}</h3>
         {earnedBadges.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
             {earnedBadges.map(b => (
               <div key={b.id} style={{ padding: '10px 16px', borderRadius: RADIUS.md, background: b.color + '15', border: `1px solid ${b.color}25`, display: 'flex', alignItems: 'center', gap: 8, boxShadow: isDark ? GLASS.highlight : 'none' }}>
                 <Star size={13} color={b.color} />
-                <div><div style={{ fontSize: 12, fontWeight: 700, color: b.color }}>{b.name}</div><div style={{ fontSize: 10, color: P.textMuted }}>{b.description}</div></div>
+                <div><div style={{ fontSize: 12, fontWeight: 600, color: b.color }}>{b.name}</div><div style={{ fontSize: 10, color: P.textMuted }}>{b.description}</div></div>
               </div>
             ))}
           </div>
@@ -1225,7 +1225,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
 
       {/* Teams */}
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={18} color={P.teal} /> {t('teams_friends')}</h3>
+        <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={18} color={P.teal} /> {t('teams_friends')}</h3>
         {profile.teamId ? <div style={{ fontSize: 13, color: P.textMuted }}>Team member</div> : (
           <div style={{ textAlign: 'center', padding: '14px 0' }}>
             <p style={{ fontSize: 13, color: P.textMuted, margin: '0 0 14px' }}>{t('no_team_yet')}</p>
@@ -1235,7 +1235,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
         <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${P.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: P.textMuted }}>{t('friends_count')} ({profile.friendIds.length})</span>
-            <button style={{ background: 'none', border: 'none', color: P.sapphire, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ {t('add')}</button>
+            <button style={{ background: 'none', border: 'none', color: P.sapphire, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ {t('add')}</button>
           </div>
           {profile.friendIds.length === 0 && <p style={{ fontSize: 12, color: P.textDim, margin: 0, lineHeight: 1.5 }}>{t('share_link')}</p>}
         </div>
@@ -1243,7 +1243,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
           <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${P.border}`, textAlign: 'center' }}>
             <Heart size={18} color={P.rose} style={{ marginBottom: 8 }} />
             <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 10px' }}>{t('couple_challenge')}</p>
-            <button style={{ background: 'none', border: `1px solid ${P.rose}40`, color: P.rose, borderRadius: RADIUS.full, padding: '8px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: isDark ? GLASS.highlight : 'none' }}><Heart size={13} /> {t('connect')}</button>
+            <button style={{ background: 'none', border: `1px solid ${P.rose}40`, color: P.rose, borderRadius: RADIUS.full, padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', boxShadow: isDark ? GLASS.highlight : 'none' }}><Heart size={13} /> {t('connect')}</button>
           </div>
         )}
       </div>
@@ -1283,7 +1283,7 @@ function StatCard({ icon, color, label, value, P, gct }: { icon: React.ReactNode
     <div style={{ ...gct(), padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{ width: 36, height: 36, borderRadius: RADIUS.md, background: color + '15', display: 'grid', placeItems: 'center', color }}>{icon}</div>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
         <div style={{ fontSize: 11, color: P.textMuted }}>{label}</div>
       </div>
     </div>
@@ -1303,13 +1303,15 @@ function MobileTab({ icon, label, active, onClick, P }: { icon: React.ReactNode;
   return (
     <button onClick={onClick} style={{
       background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
       color: active ? P.sapphire : P.textMuted,
-      transition: `color 0.15s ease`,
+      transition: `color ${MOTION.fast}`,
       minWidth: 56,
+      position: 'relative',
     }}>
       {icon}
-      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
+      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em' }}>{label}</span>
+      {active && <span style={{ width: 4, height: 4, borderRadius: '50%', background: P.sapphire, position: 'absolute', bottom: -2, boxShadow: `0 0 6px ${P.sapphire}60` }} />}
     </button>
   )
 }

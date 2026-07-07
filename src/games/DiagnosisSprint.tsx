@@ -281,7 +281,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
             <Stethoscope size={36} color={ACCENT} />
           </div>
 
-          <h1 style={{ color: TEXT, fontSize: 32, fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+          <h1 style={{ color: TEXT, fontSize: 32, fontWeight: 600, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
             Diagnosis Sprint
           </h1>
           <p style={{ color: DIM, fontSize: 14, margin: '0 0 32px', lineHeight: 1.6 }}>
@@ -347,7 +347,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
             <span style={{ color: MUTED, fontSize: 13, fontWeight: 600 }}>
               {currentIdx + 1} / {ROUNDS}
             </span>
-            <span style={{ color: TEXT, fontSize: 14, fontWeight: 800 }}>
+            <span style={{ color: TEXT, fontSize: 14, fontWeight: 600 }}>
               {totalScore} pts
             </span>
           </div>
@@ -387,7 +387,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
               {CATEGORY_ICONS[currentScenario.category]} {currentScenario.category}
             </span>
             {phase === 'playing' && (
-              <span style={{ color: timerColor, fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums' as const }}>
+              <span style={{ color: timerColor, fontSize: 15, fontWeight: 600, fontVariantNumeric: 'tabular-nums' as const }}>
                 {formatTime(timeLeft)}
               </span>
             )}
@@ -481,7 +481,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: showFeedback && isCorrectAnswer ? ACCENT + '20' : showFeedback && isSelected ? COLOR.rose + '20' : BORDER,
                     color: showFeedback && isCorrectAnswer ? ACCENT : showFeedback && isSelected ? COLOR.rose : DIM,
-                    fontSize: 12, fontWeight: 800, flexShrink: 0,
+                    fontSize: 12, fontWeight: 600, flexShrink: 0,
                   }}>
                     {optIcon || String.fromCharCode(65 + i)}
                   </span>
@@ -548,7 +548,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
             }}>
               {grade.icon}
             </div>
-            <h2 style={{ color: TEXT, fontSize: 26, fontWeight: 800, margin: '0 0 4px' }}>
+            <h2 style={{ color: TEXT, fontSize: 26, fontWeight: 600, margin: '0 0 4px' }}>
               {grade.label}
             </h2>
             <p style={{ color: DIM, fontSize: 13, margin: 0 }}>Sprint Complete</p>
@@ -562,7 +562,7 @@ export default function DiagnosisSprint({ onBack }: { onBack: () => void }) {
               { label: 'Avg Time', value: formatTime(avgTime), color: COLOR.teal },
             ].map((stat, i) => (
               <div key={i} style={{ ...glassCard(), padding: '18px 14px', textAlign: 'center' }}>
-                <div style={{ color: stat.color, fontSize: 24, fontWeight: 800 }}>{stat.value}</div>
+                <div style={{ color: stat.color, fontSize: 24, fontWeight: 600 }}>{stat.value}</div>
                 <div style={{ color: DIM, fontSize: 11, fontWeight: 600, marginTop: 4, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>{stat.label}</div>
               </div>
             ))}

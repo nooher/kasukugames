@@ -436,7 +436,7 @@ export default function SplitDecision({ onBack }: Props) {
           }}
         >
           <Zap size={56} color={C.accent} />
-          <h1 style={{ color: C.text, fontSize: 28, margin: 0, fontWeight: 800 }}>
+          <h1 style={{ color: C.text, fontSize: 28, margin: 0, fontWeight: 600 }}>
             Split Decision
           </h1>
           <p
@@ -476,7 +476,7 @@ export default function SplitDecision({ onBack }: Props) {
           }}
         >
           <Trophy size={56} color={C.accent} />
-          <h1 style={{ color: C.text, fontSize: 28, margin: 0, fontWeight: 800 }}>
+          <h1 style={{ color: C.text, fontSize: 28, margin: 0, fontWeight: 600 }}>
             Game Over
           </h1>
           <p style={{ color: C.muted, fontSize: 15, margin: 0 }}>
@@ -486,7 +486,7 @@ export default function SplitDecision({ onBack }: Props) {
             style={{
               color: C.accent,
               fontSize: 36,
-              fontWeight: 800,
+              fontWeight: 600,
               margin: 0,
             }}
           >
@@ -525,7 +525,7 @@ export default function SplitDecision({ onBack }: Props) {
             display: 'inline-block',
             background: cColor,
             color: '#000',
-            fontWeight: 800,
+            fontWeight: 600,
             fontSize: 14,
             padding: '6px 20px',
             borderRadius: C.pill,
@@ -626,7 +626,7 @@ export default function SplitDecision({ onBack }: Props) {
                   style={{
                     marginLeft: 'auto',
                     color: C.success,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     fontSize: 13,
                     flexShrink: 0,
                   }}

@@ -422,7 +422,7 @@ export default function Snake({ onBack }: Props) {
     finalScore: {
       color: COLORS.snakeHead,
       fontSize: 48,
-      fontWeight: 800,
+      fontWeight: 600,
       margin: 0,
       lineHeight: 1,
     },

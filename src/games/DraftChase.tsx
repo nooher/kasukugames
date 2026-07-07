@@ -154,7 +154,7 @@ function SpeedTapChallenge({ onComplete }: { onComplete: (score: number) => void
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 48, fontWeight: 800, color: C.text, marginBottom: 8 }}>{taps}</div>
+      <div style={{ fontSize: 48, fontWeight: 600, color: C.text, marginBottom: 8 }}>{taps}</div>
       <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>
         {!started ? 'TAP TO START!' : timeLeft > 0 ? `${timeLeft}s remaining` : 'TIME!'}
       </div>
@@ -203,7 +203,7 @@ function ColorMatchChallenge({ onComplete }: { onComplete: (score: number) => vo
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{round + 1} / {totalRounds}</div>
       <div style={{
-        fontSize: 56, fontWeight: 900, color: prompt.inkColor.hex, marginBottom: 32,
+        fontSize: 56, fontWeight: 700, color: prompt.inkColor.hex, marginBottom: 32,
         textShadow: `0 0 20px ${prompt.inkColor.hex}40`,
         transition: `color ${MOTION.snap}`,
       }}>
@@ -282,7 +282,7 @@ function NumberMemoryChallenge({ onComplete }: { onComplete: (score: number) => 
       <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>Level {level - 2} ({level} digits)</div>
       {phase === 'show' ? (
         <div style={{
-          fontSize: 48, fontWeight: 800, color: C.text, letterSpacing: 8,
+          fontSize: 48, fontWeight: 600, color: C.text, letterSpacing: 8,
           fontFamily: 'monospace',
         }}>
           {sequence}
@@ -381,7 +381,7 @@ function QuickMathChallenge({ onComplete }: { onComplete: (score: number) => voi
       <div style={{ fontSize: 14, color: timeLeft <= 3 ? COLOR.rose : C.muted, fontWeight: 700, marginBottom: 8 }}>
         {timeLeft}s | Score: {score}
       </div>
-      <div style={{ fontSize: 40, fontWeight: 800, color: C.text, marginBottom: 24 }}>{problem.text} = ?</div>
+      <div style={{ fontSize: 40, fontWeight: 600, color: C.text, marginBottom: 24 }}>{problem.text} = ?</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 280, margin: '0 auto' }}>
         {problem.choices.map((c, i) => (
           <button
@@ -516,7 +516,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         <ArrowLeft size={22} />
       </button>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>Draft & Chase</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: C.text, letterSpacing: '-0.02em' }}>Draft & Chase</div>
       </div>
       {phase !== 'setup' && phase !== 'game-over' && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -540,12 +540,12 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
     <div style={{ ...glass(), padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.p1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{p1Name}</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{p1Wins}</div>
+        <div style={{ fontSize: 22, fontWeight: 600, color: C.text }}>{p1Wins}</div>
       </div>
       <div style={{ fontSize: 12, color: C.dim, fontWeight: 700 }}>ROUND {currentRound + 1}/{totalRounds}</div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.p2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{p2Name}</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{p2Wins}</div>
+        <div style={{ fontSize: 22, fontWeight: 600, color: C.text }}>{p2Wins}</div>
       </div>
     </div>
   );
@@ -555,7 +555,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
   const renderSetup = () => (
     <div style={{ ...glass(), padding: 32, textAlign: 'center' }}>
       <Users size={40} color={C.accent} style={{ marginBottom: 16 }} />
-      <div style={{ fontSize: 24, fontWeight: 800, color: C.text, marginBottom: 8 }}>Draft & Chase</div>
+      <div style={{ fontSize: 24, fontWeight: 600, color: C.text, marginBottom: 8 }}>Draft & Chase</div>
       <div style={{ fontSize: 14, color: C.muted, marginBottom: 28, lineHeight: 1.5 }}>
         Set a score. Dare them to beat it.<br />Best of 5 rounds wins.
       </div>
@@ -609,7 +609,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         }}>
           {info.icon}
         </div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 8 }}>{info.name}</div>
+        <div style={{ fontSize: 28, fontWeight: 600, color: C.text, marginBottom: 8 }}>{info.name}</div>
         <div style={{ fontSize: 14, color: C.muted, marginBottom: 24, lineHeight: 1.5 }}>{info.desc}</div>
         <div style={{
           ...glass(C.p1), padding: '12px 16px', marginBottom: 20,
@@ -662,7 +662,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         {drafterName}'s Draft
       </div>
       <div style={{
-        fontSize: 72, fontWeight: 900, color: C.text, lineHeight: 1,
+        fontSize: 72, fontWeight: 700, color: C.text, lineHeight: 1,
         textShadow: `0 0 40px ${C.accent}40`,
       }}>
         {draftScore}
@@ -686,10 +686,10 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
       }}>
         📱
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 8 }}>
+      <div style={{ fontSize: 22, fontWeight: 600, color: C.text, marginBottom: 8 }}>
         Pass the phone to
       </div>
-      <div style={{ fontSize: 28, fontWeight: 900, color: isDrafterP1 ? C.p2 : C.p1, marginBottom: 24 }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: isDrafterP1 ? C.p2 : C.p1, marginBottom: 24 }}>
         {chaserName}
       </div>
       <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>
@@ -717,14 +717,14 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, marginBottom: 8 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: isDrafterP1 ? C.p1 : C.p2, marginBottom: 4 }}>{drafterName}</div>
-            <div style={{ fontSize: 48, fontWeight: 900, color: C.text }}>{draftScore}</div>
+            <div style={{ fontSize: 48, fontWeight: 700, color: C.text }}>{draftScore}</div>
             <div style={{ fontSize: 11, color: C.dim, fontWeight: 600 }}>DRAFT</div>
           </div>
-          <div style={{ fontSize: 24, color: C.dim, fontWeight: 800 }}>vs</div>
+          <div style={{ fontSize: 24, color: C.dim, fontWeight: 600 }}>vs</div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: isDrafterP1 ? C.p2 : C.p1, marginBottom: 4 }}>{chaserName}</div>
             <div style={{
-              fontSize: 48, fontWeight: 900, color: C.text,
+              fontSize: 48, fontWeight: 700, color: C.text,
               animation: showScoreAnim ? 'pulse 0.5s ease-in-out' : 'none',
             }}>
               {chaseScore}
@@ -748,7 +748,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
     return (
       <div style={{ ...glass(), padding: 32, textAlign: 'center' }}>
         <div style={{
-          fontSize: 32, fontWeight: 900, color: r.winner === 'tie' ? C.muted : winColor,
+          fontSize: 32, fontWeight: 700, color: r.winner === 'tie' ? C.muted : winColor,
           marginBottom: 8, textShadow: `0 0 30px ${winColor}40`,
         }}>
           {trashTalk}
@@ -763,11 +763,11 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
         <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 24 }}>
           <div style={{ ...glass(isDrafterP1 ? C.p1 + '30' : C.p2 + '30'), padding: '12px 20px', minWidth: 100 }}>
             <div style={{ fontSize: 11, color: C.dim, fontWeight: 600, marginBottom: 4 }}>{r.drafterName}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: C.text }}>{r.draftScore}</div>
+            <div style={{ fontSize: 28, fontWeight: 600, color: C.text }}>{r.draftScore}</div>
           </div>
           <div style={{ ...glass(isDrafterP1 ? C.p2 + '30' : C.p1 + '30'), padding: '12px 20px', minWidth: 100 }}>
             <div style={{ fontSize: 11, color: C.dim, fontWeight: 600, marginBottom: 4 }}>{r.chaserName}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: C.text }}>{r.chaseScore}</div>
+            <div style={{ fontSize: 28, fontWeight: 600, color: C.text }}>{r.chaseScore}</div>
           </div>
         </div>
         <button onClick={nextRound} style={{ ...solidBtn(C.accent), justifyContent: 'center', width: '100%' }}>
@@ -792,7 +792,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
             {winner ? 'Champion' : 'Draw'}
           </div>
           <div style={{
-            fontSize: 36, fontWeight: 900, color: winnerColor, marginBottom: 4,
+            fontSize: 36, fontWeight: 700, color: winnerColor, marginBottom: 4,
             textShadow: `0 0 40px ${winnerColor}40`,
           }}>
             {winner || 'Tied!'}
@@ -818,7 +818,7 @@ export default function DraftChase({ onBack }: { onBack: () => void }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%', background: rColor + '20',
-                    color: rColor, fontSize: 11, fontWeight: 800,
+                    color: rColor, fontSize: 11, fontWeight: 600,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     {i + 1}

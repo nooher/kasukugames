@@ -528,7 +528,7 @@ export default function SequenceCollapse({ onBack }: Props) {
         </div>
         <div style={{ ...card, textAlign: 'center' }}>
           <Brain size={56} color={C.sapphire} style={{ marginBottom: 16 }} />
-          <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: 32, fontWeight: 600, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
             Sequence Collapse
           </h1>
           <p style={{ color: C.muted, fontSize: 15, margin: '0 0 24px', lineHeight: 1.6 }}>
@@ -576,14 +576,14 @@ export default function SequenceCollapse({ onBack }: Props) {
         </div>
         <div style={{ ...card, textAlign: 'center' }}>
           <Trophy size={56} color={C.amber} style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 8px' }}>Game Over</h2>
+          <h2 style={{ fontSize: 28, fontWeight: 600, margin: '0 0 8px' }}>Game Over</h2>
           <p style={{ color: C.muted, fontSize: 15, margin: '0 0 8px' }}>
             You reached level {level}
           </p>
           <p
             style={{
               fontSize: 40,
-              fontWeight: 800,
+              fontWeight: 600,
               color: C.sapphire,
               margin: '12px 0 28px',
               fontVariantNumeric: 'tabular-nums',

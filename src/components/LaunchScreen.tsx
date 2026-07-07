@@ -153,7 +153,7 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
       }
 
       if (letter.opacity > 0) {
-        ctx.font = '32px monospace'
+        ctx.font = "600 32px 'DM Sans', 'Inter', system-ui, sans-serif"
         ctx.fillStyle = letter.color
         ctx.globalAlpha = letter.opacity
         ctx.textAlign = 'center'
@@ -231,10 +231,11 @@ function LaunchScreen({ onComplete }: LaunchScreenProps) {
   }
 
   const titleStyle: CSSProperties = {
-    fontFamily: 'monospace',
+    fontFamily: "'DM Sans', 'Inter', system-ui, sans-serif",
     fontSize: '32px',
+    fontWeight: 600,
     color: '#c4a882',
-    letterSpacing: '2px',
+    letterSpacing: '-0.02em',
     position: 'relative',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
     padding: '12px 24px',

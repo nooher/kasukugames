@@ -344,7 +344,7 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: RADIUS.lg, background: COLOR.violet + '18', marginBottom: 16 }}>
             <MessageSquare size={32} color={COLOR.violet} />
           </div>
-          <h1 style={{ color: textColor, fontSize: 28, fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>Debate the AI</h1>
+          <h1 style={{ color: textColor, fontSize: 28, fontWeight: 600, margin: '0 0 8px', letterSpacing: '-0.02em' }}>Debate the AI</h1>
           <p style={{ color: mutedColor, fontSize: 14, margin: 0, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.6 }}>
             Sharpen your argumentation skills. Choose a topic, face AI arguments across 3 rounds, and select your best strategy each time.
           </p>
@@ -406,7 +406,7 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
     return (
       <div style={{ padding: '48px 4vw', minHeight: '100vh', background: bg, maxWidth: 800, margin: '0 auto' }}>
         {backBtn}
-        <h2 style={{ color: textColor, fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.01em' }}>
+        <h2 style={{ color: textColor, fontSize: 22, fontWeight: 600, margin: '0 0 6px', letterSpacing: '-0.01em' }}>
           {catMeta ? catMeta.label : 'All Topics'}
         </h2>
         <p style={{ color: mutedColor, fontSize: 13, margin: '0 0 28px' }}>
@@ -469,7 +469,7 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
             <div style={{ color: mutedColor, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
               Round {roundIndex + 1} of {topic.rounds.length}
             </div>
-            <div style={{ color: textColor, fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em' }}>{topic.title}</div>
+            <div style={{ color: textColor, fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em' }}>{topic.title}</div>
           </div>
           {/* round dots */}
           <div style={{ display: 'flex', gap: 6 }}>
@@ -513,7 +513,7 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
                 ['Evidence', lastRound.scoreGained.evidence, COLOR.emerald],
                 ['Adaptability', lastRound.scoreGained.adaptability, COLOR.amber]] as const).map(([label, val, col]) => (
                 <div key={label} style={{ textAlign: 'center' }}>
-                  <div style={{ color: col, fontSize: 22, fontWeight: 800 }}>{val}</div>
+                  <div style={{ color: col, fontSize: 22, fontWeight: 600 }}>{val}</div>
                   <div style={{ color: dimColor, fontSize: 10, fontWeight: 600, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
@@ -611,7 +611,7 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
         {/* grade card */}
         <div style={{ ...glass(grade.color), padding: '32px', textAlign: 'center', marginBottom: 24 }}>
           <Trophy size={28} color={grade.color} style={{ marginBottom: 12 }} />
-          <div style={{ color: grade.color, fontSize: 48, fontWeight: 900, lineHeight: 1 }}>{grade.letter}</div>
+          <div style={{ color: grade.color, fontSize: 48, fontWeight: 700, lineHeight: 1 }}>{grade.letter}</div>
           <div style={{ color: textColor, fontSize: 16, fontWeight: 700, marginTop: 8 }}>{grade.label}</div>
           <div style={{ color: mutedColor, fontSize: 13, marginTop: 4 }}>{topic.title}</div>
         </div>
@@ -623,7 +623,7 @@ export default function DebateAI({ onBack }: { onBack: () => void }) {
             return (
               <div key={d.key} style={{ ...glass(d.color), padding: '20px 12px', textAlign: 'center' }}>
                 <Icon size={18} color={d.color} style={{ marginBottom: 8 }} />
-                <div style={{ color: d.color, fontSize: 26, fontWeight: 900 }}>{final[d.key]}</div>
+                <div style={{ color: d.color, fontSize: 26, fontWeight: 700 }}>{final[d.key]}</div>
                 <div style={{ color: dimColor, fontSize: 10, fontWeight: 700, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{d.label}</div>
                 {/* bar */}
                 <div style={{ width: '100%', height: 4, borderRadius: 2, background: borderColor, marginTop: 10, overflow: 'hidden' }}>
