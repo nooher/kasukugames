@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="108" fill="#f5f0e8"/>
+  <rect width="512" height="512" rx="108" fill="#f0ebe3"/>
   <!-- Triangle — warm tan -->
-  <polygon points="92,368 195,144 298,368" fill="#c4a882"/>
+  <polygon points="110,360 200,150 290,360" fill="#c4a882"/>
   <!-- Circle — sage green -->
-  <circle cx="298" cy="266" r="102" fill="#a8b89a"/>
+  <circle cx="300" cy="260" r="90" fill="#a8b89a"/>
   <!-- Square — dusty rose -->
-  <rect x="318" y="194" width="143" height="143" fill="#c8847a"/>
+  <rect x="326" y="200" width="130" height="130" fill="#c8847a" rx="4"/>
 </svg>

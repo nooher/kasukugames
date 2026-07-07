@@ -1,17 +1,17 @@
 import { useState, lazy, Suspense, useEffect, useCallback, type CSSProperties } from 'react'
 import {
-  Brain, Zap, Languages, Lightbulb, Heart, Timer, Stethoscope,
-  Bot, Gamepad2, Trophy, Search, ArrowLeft, Users, PartyPopper,
+  Brain, Heart,
+  Gamepad2, Trophy, ArrowLeft, Users, PartyPopper,
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
   BarChart3, Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
-  Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon,
+  Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
 } from 'lucide-react'
 import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, heroGlow, premiumBtn } from './lib/design'
 import { BRAND } from './lib/brand'
 import { t, loadLang, saveLang, type Lang } from './lib/i18n'
 import { loadTheme, saveTheme, getPalette, type Theme } from './lib/theme'
 import { GAMES } from './lib/games'
-import { CATEGORY_META, TARGET_META, type GameCategory } from './lib/cognitive'
+import { CATEGORY_META, type GameCategory } from './lib/cognitive'
 import {
   loadProfile, createProfile, updateProfileAfterGame,
   xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
@@ -39,9 +39,10 @@ import {
   generateWhatsAppInvite, generateInstagramInvite,
   type Connection, type RelationType,
 } from './lib/connections'
-import GameCard from './components/GameCard'
+// GameCard import removed — HomeSection no longer uses the full game grid
 import Logo from './components/Logo'
 import FloatingPlayer from './components/FloatingPlayer'
+import LaunchScreen from './components/LaunchScreen'
 
 const MatrixForge = lazy(() => import('./games/MatrixForge'))
 const SequenceCollapse = lazy(() => import('./games/SequenceCollapse'))
@@ -90,19 +91,6 @@ const GAME_COMPONENTS: Record<string, GameComp> = {
   'draft-chase': DraftChase,
 }
 
-const CATEGORY_ICONS: Record<GameCategory, React.ReactNode> = {
-  'iq-arena': <Brain size={16} />,
-  'fast-brain': <Zap size={16} />,
-  'language-arena': <Languages size={16} />,
-  'creativity-lab': <Lightbulb size={16} />,
-  'psychological': <Heart size={16} />,
-  'social': <Users size={16} />,
-  'mental-endurance': <Timer size={16} />,
-  'medical': <Stethoscope size={16} />,
-  'ai-games': <Bot size={16} />,
-  'party': <PartyPopper size={16} />,
-  'classic': <Gamepad2 size={16} />,
-}
 
 const AVATAR_OPTIONS = ['🧠', '🦁', '🌟', '💎', '🔥', '👑', '🦋', '⚡', '🎯', '🎮']
 
@@ -128,8 +116,6 @@ export default function App() {
   const [profile, setProfile] = useState<PlayerProfile | null>(loadProfile)
   const [section, setSection] = useState<Section>('home')
   const [activeGame, setActiveGame] = useState<string | null>(null)
-  const [activeCat, setActiveCat] = useState<GameCategory | 'all'>('all')
-  const [query, setQuery] = useState('')
   const [playerVisible, setPlayerVisible] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [loginMode, setLoginMode] = useState<'signin' | 'signup'>('signin')
@@ -145,6 +131,7 @@ export default function App() {
   const [luckyResult, setLuckyResult] = useState<{ tokens: number; label: string } | null>(null)
   const [lang, setLangState] = useState<Lang>(loadLang)
   const [theme, setThemeState] = useState<Theme>(loadTheme)
+  const [launchDone, setLaunchDone] = useState(() => sessionStorage.getItem('kg_launched') === '1')
 
   const P = getPalette(theme)
   const isDark = theme === 'dark'
@@ -193,7 +180,7 @@ export default function App() {
   }
 
   const glassCardTheme = useCallback((): CSSProperties => ({
-    background: isDark ? '#181410' : '#ffffff',
+    background: P.surface,
     border: `1px solid ${P.border}`, borderRadius: 24,
     boxShadow: isDark
       ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.4), 0 16px 64px rgba(0,0,0,0.2)'
@@ -252,14 +239,6 @@ export default function App() {
     setThemeState(next)
   }
 
-  const filtered = GAMES.filter(g => {
-    const matchesCat = activeCat === 'all' || g.category === activeCat
-    const matchesQuery = !query || [g.title, g.subtitle, g.description, ...g.targets].join(' ').toLowerCase().includes(query.toLowerCase())
-    return matchesCat && matchesQuery
-  })
-
-  const catCounts = new Map<GameCategory, number>()
-  for (const g of GAMES) catCounts.set(g.category, (catCounts.get(g.category) || 0) + 1)
 
   const handleLogin = () => {
     if (!loginName.trim()) return
@@ -301,6 +280,10 @@ export default function App() {
       setLuckyResult(result)
       setTimeout(() => setLuckyResult(null), 3000)
     }
+  }
+
+  if (!launchDone) {
+    return <LaunchScreen onComplete={() => { setLaunchDone(true); sessionStorage.setItem('kg_launched', '1') }} />
   }
 
   if (activeGame) {
@@ -352,6 +335,9 @@ export default function App() {
                 border: `2px solid ${P.bg}`,
               }}>{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>
             )}
+          </button>
+          <button onClick={() => setPlayerVisible(v => !v)} title="Music" style={{ ...navBtnStyle, color: playerVisible ? P.amber : P.textMuted }}>
+            <Music size={16} />
           </button>
           <button onClick={handleLangToggle} title={t('language')} style={navBtnStyle}>
             <Globe size={16} />
@@ -477,9 +463,7 @@ export default function App() {
 
       {/* SECTIONS */}
       {section === 'home' && (
-        <HomeSection filtered={filtered} activeCat={activeCat} setActiveCat={setActiveCat}
-          query={query} setQuery={setQuery} catCounts={catCounts} onPlay={setActiveGame}
-          profile={profile} P={P} isDark={isDark} gct={glassCardTheme} />
+        <HomeSection onPlay={setActiveGame} P={P} isDark={isDark} gct={glassCardTheme} />
       )}
       {section === 'daily' && <DailySection profile={profile} onPlay={setActiveGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
       {section === 'leaderboard' && <LeaderboardSection profile={profile} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
@@ -570,113 +554,94 @@ export default function App() {
 /* ================================================================
    HOME SECTION
    ================================================================ */
-function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCounts, onPlay, profile, P, isDark, gct }: {
-  filtered: typeof GAMES; activeCat: GameCategory | 'all'
-  setActiveCat: (c: GameCategory | 'all') => void; query: string; setQuery: (q: string) => void
-  catCounts: Map<GameCategory, number>; onPlay: (id: string) => void; profile: PlayerProfile | null
+function HomeSection({ onPlay, P, isDark, gct }: {
+  onPlay: (id: string) => void
   P: PaletteType; isDark: boolean; gct: () => CSSProperties
 }) {
+  const [selectedCat, setSelectedCat] = useState<GameCategory | 'all'>('all')
   const categories = Object.entries(CATEGORY_META) as [GameCategory, typeof CATEGORY_META[GameCategory]][]
-  const dailyChallenges = generateDailyChallenges(Math.floor(Date.now() / 86400000))
-  const uniqueTargets = new Set(GAMES.flatMap(g => g.targets))
+  const displayGames = selectedCat === 'all'
+    ? GAMES.slice(0, 4)
+    : GAMES.filter(g => g.category === selectedCat).slice(0, 4)
 
   return (
-    <>
-      {profile && (
-        <div style={{ padding: '16px max(4vw, 24px)', display: 'flex', alignItems: 'center', gap: 14, borderBottom: `1px solid ${P.border}`, background: P.surface }}>
-          <span style={{ fontSize: 26 }}>{profile.avatar}</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{profile.displayName}</span>
-              <span style={{ fontSize: 10, fontWeight: 800, color: RANK_META[profile.rank].color, background: RANK_META[profile.rank].color + '18', padding: '4px 12px', borderRadius: RADIUS.full, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{RANK_META[profile.rank].label}</span>
-            </div>
-            <XPBar xp={profile.xp} P={P} />
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: P.amber }}>
-              <Flame size={16} /><span style={{ fontSize: 16, fontWeight: 900 }}>{profile.streakDays}</span>
-            </div>
-            <span style={{ fontSize: 9, color: P.textDim, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('streak')}</span>
-          </div>
-        </div>
-      )}
-
-      <section style={{ padding: '80px 4vw 64px', textAlign: 'center', position: 'relative' }} className="fade-in">
-        {isDark && (
-          <div style={{ position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)', width: '80%', maxWidth: 600, height: 300, ...heroGlow(P.sapphire), borderRadius: '50%', pointerEvents: 'none', opacity: 0.8 }} />
-        )}
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
-          <Logo size={56} style={{ marginBottom: SPACING.lg }} />
-          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(44px, 8vw, 72px)', fontWeight: 900, color: P.text, letterSpacing: '-0.06em', lineHeight: 0.95 }}>{t('olympics_of_the_mind')}</h1>
-          <p style={{ margin: '0 0 32px', fontSize: 'clamp(16px, 2.5vw, 20px)', color: P.textMuted, lineHeight: 1.5, fontWeight: 400, letterSpacing: '0.01em' }}>{t('train_compete_transcend')}</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 36 }}>
-            <StatPill icon={<Brain size={14} />} value={`${GAMES.length} ${t('disciplines')}`} color={P.sapphire} P={P} />
-            <StatPill icon={<Target size={14} />} value={`${uniqueTargets.size} ${t('cognitive_targets')}`} color={P.emerald} P={P} />
-            <StatPill icon={<Sparkles size={14} />} value={t('infinite_potential')} color={P.gold} P={P} />
-          </div>
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 4 }}>
-            {(['working-memory', 'processing-speed', 'pattern-recognition', 'creativity', 'decision-making', 'linguistic-fluency', 'executive-function', 'spatial-reasoning'] as const).map((tgt, i) => {
-              const m = TARGET_META[tgt]
-              return (
-                <span key={tgt} className="slide-up" style={{
-                  animationDelay: `${i * 60}ms`, background: m.color + '14', color: m.color,
-                  borderRadius: RADIUS.full, padding: '6px 16px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-                  border: `1px solid ${m.color}20`, boxShadow: isDark ? GLASS.highlight : 'none',
-                }}>{m.label}</span>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      <div style={{ padding: '0 4vw 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <Target size={15} color={P.amber} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{t('daily_challenges')}</span>
-        </div>
-        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
-          {dailyChallenges.map(ch => (
-            <button key={ch.id} onClick={() => onPlay(ch.gameId)} style={{ ...gct(), padding: '18px 24px', minWidth: 260, cursor: 'pointer', textAlign: 'left', flexShrink: 0, border: `1px solid ${P.border}`, borderRadius: 24 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: P.text, marginBottom: 4 }}>{ch.title}</div>
-              <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 8, lineHeight: 1.4 }}>{ch.description}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
-                <Star size={11} color={P.gold} /><span style={{ color: P.gold, fontWeight: 700 }}>+{ch.xpReward} XP</span>
-              </div>
-            </button>
-          ))}
-        </div>
+    <section style={{ padding: '100px 4vw 80px', maxWidth: 600, margin: '0 auto' }}>
+      {/* Hero */}
+      <div className="fade-in" style={{ textAlign: 'center', marginBottom: 64 }}>
+        <Logo size={48} style={{ marginBottom: 32 }} />
+        <h1 style={{
+          margin: 0, fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 600,
+          color: P.text, letterSpacing: '-0.02em', lineHeight: 1.1,
+        }}>
+          What will you play?
+        </h1>
       </div>
 
-      <div style={{ padding: '0 4vw 14px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, maxWidth: 520, padding: '14px 20px', background: P.card, border: `1px solid ${P.border}`, borderRadius: 24, boxShadow: isDark ? GLASS.highlight : 'none', transition: `border-color ${MOTION.fast}` }}>
-          <Search size={16} color={P.textDim} />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search_placeholder')} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: P.text, fontSize: 14 }} />
-        </label>
-      </div>
-
-      <nav style={{ padding: '0 4vw 20px', display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        <CatPill label={t('all')} count={GAMES.length} active={activeCat === 'all'} color={P.sapphire} icon={<Gamepad2 size={13} />} onClick={() => setActiveCat('all')} P={P} isDark={isDark} />
-        {categories.map(([key, meta]) => {
-          const count = catCounts.get(key) || 0
-          if (count === 0) return null
-          return <CatPill key={key} label={meta.label} count={count} active={activeCat === key} color={meta.color} icon={CATEGORY_ICONS[key]} onClick={() => setActiveCat(key)} P={P} isDark={isDark} />
-        })}
-      </nav>
-
-      <div className="game-grid" style={{ paddingBottom: 48, gap: 20 }}>
-        {filtered.map((g, i) => (
-          <div key={g.id} className="slide-up" style={{ animationDelay: `${i * 30}ms` }}>
-            <GameCard game={g} onPlay={onPlay} />
-          </div>
+      {/* Category selector */}
+      <select
+        value={selectedCat}
+        onChange={e => setSelectedCat(e.target.value as GameCategory | 'all')}
+        style={{
+          width: '100%', background: P.card, border: `1px solid ${P.border}`,
+          color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
+          outline: 'none', cursor: 'pointer', appearance: 'none',
+          WebkitAppearance: 'none', MozAppearance: 'none',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='${encodeURIComponent(isDark ? '#999' : '#666')}' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center',
+          boxSizing: 'border-box',
+        } as CSSProperties}
+      >
+        <option value="all">All Games</option>
+        {categories.map(([key, meta]) => (
+          <option key={key} value={key}>{meta.label}</option>
         ))}
-        {filtered.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', padding: 80, textAlign: 'center' }}>
-            <Search size={28} color={P.textDim} style={{ marginBottom: 12 }} />
-            <p style={{ color: P.textDim, fontSize: 14 }}>{t('no_games_match')}</p>
-          </div>
-        )}
+      </select>
+
+      {/* Game list */}
+      <div style={{ display: 'grid', gap: 14, marginTop: 24 }}>
+        {displayGames.map(game => (
+          <button
+            key={game.id}
+            onClick={() => onPlay(game.id)}
+            style={{
+              ...gct(), padding: '24px 28px', cursor: 'pointer',
+              textAlign: 'left', display: 'flex', alignItems: 'center', gap: 18,
+              border: `1px solid ${P.border}`,
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: P.text, marginBottom: 4 }}>
+                {game.title}
+              </div>
+              <div style={{ fontSize: 13, color: P.textMuted, lineHeight: 1.4 }}>
+                {game.subtitle}
+              </div>
+            </div>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: P.sapphire, display: 'grid', placeItems: 'center',
+              flexShrink: 0,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${P.sapphire}30`,
+            }}>
+              <Gamepad2 size={18} color="#fff" />
+            </div>
+          </button>
+        ))}
       </div>
-    </>
+
+      {/* Play Now CTA */}
+      <div style={{ textAlign: 'center', marginTop: 48 }}>
+        <button
+          onClick={() => {
+            const game = displayGames[0]
+            if (game) onPlay(game.id)
+          }}
+          style={{ ...premiumBtn(P.sapphire), padding: '16px 48px', fontSize: 16 }}
+        >
+          <Gamepad2 size={18} /> Play Now
+        </button>
+      </div>
+    </section>
   )
 }
 
@@ -1295,15 +1260,6 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
 /* ================================================================
    SHARED COMPONENTS
    ================================================================ */
-function StatPill({ icon, value, color, P }: { icon: React.ReactNode; value: string; color: string; P: PaletteType }) {
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: RADIUS.full, background: color + '12', border: `1px solid ${color}20`, boxShadow: GLASS.highlight }}>
-      <span style={{ color }}>{icon}</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{value}</span>
-    </div>
-  )
-}
-
 function XPBar({ xp, large, P }: { xp: number; large?: boolean; P: PaletteType }) {
   const { current, needed, progress } = xpToNextLevel(xp)
   const h = large ? 10 : 5
@@ -1354,16 +1310,6 @@ function MobileTab({ icon, label, active, onClick, P }: { icon: React.ReactNode;
     }}>
       {icon}
       <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
-    </button>
-  )
-}
-
-function CatPill({ label, count, active, color, icon, onClick, P, isDark }: { label: string; count: number; active: boolean; color: string; icon: React.ReactNode; onClick: () => void; P: PaletteType; isDark: boolean }) {
-  return (
-    <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 22px', borderRadius: RADIUS.full, background: active ? color : P.card, color: active ? '#fff' : P.textMuted, border: `1px solid ${active ? color : P.border}`, cursor: 'pointer', fontSize: 13, fontWeight: 600, letterSpacing: '0.02em', whiteSpace: 'nowrap', transition: `all ${MOTION.fast}`, boxShadow: active ? `${GLASS.highlight}, ${SHADOW.glow(color)}` : (isDark ? GLASS.highlight : 'none') }}>
-      {icon}
-      {label}
-      <span style={{ background: active ? 'rgba(255,255,255,0.2)' : P.border, padding: '2px 7px', borderRadius: RADIUS.full, fontSize: 10, fontWeight: 700 }}>{count}</span>
     </button>
   )
 }

@@ -34,11 +34,11 @@ export default function GameCard({ game, onPlay }: Props) {
         overflow: 'hidden',
         background: '#1e1a14',
         border: `1px solid ${hovered ? cat.color + '50' : '#2a2418'}`,
-        borderRadius: 24,
+        borderRadius: 16,
         boxShadow: hovered
-          ? `inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px ${cat.color}30, 0 0 32px ${cat.color}12`
-          : `inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 4px rgba(20,16,10,0.04), 0 8px 24px rgba(0,0,0,0.5)`,
-        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+          ? `inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.3), 0 0 0 1px ${cat.color}30, 0 0 24px ${cat.color}10`
+          : `inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(20,16,10,0.03), 0 4px 16px rgba(0,0,0,0.2)`,
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
         transition: [
           `transform ${MOTION.fast}`,
           `box-shadow ${MOTION.fast}`,
@@ -54,7 +54,7 @@ export default function GameCard({ game, onPlay }: Props) {
         bottom: 0,
         width: 3,
         background: cat.color,
-        borderRadius: '24px 0 0 24px',
+        borderRadius: '16px 0 0 16px',
       }} />
 
       <div style={{ padding: '20px 24px 24px' }}>
@@ -104,7 +104,7 @@ export default function GameCard({ game, onPlay }: Props) {
           margin: '0 0 2px',
           color: '#ece6dc',
           fontSize: 20,
-          fontWeight: 800,
+          fontWeight: 600,
           letterSpacing: '-0.03em',
           lineHeight: 1.2,
         }}>

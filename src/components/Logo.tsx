@@ -67,18 +67,18 @@ export default function Logo({ size = 40, showText = false, style }: Props) {
         <div>
           <div style={{
             fontSize: s * 0.42,
-            fontWeight: 800,
+            fontWeight: 600,
             color: '#2c2418',
-            letterSpacing: '-0.05em',
+            letterSpacing: '-0.02em',
             lineHeight: 1,
           }}>
             KasukuGames
           </div>
           <div style={{
             fontSize: s * 0.13,
-            fontWeight: 700,
+            fontWeight: 500,
             color: '#8a7e6e',
-            letterSpacing: '0.16em',
+            letterSpacing: '0.12em',
             textTransform: 'uppercase' as const,
             marginTop: s * 0.06,
           }}>

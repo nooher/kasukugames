@@ -70,19 +70,19 @@ export const MOTION = {
 export const TYPOGRAPHY = {
   display: {
     fontSize: 64,
-    fontWeight: 900,
-    letterSpacing: '-0.06em',
+    fontWeight: 600,
+    letterSpacing: '-0.03em',
     lineHeight: 0.95,
   },
   heading: {
     fontSize: 32,
-    fontWeight: 800,
-    letterSpacing: '-0.04em',
+    fontWeight: 600,
+    letterSpacing: '-0.02em',
     lineHeight: 1.1,
   },
   subheading: {
     fontSize: 20,
-    fontWeight: 700,
+    fontWeight: 500,
     letterSpacing: '-0.02em',
     lineHeight: 1.3,
   },
@@ -93,8 +93,8 @@ export const TYPOGRAPHY = {
   },
   caption: {
     fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.1em',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
     lineHeight: 1.4,
   },
@@ -115,10 +115,10 @@ export const SPACING = {
 } as const
 
 export const SHADOW = {
-  sm: '0 1px 2px rgba(20,16,10,0.04), 0 2px 6px rgba(20,16,10,0.03)',
-  md: '0 2px 4px rgba(20,16,10,0.04), 0 8px 24px rgba(20,16,10,0.06)',
-  lg: '0 4px 8px rgba(20,16,10,0.04), 0 16px 48px rgba(20,16,10,0.08)',
-  xl: '0 8px 16px rgba(20,16,10,0.04), 0 32px 80px rgba(20,16,10,0.10)',
+  sm: '0 1px 3px rgba(20,16,10,0.03)',
+  md: '0 2px 8px rgba(20,16,10,0.04), 0 4px 16px rgba(20,16,10,0.03)',
+  lg: '0 4px 12px rgba(20,16,10,0.04), 0 8px 32px rgba(20,16,10,0.05)',
+  xl: '0 6px 16px rgba(20,16,10,0.04), 0 16px 48px rgba(20,16,10,0.06)',
   glow: (color: string) =>
     `0 4px 24px ${color}20, 0 8px 48px ${color}12, 0 0 2px ${color}30`,
 } as const
@@ -134,12 +134,12 @@ export function card(accent?: string): CSSProperties {
   return {
     background: '#ffffff',
     border: `1px solid ${accent ? accent + '30' : '#e8e0d4'}`,
-    borderRadius: RADIUS.xl,
+    borderRadius: 20,
     boxShadow: [
       GLASS.highlight,
       GLASS.edge,
-      '0 4px 8px rgba(20,16,10,0.04)',
-      '0 16px 48px rgba(20,16,10,0.08)',
+      '0 2px 8px rgba(20,16,10,0.04)',
+      '0 4px 16px rgba(20,16,10,0.03)',
     ].join(', '),
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }
@@ -152,8 +152,8 @@ export function cardHover(accent?: string): CSSProperties {
     boxShadow: [
       'inset 0 1px 0 rgba(255,255,255,0.08)',
       `0 0 0 1px ${accentColor}40`,
-      '0 8px 16px rgba(20,16,10,0.04)',
-      '0 32px 80px rgba(20,16,10,0.10)',
+      '0 4px 12px rgba(20,16,10,0.04)',
+      '0 8px 32px rgba(20,16,10,0.05)',
       `0 0 24px ${accentColor}10`,
     ].join(', '),
   }
@@ -163,12 +163,12 @@ export function glassCard(): CSSProperties {
   return {
     background: '#ffffff',
     border: '1px solid #e8e0d4',
-    borderRadius: RADIUS.xl,
+    borderRadius: 20,
     boxShadow: [
       GLASS.highlight,
       GLASS.edge,
-      '0 4px 8px rgba(20,16,10,0.04)',
-      '0 16px 48px rgba(20,16,10,0.08)',
+      '0 2px 8px rgba(20,16,10,0.04)',
+      '0 4px 16px rgba(20,16,10,0.03)',
     ].join(', '),
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }
@@ -190,9 +190,9 @@ export function premiumBtn(color: string): CSSProperties {
     color: '#fff',
     border: 'none',
     borderRadius: RADIUS.full,
-    padding: '14px 32px',
+    padding: '12px 28px',
     fontSize: 15,
-    fontWeight: 700,
+    fontWeight: 600,
     letterSpacing: '0.02em',
     cursor: 'pointer',
     display: 'inline-flex',

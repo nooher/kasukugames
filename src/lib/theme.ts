@@ -16,8 +16,8 @@ export function saveTheme(theme: Theme) {
 
 export const DARK_PALETTE = {
   bg: '#0f0d0a',
-  surface: '#181410',
-  card: '#1e1a14',
+  surface: '#161310',
+  card: '#1c1812',
   cardHover: '#262018',
   border: '#2a2418',
   borderLight: '#342c20',
@@ -41,16 +41,16 @@ export const DARK_PALETTE = {
 } as const
 
 export const LIGHT_PALETTE = {
-  bg: '#f8f5f0',
-  surface: '#fcfaf7',
+  bg: '#f0ebe3',
+  surface: '#f5f0e8',
   card: '#ffffff',
-  cardHover: '#faf8f4',
-  border: '#ece6dc',
-  borderLight: '#f0ebe2',
+  cardHover: '#faf7f2',
+  border: '#e8e0d4',
+  borderLight: '#ede6da',
 
-  text: '#1a1610',
-  textMuted: '#8a7e6e',
-  textDim: '#b5a997',
+  text: '#3a3228',
+  textMuted: '#9a8e7e',
+  textDim: '#c5b9a7',
 
   sapphire: '#c4a882',
   emerald: '#a8b89a',
