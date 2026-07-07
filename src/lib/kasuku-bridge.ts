@@ -1,9 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Shared Kasuku Supabase (identity bridge). The anon key is the public,
+// RLS-guarded publishable key — safe to ship in the browser. Env overrides the
+// default so a build without VITE_SUPABASE_* still works (fixes "Mtandao
+// haujawashwa." at login when Vercel env isn't set).
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://ujokjnfdhtswomhgjkfp.supabase.co'
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqb2tqbmZkaHRzd29taGdqa2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDg5NjcsImV4cCI6MjA5NTkyNDk2N30.Iacm8WUH6kJvRgMvBNzQjLIylAxoIz4MF-CVwKfUeVo'
 
-const supabase = url && key ? createClient(url, key) : null
+const supabase = createClient(url, key)
 
 export interface KasukuProfile {
   id: string
