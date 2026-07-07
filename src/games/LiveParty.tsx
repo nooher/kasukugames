@@ -380,7 +380,7 @@ function SpinView({ g, players, me, isHost, onSpin, onToTod, onBack, seatColor, 
           {isHost ? <button onClick={onToTod} style={solidBtn(C.purple)}>Truth or Dare →</button> : <div style={{ color: C.muted }}>Host will continue…</div>}
         </div>
       ) : (
-        (isHost || true) && <button onClick={onSpin} disabled={g.spinning} style={{ ...solidBtn(C.pink), padding: '14px 40px', fontSize: 18, opacity: g.spinning ? 0.6 : 1 }}>{g.spinning ? 'Spinning…' : 'SPIN 🍾'}</button>
+        <button onClick={onSpin} disabled={g.spinning} style={{ ...solidBtn(C.pink), padding: '14px 40px', fontSize: 18, opacity: g.spinning ? 0.6 : 1 }}>{g.spinning ? 'Spinning…' : 'SPIN 🍾'}</button>
       )}
     </div>
   )
