@@ -1008,7 +1008,7 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
 
   const handleInvite = (conn: Connection, gameType: string, gameName: string) => {
     if (!profile) return
-    const url = conn.contactMethod === 'whatsapp' ? generateWhatsAppInvite(profile.displayName, conn, gameType, gameName) : conn.contactMethod === 'instagram' ? generateInstagramInvite(profile.displayName, conn, gameType, gameName) : null
+    const url = conn.contactMethod === 'whatsapp' ? generateWhatsAppInvite(profile.displayName, profile.username, conn, gameType, gameName) : conn.contactMethod === 'instagram' ? generateInstagramInvite(profile.displayName, profile.username, conn, gameType, gameName) : null
     if (url) window.open(url, '_blank')
     setInviteConn(null)
   }

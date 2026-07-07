@@ -180,15 +180,24 @@ export function generateInviteMessage(fromName: string, conn: Connection, gameTy
   return `${Who} ${meta.inviteVerb} you to ${gameName}! ${meta.emoji}`
 }
 
-export function generateWhatsAppInvite(fromName: string, conn: Connection, gameType: string, gameName: string): string {
+// The invite link carries the sender's handle (u=) so the /play OG endpoint can
+// render the sender's profile photo + name as the WhatsApp/social preview card.
+export function inviteLink(fromName: string, fromHandle: string, gameType: string): string {
+  const u = (fromHandle || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+  const q = `invite=${encodeURIComponent(gameType)}&from=${encodeURIComponent(fromName)}${u ? `&u=${u}` : ''}`
+  return `https://games.kasuku.tz/play?${q}`
+}
+
+export function generateWhatsAppInvite(fromName: string, fromHandle: string, conn: Connection, gameType: string, gameName: string): string {
   const msg = generateInviteMessage(fromName, conn, gameType, gameName)
-  const link = `https://games.kasuku.tz/play?invite=${gameType}&from=${encodeURIComponent(fromName)}`
+  const link = inviteLink(fromName, fromHandle, gameType)
   return `https://wa.me/${conn.contactValue.replace(/\D/g, '')}?text=${encodeURIComponent(`${msg}\n\n🎮 ${link}`)}`
 }
 
-export function generateInstagramInvite(fromName: string, conn: Connection, gameType: string, gameName: string): string {
+export function generateInstagramInvite(fromName: string, fromHandle: string, conn: Connection, gameType: string, gameName: string): string {
   const msg = generateInviteMessage(fromName, conn, gameType, gameName)
-  return `https://ig.me/m/${conn.contactValue.replace('@', '')}?text=${encodeURIComponent(msg)}`
+  const link = inviteLink(fromName, fromHandle, gameType)
+  return `https://ig.me/m/${conn.contactValue.replace('@', '')}?text=${encodeURIComponent(`${msg}\n\n🎮 ${link}`)}`
 }
 
 export const PARTY_GAMES = [
