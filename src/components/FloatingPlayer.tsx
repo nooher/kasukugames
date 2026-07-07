@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties }
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   Repeat, Shuffle, ChevronDown, ChevronUp, Music, X,
-  BookOpen, Waves, FolderOpen, List, Gamepad2, Brain, SlidersHorizontal,
+  BookOpen, Waves, FolderOpen, List, Gamepad2, Brain, SlidersHorizontal, GraduationCap,
 } from 'lucide-react'
 import { RADIUS, MOTION } from '../lib/design'
 import { getPalette, type Theme } from '../lib/theme'
@@ -33,7 +33,8 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   const [preset, setPreset] = useState('Flat')
   const [dragPos, setDragPos] = useState({ x: 20, y: -1 })
   const [dragging, setDragging] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)   // EQ-routed (CORS + local files)
+  const rawRef = useRef<HTMLAudioElement | null>(null)     // direct (non-CORS remote, e.g. Quran CDN)
   const engineRef = useRef<MusicEngine | null>(null)
   const dragStart = useRef({ x: 0, y: 0, px: 0, py: 0 })
   const rafRef = useRef(0)
@@ -51,11 +52,32 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   // Live EQ / reverb / playback-speed — "change how you hear the music".
   useEffect(() => { engineRef.current?.setEQ(eq.low, eq.mid, eq.high) }, [eq])
   useEffect(() => { engineRef.current?.setReverb(reverb) }, [reverb])
-  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = rate }, [rate, state.track?.id])
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = rate
+    if (rawRef.current) rawRef.current.playbackRate = rate
+  }, [rate, state.track?.id])
 
   const allTracks = [...BUILT_IN_TRACKS, ...getLocalTracks()]
 
   const isGenerative = (track: AudioTrack) => !track.src
+  // EQ (Web Audio) only works for same-origin blobs or CORS-enabled remotes.
+  // Non-CORS remotes (e.g. the Quran CDN) play on the raw element without EQ.
+  const useFx = (t: AudioTrack) => !!t.src && (t.src.startsWith('blob:') || t.cors === true)
+  const fileEl = (t: AudioTrack) => (useFx(t) ? audioRef.current : rawRef.current)
+  const stopFiles = () => {
+    for (const el of [audioRef.current, rawRef.current]) { if (el) { el.pause(); el.src = '' } }
+  }
+  const startFile = (track: AudioTrack, vol: number) => {
+    engineRef.current?.stop()
+    stopFiles()
+    const el = fileEl(track)
+    if (!el || !track.src) return
+    if (useFx(track)) engineRef.current?.connectElement(audioRef.current!)
+    el.src = track.src
+    el.volume = vol
+    el.playbackRate = rate
+    el.play().catch(() => {})
+  }
 
   const playTrack = useCallback((track: AudioTrack, queue?: AudioTrack[]) => {
     const q = queue || allTracks
@@ -63,23 +85,16 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     const dur = engineRef.current?.getDuration(track.id) || 300
 
     if (isGenerative(track)) {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = '' }
+      stopFiles()
       engineRef.current?.play(track.id, state.volume)
       startTimeRef.current = Date.now()
       setState(s => ({ ...s, track, playing: true, queue: q, queueIndex: idx, currentTime: 0, duration: dur }))
     } else {
-      engineRef.current?.stop()
+      startFile(track, state.volume)
       setState(s => ({ ...s, track, playing: true, queue: q, queueIndex: idx, currentTime: 0 }))
-      if (track.src && audioRef.current) {
-        engineRef.current?.connectElement(audioRef.current)
-        audioRef.current.src = track.src
-        audioRef.current.volume = state.volume
-        audioRef.current.playbackRate = rate
-        audioRef.current.play().catch(() => {})
-      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.volume])
+  }, [state.volume, rate])
 
   const nextTrack = useCallback(() => {
     setState(prev => {
@@ -90,23 +105,17 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       const dur = engineRef.current?.getDuration(track.id) || 300
 
       if (isGenerative(track)) {
-        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = '' }
+        stopFiles()
         engineRef.current?.play(track.id, prev.volume)
         startTimeRef.current = Date.now()
         return { ...prev, track, playing: true, queueIndex: next, currentTime: 0, duration: dur }
       } else {
-        engineRef.current?.stop()
-        if (track.src && audioRef.current) {
-          engineRef.current?.connectElement(audioRef.current)
-          audioRef.current.src = track.src
-          audioRef.current.volume = prev.volume
-          audioRef.current.playbackRate = rate
-          audioRef.current.play().catch(() => {})
-        }
+        startFile(track, prev.volume)
         return { ...prev, track, playing: true, queueIndex: next, currentTime: 0 }
       }
     })
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rate])
 
   useEffect(() => {
     window.clearInterval(timerRef.current)
@@ -135,10 +144,8 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
         startTimeRef.current = Date.now() - state.currentTime * 1000
       }
     } else {
-      if (audioRef.current) {
-        if (state.playing) audioRef.current.pause()
-        else audioRef.current.play().catch(() => {})
-      }
+      const el = fileEl(state.track)
+      if (el) { if (state.playing) el.pause(); else el.play().catch(() => {}) }
     }
     setState(s => ({ ...s, playing: !s.playing }))
   }
@@ -150,20 +157,15 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     playTrack(queue[prev], queue)
   }
 
-  const onTimeUpdate = () => {
-    if (audioRef.current) {
-      setState(s => ({
-        ...s,
-        currentTime: audioRef.current!.currentTime,
-        duration: audioRef.current!.duration || 0,
-      }))
-    }
+  const onTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    const el = e.currentTarget
+    setState(s => ({ ...s, currentTime: el.currentTime, duration: el.duration || 0 }))
   }
 
-  const onEnded = () => {
-    if (state.repeat && audioRef.current) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(() => {})
+  const onEnded = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+    if (state.repeat) {
+      e.currentTarget.currentTime = 0
+      e.currentTarget.play().catch(() => {})
     } else {
       nextTrack()
     }
@@ -177,18 +179,17 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     if (state.track && isGenerative(state.track)) {
       startTimeRef.current = Date.now() - time * 1000
       setState(s => ({ ...s, currentTime: time }))
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = time
+    } else if (state.track) {
+      const el = fileEl(state.track)
+      if (el) el.currentTime = time
     }
   }
 
   const setVolume = (v: number) => {
     setState(s => ({ ...s, volume: v }))
-    if (state.track && isGenerative(state.track)) {
-      engineRef.current?.setVolume(v)
-    } else if (audioRef.current) {
-      audioRef.current.volume = v
-    }
+    engineRef.current?.setVolume(v)
+    if (audioRef.current) audioRef.current.volume = v
+    if (rawRef.current) rawRef.current.volume = v
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -283,6 +284,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       case 'soundbath': return <Waves size={12} />
       case 'gaming': return <Gamepad2 size={12} />
       case 'brainmassage': return <Brain size={12} />
+      case 'study': return <GraduationCap size={12} />
       default: return <Music size={12} />
     }
   }
@@ -294,6 +296,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       case 'ambient': return P.teal
       case 'gaming': return P.fuchsia
       case 'brainmassage': return P.cyan
+      case 'study': return P.lime
       default: return P.amber
     }
   }
@@ -306,6 +309,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     { key: 'bible', label: 'Bible' },
     { key: 'gaming', label: t('gaming_music') },
     { key: 'brainmassage', label: t('brain_massage') },
+    { key: 'study', label: t('study') },
     { key: 'ambient', label: t('ambient') },
   ]
   const shownTracks = cat === 'all' ? allTracks : allTracks.filter(tr => tr.category === cat)
@@ -326,7 +330,8 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
 
   return (
     <>
-      <audio ref={audioRef} onTimeUpdate={onTimeUpdate} onEnded={onEnded} />
+      <audio ref={audioRef} crossOrigin="anonymous" onTimeUpdate={onTimeUpdate} onEnded={onEnded} />
+      <audio ref={rawRef} onTimeUpdate={onTimeUpdate} onEnded={onEnded} />
       <div
         style={{
           position: 'fixed',

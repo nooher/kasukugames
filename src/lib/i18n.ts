@@ -146,6 +146,7 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   sound_bath: { en: 'Sound Bath', sw: 'Sauti za Kutuliza' },
   gaming_music: { en: 'Gaming', sw: 'Michezo' },
   brain_massage: { en: 'Brain Massage', sw: 'Ubongo' },
+  study: { en: 'Study', sw: 'Kusoma' },
   ambient: { en: 'Ambient', sw: 'Mazingira' },
   sound: { en: 'Sound', sw: 'Sauti' },
   presets: { en: 'Presets', sw: 'Mipangilio' },
