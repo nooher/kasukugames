@@ -62,8 +62,8 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   const isGenerative = (track: AudioTrack) => !track.src
   // EQ (Web Audio) only works for same-origin blobs or CORS-enabled remotes.
   // Non-CORS remotes (e.g. the Quran CDN) play on the raw element without EQ.
-  const useFx = (t: AudioTrack) => !!t.src && (t.src.startsWith('blob:') || t.cors === true)
-  const fileEl = (t: AudioTrack) => (useFx(t) ? audioRef.current : rawRef.current)
+  const eqSafe = (t: AudioTrack) => !!t.src && (t.src.startsWith('blob:') || t.cors === true)
+  const fileEl = (t: AudioTrack) => (eqSafe(t) ? audioRef.current : rawRef.current)
   const stopFiles = () => {
     for (const el of [audioRef.current, rawRef.current]) { if (el) { el.pause(); el.src = '' } }
   }
@@ -72,7 +72,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     stopFiles()
     const el = fileEl(track)
     if (!el || !track.src) return
-    if (useFx(track)) engineRef.current?.connectElement(audioRef.current!)
+    if (eqSafe(track)) engineRef.current?.connectElement(audioRef.current!)
     el.src = track.src
     el.volume = vol
     el.playbackRate = rate
