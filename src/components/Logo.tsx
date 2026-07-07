@@ -20,43 +20,65 @@ export default function Logo({ size = 40, showText = false, style }: Props) {
       >
         {/* Triangle — warm tan */}
         <polygon
-          points="18,72 38,28 58,72"
+          points="20,70 37,30 54,70"
           fill="#c4a882"
+          opacity={0.9}
+        />
+
+        {/* Overlap shadow between triangle and circle */}
+        <circle
+          cx="60"
+          cy="50"
+          r="18"
+          fill="rgba(20,16,10,0.08)"
         />
 
         {/* Circle — sage green */}
         <circle
-          cx="58"
-          cy="52"
-          r="20"
+          cx="60"
+          cy="50"
+          r="18"
           fill="#a8b89a"
+          opacity={0.85}
+        />
+
+        {/* Overlap shadow between circle and square */}
+        <rect
+          x="64"
+          y="40"
+          width="24"
+          height="24"
+          fill="rgba(20,16,10,0.06)"
+          rx="2"
         />
 
         {/* Square — dusty rose */}
         <rect
-          x="62"
-          y="38"
-          width="28"
-          height="28"
+          x="64"
+          y="40"
+          width="24"
+          height="24"
           fill="#c8847a"
+          opacity={0.9}
+          rx="2"
         />
       </svg>
       {showText && (
         <div>
           <div style={{
             fontSize: s * 0.42,
-            fontWeight: 900,
+            fontWeight: 800,
             color: '#2c2418',
-            letterSpacing: '-0.04em',
+            letterSpacing: '-0.05em',
             lineHeight: 1,
           }}>
             KasukuGames
           </div>
           <div style={{
-            fontSize: s * 0.15,
+            fontSize: s * 0.13,
             fontWeight: 700,
             color: '#8a7e6e',
-            letterSpacing: '0.14em',
+            letterSpacing: '0.16em',
             textTransform: 'uppercase' as const,
             marginTop: s * 0.06,
           }}>

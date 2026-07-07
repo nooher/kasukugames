@@ -153,10 +153,10 @@ export default function App() {
 
   const headerStyle: CSSProperties = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '0 4vw', height: 56,
-    borderBottom: `1px solid ${P.border}`,
+    padding: '0 max(4vw, 24px)', height: 64,
+    borderBottom: isDark ? 'none' : `1px solid ${P.border}`,
     position: 'sticky', top: 0, background: P.bg, zIndex: 100,
-    boxShadow: isDark ? `${GLASS.highlight}, 0 4px 20px rgba(0,0,0,0.4)` : '0 1px 4px rgba(0,0,0,0.08)',
+    boxShadow: isDark ? '0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.4)' : '0 1px 0 rgba(0,0,0,0.04)',
   }
 
   const navBtnStyle: CSSProperties = {
@@ -167,20 +167,20 @@ export default function App() {
   }
 
   const cardStyle: CSSProperties = {
-    background: P.card, border: `1px solid ${P.border}`, borderRadius: RADIUS.lg,
+    background: P.card, border: `1px solid ${P.border}`, borderRadius: 24,
     boxShadow: isDark ? `${GLASS.highlight}, ${GLASS.edge}, ${SHADOW.md}` : '0 1px 6px rgba(0,0,0,0.06)',
     overflow: 'hidden',
   }
 
   const modalOverlay: CSSProperties = {
     position: 'fixed', inset: 0,
-    background: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.45)',
+    background: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.45)',
     display: 'grid', placeItems: 'center', zIndex: 1000, padding: 24,
   }
 
   const modalCard: CSSProperties = {
     background: P.card, border: `1px solid ${P.borderLight}`,
-    borderRadius: RADIUS.xl, padding: '40px 36px', maxWidth: 440, width: '100%',
+    borderRadius: 32, padding: '48px 44px', maxWidth: 440, width: '100%',
     boxShadow: isDark ? `${SHADOW.xl}, ${GLASS.highlight}` : '0 16px 48px rgba(0,0,0,0.12)',
   }
 
@@ -193,10 +193,10 @@ export default function App() {
   }
 
   const glassCardTheme = useCallback((): CSSProperties => ({
-    background: isDark ? '#1a2230' : '#ffffff',
-    border: `1px solid ${P.border}`, borderRadius: RADIUS.lg,
+    background: isDark ? '#181410' : '#ffffff',
+    border: `1px solid ${P.border}`, borderRadius: 24,
     boxShadow: isDark
-      ? `${GLASS.highlight}, ${GLASS.edge}, 0 8px 40px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35)`
+      ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.4), 0 16px 64px rgba(0,0,0,0.2)'
       : '0 1px 6px rgba(0,0,0,0.06)',
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }), [isDark, P.border])
@@ -396,9 +396,9 @@ export default function App() {
       <nav className="mobile-tab-bar" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
         display: 'none', justifyContent: 'space-around', alignItems: 'center',
-        height: 56, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        background: P.bg, borderTop: `1px solid ${P.border}`,
-        boxShadow: isDark ? '0 -4px 20px rgba(0,0,0,0.5)' : '0 -2px 8px rgba(0,0,0,0.08)',
+        height: 68, paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: P.bg, borderTop: isDark ? 'none' : `1px solid ${P.border}`,
+        boxShadow: isDark ? '0 -1px 0 rgba(255,255,255,0.04), 0 -8px 32px rgba(0,0,0,0.5)' : '0 -2px 8px rgba(0,0,0,0.08)',
       }}>
         <MobileTab icon={<Brain size={20} />} label={t('daily')} active={section === 'home' || section === 'daily'} onClick={() => setSection('home')} P={P} />
         <MobileTab icon={<Trophy size={20} />} label={t('ranks')} active={section === 'leaderboard'} onClick={() => setSection('leaderboard')} P={P} />
@@ -543,7 +543,7 @@ export default function App() {
 
       {/* Footer */}
       <footer style={{
-        padding: '40px 4vw 32px', borderTop: `1px solid ${P.border}`,
+        padding: '64px 4vw 48px', borderTop: `1px solid ${P.border}`,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -583,12 +583,12 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
   return (
     <>
       {profile && (
-        <div style={{ padding: '14px 4vw', display: 'flex', alignItems: 'center', gap: 14, borderBottom: `1px solid ${P.border}`, background: P.surface }}>
-          <span style={{ fontSize: 22 }}>{profile.avatar}</span>
+        <div style={{ padding: '16px max(4vw, 24px)', display: 'flex', alignItems: 'center', gap: 14, borderBottom: `1px solid ${P.border}`, background: P.surface }}>
+          <span style={{ fontSize: 26 }}>{profile.avatar}</span>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{profile.displayName}</span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: RANK_META[profile.rank].color, background: RANK_META[profile.rank].color + '18', padding: '3px 10px', borderRadius: RADIUS.full, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{RANK_META[profile.rank].label}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{profile.displayName}</span>
+              <span style={{ fontSize: 10, fontWeight: 800, color: RANK_META[profile.rank].color, background: RANK_META[profile.rank].color + '18', padding: '4px 12px', borderRadius: RADIUS.full, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{RANK_META[profile.rank].label}</span>
             </div>
             <XPBar xp={profile.xp} P={P} />
           </div>
@@ -601,26 +601,26 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
         </div>
       )}
 
-      <section style={{ padding: '56px 4vw 48px', textAlign: 'center', position: 'relative' }} className="fade-in">
+      <section style={{ padding: '80px 4vw 64px', textAlign: 'center', position: 'relative' }} className="fade-in">
         {isDark && (
-          <div style={{ position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)', width: '60%', maxWidth: 500, height: 200, ...heroGlow(P.sapphire), borderRadius: '50%', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)', width: '80%', maxWidth: 600, height: 300, ...heroGlow(P.sapphire), borderRadius: '50%', pointerEvents: 'none', opacity: 0.8 }} />
         )}
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 700, margin: '0 auto' }}>
           <Logo size={56} style={{ marginBottom: SPACING.lg }} />
-          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(36px, 6vw, 56px)', fontWeight: 900, color: P.text, letterSpacing: '-0.04em', lineHeight: 1.05 }}>{t('olympics_of_the_mind')}</h1>
-          <p style={{ margin: '0 0 32px', fontSize: 'clamp(15px, 2vw, 18px)', color: P.textMuted, lineHeight: 1.5, fontWeight: 500 }}>{t('train_compete_transcend')}</p>
+          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(44px, 8vw, 72px)', fontWeight: 900, color: P.text, letterSpacing: '-0.06em', lineHeight: 0.95 }}>{t('olympics_of_the_mind')}</h1>
+          <p style={{ margin: '0 0 32px', fontSize: 'clamp(16px, 2.5vw, 20px)', color: P.textMuted, lineHeight: 1.5, fontWeight: 400, letterSpacing: '0.01em' }}>{t('train_compete_transcend')}</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 36 }}>
             <StatPill icon={<Brain size={14} />} value={`${GAMES.length} ${t('disciplines')}`} color={P.sapphire} P={P} />
             <StatPill icon={<Target size={14} />} value={`${uniqueTargets.size} ${t('cognitive_targets')}`} color={P.emerald} P={P} />
             <StatPill icon={<Sparkles size={14} />} value={t('infinite_potential')} color={P.gold} P={P} />
           </div>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', justifyContent: 'center', flexWrap: 'wrap', paddingBottom: 4 }}>
             {(['working-memory', 'processing-speed', 'pattern-recognition', 'creativity', 'decision-making', 'linguistic-fluency', 'executive-function', 'spatial-reasoning'] as const).map((tgt, i) => {
               const m = TARGET_META[tgt]
               return (
                 <span key={tgt} className="slide-up" style={{
                   animationDelay: `${i * 60}ms`, background: m.color + '14', color: m.color,
-                  borderRadius: RADIUS.full, padding: '5px 14px', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                  borderRadius: RADIUS.full, padding: '6px 16px', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
                   border: `1px solid ${m.color}20`, boxShadow: isDark ? GLASS.highlight : 'none',
                 }}>{m.label}</span>
               )
@@ -636,8 +636,8 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
         </div>
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
           {dailyChallenges.map(ch => (
-            <button key={ch.id} onClick={() => onPlay(ch.gameId)} style={{ ...gct(), padding: '14px 20px', minWidth: 220, cursor: 'pointer', textAlign: 'left', flexShrink: 0, border: `1px solid ${P.border}` }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 4 }}>{ch.title}</div>
+            <button key={ch.id} onClick={() => onPlay(ch.gameId)} style={{ ...gct(), padding: '18px 24px', minWidth: 260, cursor: 'pointer', textAlign: 'left', flexShrink: 0, border: `1px solid ${P.border}`, borderRadius: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: P.text, marginBottom: 4 }}>{ch.title}</div>
               <div style={{ fontSize: 11, color: P.textMuted, marginBottom: 8, lineHeight: 1.4 }}>{ch.description}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
                 <Star size={11} color={P.gold} /><span style={{ color: P.gold, fontWeight: 700 }}>+{ch.xpReward} XP</span>
@@ -648,9 +648,9 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
       </div>
 
       <div style={{ padding: '0 4vw 14px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, maxWidth: 420, padding: '11px 16px', background: P.card, border: `1px solid ${P.border}`, borderRadius: RADIUS.lg, boxShadow: isDark ? GLASS.highlight : 'none', transition: `border-color ${MOTION.fast}` }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, maxWidth: 520, padding: '14px 20px', background: P.card, border: `1px solid ${P.border}`, borderRadius: 24, boxShadow: isDark ? GLASS.highlight : 'none', transition: `border-color ${MOTION.fast}` }}>
           <Search size={16} color={P.textDim} />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search_placeholder')} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: P.text, fontSize: 13 }} />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search_placeholder')} style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: P.text, fontSize: 14 }} />
         </label>
       </div>
 
@@ -806,8 +806,8 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 32, alignItems: 'flex-end' }}>
         {[entries[1], entries[0], entries[2]].map((e, i) => {
           const pos = [2, 1, 3][i]
-          const heights = [90, 120, 72]
-          const avatarSizes = [44, 56, 38]
+          const heights = [100, 140, 80]
+          const avatarSizes = [48, 64, 42]
           const isChampion = pos === 1
           const podiumColors = [
             { border: '#b0b8c4', bg: '#b0b8c4' + '15', text: '#b0b8c4' },
@@ -824,7 +824,7 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
               <span style={{ fontSize: 11, fontWeight: 700, color: P.text, marginTop: 2, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.displayName}</span>
               <span style={{ fontSize: 10, color: P.textMuted, fontVariantNumeric: 'tabular-nums' }}>{e.score.toLocaleString()}</span>
               <div style={{ width: avatarSizes[i] + 12, height: heights[i], marginTop: 10, borderRadius: `${RADIUS.md}px ${RADIUS.md}px 0 0`, background: color.bg, border: `1px solid ${color.border}40`, borderBottom: 'none', display: 'grid', placeItems: 'end center', paddingBottom: 10, boxShadow: isChampion ? (isDark ? `${GLASS.highlight}, 0 0 30px ${P.gold}15` : `0 0 20px ${P.gold}10`) : (isDark ? GLASS.highlight : 'none') }}>
-                <span style={{ fontSize: 22, fontWeight: 900, color: color.text }}>#{pos}</span>
+                <span style={{ fontSize: 28, fontWeight: 900, color: color.text }}>#{pos}</span>
               </div>
             </div>
           )
@@ -1180,16 +1180,16 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
     <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
       <div style={{ ...gct(), padding: '36px 32px', textAlign: 'center', marginBottom: 24, position: 'relative', overflow: 'visible' }}>
         {isDark && <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', width: 120, height: 60, borderRadius: '50%', ...heroGlow(rankColor), pointerEvents: 'none' }} />}
-        <div style={{ fontSize: 56, marginBottom: 10, position: 'relative', filter: isDark ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' : 'none' }}>{profile.avatar}</div>
-        <h2 style={{ margin: '0 0 4px', ...TYPOGRAPHY.heading, color: P.text }}>{profile.displayName}</h2>
+        <div style={{ fontSize: 72, marginBottom: 10, position: 'relative', filter: isDark ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' : 'none' }}>{profile.avatar}</div>
+        <h2 style={{ margin: '0 0 4px', fontSize: 32, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.1, color: P.text }}>{profile.displayName}</h2>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '0 0 16px' }}>
-          <span style={{ fontSize: 13, color: P.textMuted }}>@{profile.username}</span>
+          <span style={{ fontSize: 14, color: P.textMuted }}>@{profile.username}</span>
           {profile.muhuri && profile.muhuri !== 'player' && (
             <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
+              fontSize: 10, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
               color: MUHURI_META[profile.muhuri].color,
               background: MUHURI_META[profile.muhuri].color + '18',
-              padding: '3px 10px', borderRadius: RADIUS.full,
+              padding: '4px 14px', borderRadius: RADIUS.full,
               border: `1px solid ${MUHURI_META[profile.muhuri].color}30`,
             }}>{MUHURI_META[profile.muhuri].label}</span>
           )}
@@ -1197,15 +1197,15 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
             <span style={{ fontSize: 10, color: P.textDim, fontWeight: 600 }}>Mtengenezaji</span>
           )}
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: RADIUS.full, background: rankColor + '18', border: `1px solid ${rankColor}30`, boxShadow: SHADOW.glow(rankColor) }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px', borderRadius: RADIUS.full, background: rankColor + '18', border: `1px solid ${rankColor}30`, boxShadow: SHADOW.glow(rankColor) }}>
           <Crown size={16} color={rankColor} />
-          <span style={{ fontSize: 14, fontWeight: 800, color: rankColor }}>{RANK_META[profile.rank].label}</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: rankColor }}>{RANK_META[profile.rank].label}</span>
           <span style={{ fontSize: 12, color: P.textMuted, fontWeight: 600 }}>{t('level')} {profile.level}</span>
         </div>
         <div style={{ marginTop: 20, maxWidth: 360, margin: '20px auto 0' }}><XPBar xp={profile.xp} large P={P} /></div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
         <StatCard icon={<BarChart3 size={18} />} color={P.sapphire} label={t('total_xp')} value={profile.xp.toLocaleString()} P={P} gct={gct} />
         <StatCard icon={<Coins size={18} />} color={P.gold} label={t('tokens')} value={wallet?.balance.toLocaleString() || '0'} P={P} gct={gct} />
         <StatCard icon={<Gamepad2 size={18} />} color={P.emerald} label={t('games_played')} value={profile.totalGames.toString()} P={P} gct={gct} />
@@ -1216,7 +1216,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
       </div>
 
       {/* Settings */}
-      <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
+      <div style={{ ...gct(), padding: '28px 32px', marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 700, color: P.text }}>{t('settings')}</h3>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Globe size={16} color={P.textMuted} /><span style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{t('language')}</span></div>
@@ -1297,9 +1297,9 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
    ================================================================ */
 function StatPill({ icon, value, color, P }: { icon: React.ReactNode; value: string; color: string; P: PaletteType }) {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 18px', borderRadius: RADIUS.full, background: color + '12', border: `1px solid ${color}20`, boxShadow: GLASS.highlight }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: RADIUS.full, background: color + '12', border: `1px solid ${color}20`, boxShadow: GLASS.highlight }}>
       <span style={{ color }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: P.text }}>{value}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{value}</span>
     </div>
   )
 }
@@ -1324,7 +1324,7 @@ function XPBar({ xp, large, P }: { xp: number; large?: boolean; P: PaletteType }
 
 function StatCard({ icon, color, label, value, P, gct }: { icon: React.ReactNode; color: string; label: string; value: string; P: PaletteType; gct: () => CSSProperties }) {
   return (
-    <div style={{ ...gct(), padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+    <div style={{ ...gct(), padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{ width: 36, height: 36, borderRadius: RADIUS.md, background: color + '15', display: 'grid', placeItems: 'center', color }}>{icon}</div>
       <div>
         <div style={{ fontSize: 18, fontWeight: 800, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
@@ -1353,14 +1353,14 @@ function MobileTab({ icon, label, active, onClick, P }: { icon: React.ReactNode;
       minWidth: 56,
     }}>
       {icon}
-      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.02em' }}>{label}</span>
+      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
     </button>
   )
 }
 
 function CatPill({ label, count, active, color, icon, onClick, P, isDark }: { label: string; count: number; active: boolean; color: string; icon: React.ReactNode; onClick: () => void; P: PaletteType; isDark: boolean }) {
   return (
-    <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: RADIUS.full, background: active ? color : P.card, color: active ? '#fff' : P.textMuted, border: `1px solid ${active ? color : P.border}`, cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', transition: `all ${MOTION.fast}`, boxShadow: active ? `${GLASS.highlight}, ${SHADOW.glow(color)}` : (isDark ? GLASS.highlight : 'none') }}>
+    <button onClick={onClick} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 22px', borderRadius: RADIUS.full, background: active ? color : P.card, color: active ? '#fff' : P.textMuted, border: `1px solid ${active ? color : P.border}`, cursor: 'pointer', fontSize: 13, fontWeight: 600, letterSpacing: '0.02em', whiteSpace: 'nowrap', transition: `all ${MOTION.fast}`, boxShadow: active ? `${GLASS.highlight}, ${SHADOW.glow(color)}` : (isDark ? GLASS.highlight : 'none') }}>
       {icon}
       {label}
       <span style={{ background: active ? 'rgba(255,255,255,0.2)' : P.border, padding: '2px 7px', borderRadius: RADIUS.full, fontSize: 10, fontWeight: 700 }}>{count}</span>

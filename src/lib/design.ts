@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 // KasukuGames — Cognitive Performance Platform
 // Warm cream organic design system. Solid filled, warm tones. Glass FINISH
 // (edge highlight + float shadow), NOT translucent/blur.
-// Crispy, silky, slick, smooth. Better than Spotify + Calm + Duolingo.
+// Ultra-luxury, ultra-elite, advanced engineering.
 
 export const COLOR = {
   // Warm cream fills
@@ -52,48 +52,49 @@ export const COLOR = {
 } as const
 
 export const RADIUS = {
-  sm: 8,
-  md: 14,
-  lg: 20,
-  xl: 28,
+  sm: 10,
+  md: 16,
+  lg: 24,
+  xl: 32,
   full: 999,
 } as const
 
 export const MOTION = {
-  snap: '120ms cubic-bezier(.25,.46,.45,.94)',
-  fast: '200ms cubic-bezier(.25,.46,.45,.94)',
-  med: '320ms cubic-bezier(.25,.46,.45,.94)',
+  snap: '100ms cubic-bezier(.2,.65,.3,.9)',
+  fast: '180ms cubic-bezier(.2,.65,.3,.9)',
+  med: '280ms cubic-bezier(.2,.65,.3,.9)',
   slow: '500ms cubic-bezier(.16,1,.3,1)',
   spring: '400ms cubic-bezier(.34,1.56,.64,1)',
 } as const
 
 export const TYPOGRAPHY = {
   display: {
-    fontSize: 48,
+    fontSize: 64,
     fontWeight: 900,
-    letterSpacing: '-0.04em',
-    lineHeight: 1.05,
+    letterSpacing: '-0.06em',
+    lineHeight: 0.95,
   },
   heading: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 800,
-    letterSpacing: '-0.03em',
-    lineHeight: 1.15,
+    letterSpacing: '-0.04em',
+    lineHeight: 1.1,
   },
   subheading: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 700,
+    letterSpacing: '-0.02em',
     lineHeight: 1.3,
   },
   body: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 400,
-    lineHeight: 1.6,
+    lineHeight: 1.65,
   },
   caption: {
-    fontSize: 11,
-    fontWeight: 600,
-    letterSpacing: '0.06em',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.1em',
     textTransform: 'uppercase' as const,
     lineHeight: 1.4,
   },
@@ -104,41 +105,41 @@ export const TYPOGRAPHY = {
 } as const
 
 export const SPACING = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-  section: 64,
+  xs: 6,
+  sm: 10,
+  md: 20,
+  lg: 32,
+  xl: 48,
+  xxl: 72,
+  section: 96,
 } as const
 
 export const SHADOW = {
-  sm: '0 2px 8px rgba(44,36,24,0.06), 0 1px 3px rgba(44,36,24,0.04)',
-  md: '0 4px 20px rgba(44,36,24,0.08), 0 2px 8px rgba(44,36,24,0.05)',
-  lg: '0 8px 40px rgba(44,36,24,0.10), 0 4px 16px rgba(44,36,24,0.06)',
-  xl: '0 16px 64px rgba(44,36,24,0.12), 0 8px 24px rgba(44,36,24,0.08)',
+  sm: '0 1px 2px rgba(20,16,10,0.04), 0 2px 6px rgba(20,16,10,0.03)',
+  md: '0 2px 4px rgba(20,16,10,0.04), 0 8px 24px rgba(20,16,10,0.06)',
+  lg: '0 4px 8px rgba(20,16,10,0.04), 0 16px 48px rgba(20,16,10,0.08)',
+  xl: '0 8px 16px rgba(20,16,10,0.04), 0 32px 80px rgba(20,16,10,0.10)',
   glow: (color: string) =>
-    `0 4px 24px ${color}25, 0 8px 48px ${color}15, 0 0 2px ${color}35`,
+    `0 4px 24px ${color}20, 0 8px 48px ${color}12, 0 0 2px ${color}30`,
 } as const
 
 export const GLASS = {
-  highlight: 'inset 0 1px 0 rgba(255,255,255,0.5)',
-  edge: '0 1px 3px rgba(44,36,24,0.08)',
+  highlight: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  edge: '0 1px 2px rgba(20,16,10,0.12)',
 } as const
 
-// ── Style functions ──────────────────────────────────────────
+// -- Style functions --
 
 export function card(accent?: string): CSSProperties {
   return {
     background: '#ffffff',
     border: `1px solid ${accent ? accent + '30' : '#e8e0d4'}`,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     boxShadow: [
       GLASS.highlight,
       GLASS.edge,
-      '0 6px 28px rgba(44,36,24,0.06)',
-      '0 2px 8px rgba(44,36,24,0.04)',
+      '0 4px 8px rgba(20,16,10,0.04)',
+      '0 16px 48px rgba(20,16,10,0.08)',
     ].join(', '),
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }
@@ -147,12 +148,12 @@ export function card(accent?: string): CSSProperties {
 export function cardHover(accent?: string): CSSProperties {
   const accentColor = accent || COLOR.emerald
   return {
-    transform: 'translateY(-3px) scale(1.005)',
+    transform: 'translateY(-2px) scale(1.003)',
     boxShadow: [
-      'inset 0 1px 0 rgba(255,255,255,0.5)',
+      'inset 0 1px 0 rgba(255,255,255,0.08)',
       `0 0 0 1px ${accentColor}40`,
-      '0 12px 40px rgba(44,36,24,0.10)',
-      '0 4px 12px rgba(44,36,24,0.06)',
+      '0 8px 16px rgba(20,16,10,0.04)',
+      '0 32px 80px rgba(20,16,10,0.10)',
       `0 0 24px ${accentColor}10`,
     ].join(', '),
   }
@@ -162,12 +163,12 @@ export function glassCard(): CSSProperties {
   return {
     background: '#ffffff',
     border: '1px solid #e8e0d4',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     boxShadow: [
       GLASS.highlight,
       GLASS.edge,
-      '0 8px 40px rgba(44,36,24,0.08)',
-      '0 4px 16px rgba(44,36,24,0.05)',
+      '0 4px 8px rgba(20,16,10,0.04)',
+      '0 16px 48px rgba(20,16,10,0.08)',
     ].join(', '),
     transition: `transform ${MOTION.fast}, box-shadow ${MOTION.fast}`,
   }
@@ -189,9 +190,10 @@ export function premiumBtn(color: string): CSSProperties {
     color: '#fff',
     border: 'none',
     borderRadius: RADIUS.full,
-    padding: '12px 28px',
-    fontSize: 14,
+    padding: '14px 32px',
+    fontSize: 15,
     fontWeight: 700,
+    letterSpacing: '0.02em',
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',

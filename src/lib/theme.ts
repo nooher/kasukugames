@@ -15,16 +15,16 @@ export function saveTheme(theme: Theme) {
 }
 
 export const DARK_PALETTE = {
-  bg: '#1a1610',
-  surface: '#221e16',
-  card: '#2a2418',
-  cardHover: '#332c1e',
-  border: '#3a3228',
-  borderLight: '#4a4032',
+  bg: '#0f0d0a',
+  surface: '#181410',
+  card: '#1e1a14',
+  cardHover: '#262018',
+  border: '#2a2418',
+  borderLight: '#342c20',
 
-  text: '#f0ece4',
-  textMuted: '#a89a86',
-  textDim: '#6e6050',
+  text: '#ece6dc',
+  textMuted: '#8a7e6e',
+  textDim: '#5a5044',
 
   sapphire: '#c4a882',
   emerald: '#a8b89a',
@@ -41,14 +41,14 @@ export const DARK_PALETTE = {
 } as const
 
 export const LIGHT_PALETTE = {
-  bg: '#f5f0e8',
-  surface: '#faf7f2',
+  bg: '#f8f5f0',
+  surface: '#fcfaf7',
   card: '#ffffff',
-  cardHover: '#f9f5ee',
-  border: '#e8e0d4',
-  borderLight: '#ede6da',
+  cardHover: '#faf8f4',
+  border: '#ece6dc',
+  borderLight: '#f0ebe2',
 
-  text: '#2c2418',
+  text: '#1a1610',
   textMuted: '#8a7e6e',
   textDim: '#b5a997',
 

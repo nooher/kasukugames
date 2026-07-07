@@ -32,13 +32,13 @@ export default function GameCard({ game, onPlay }: Props) {
         cursor: 'pointer',
         textAlign: 'left',
         overflow: 'hidden',
-        background: COLOR.slate,
-        border: `1px solid ${hovered ? cat.color + '50' : COLOR.border}`,
-        borderRadius: RADIUS.lg,
+        background: '#1e1a14',
+        border: `1px solid ${hovered ? cat.color + '50' : '#2a2418'}`,
+        borderRadius: 24,
         boxShadow: hovered
-          ? `inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px ${cat.color}30`
-          : `inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 20px rgba(0,0,0,0.5)`,
-        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+          ? `inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,0,0.7), 0 0 0 1px ${cat.color}30, 0 0 32px ${cat.color}12`
+          : `inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 4px rgba(20,16,10,0.04), 0 8px 24px rgba(0,0,0,0.5)`,
+        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
         transition: [
           `transform ${MOTION.fast}`,
           `box-shadow ${MOTION.fast}`,
@@ -46,10 +46,18 @@ export default function GameCard({ game, onPlay }: Props) {
         ].join(', '),
       }}
     >
-      {/* Color accent bar */}
-      <div style={{ height: 3, background: cat.color }} />
+      {/* Left-side color accent */}
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 3,
+        background: cat.color,
+        borderRadius: '24px 0 0 24px',
+      }} />
 
-      <div style={{ padding: '14px 16px 16px' }}>
+      <div style={{ padding: '20px 24px 24px' }}>
         {/* Top row: category chip + emoji icon */}
         <div style={{
           display: 'flex',
@@ -64,10 +72,10 @@ export default function GameCard({ game, onPlay }: Props) {
             background: cat.color + '18',
             color: cat.color,
             borderRadius: RADIUS.full,
-            padding: '2px 8px',
-            fontSize: 9,
+            padding: '3px 10px',
+            fontSize: 8,
             fontWeight: 700,
-            letterSpacing: '0.05em',
+            letterSpacing: '0.08em',
             textTransform: 'uppercase',
           }}>
             {cat.label}
@@ -94,10 +102,10 @@ export default function GameCard({ game, onPlay }: Props) {
         {/* Title */}
         <h3 style={{
           margin: '0 0 2px',
-          color: COLOR.white,
-          fontSize: 18,
+          color: '#ece6dc',
+          fontSize: 20,
           fontWeight: 800,
-          letterSpacing: '-0.02em',
+          letterSpacing: '-0.03em',
           lineHeight: 1.2,
         }}>
           {game.title}
@@ -107,14 +115,14 @@ export default function GameCard({ game, onPlay }: Props) {
         <p style={{
           margin: '0 0 14px',
           color: COLOR.muted,
-          fontSize: 12,
-          lineHeight: 1.4,
+          fontSize: 13,
+          lineHeight: 1.5,
         }}>
           {game.subtitle}
         </p>
 
         {/* Cognitive target chips */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 14 }}>
           {game.targets.slice(0, 3).map(t => {
             const m = TARGET_META[t]
             return (
@@ -123,8 +131,8 @@ export default function GameCard({ game, onPlay }: Props) {
                 color: m.color,
                 border: `1px solid ${m.color}18`,
                 borderRadius: RADIUS.full,
-                padding: '1px 7px',
-                fontSize: 9,
+                padding: '3px 10px',
+                fontSize: 10,
                 fontWeight: 600,
                 letterSpacing: '0.02em',
               }}>
@@ -137,8 +145,9 @@ export default function GameCard({ game, onPlay }: Props) {
         {/* Divider */}
         <div style={{
           height: 1,
-          background: COLOR.border,
-          marginBottom: 10,
+          background: '#2a2418',
+          marginBottom: 14,
+          marginTop: 16,
         }} />
 
         {/* Meta row */}
@@ -146,7 +155,7 @@ export default function GameCard({ game, onPlay }: Props) {
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          fontSize: 11,
+          fontSize: 12,
           color: COLOR.dim,
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
