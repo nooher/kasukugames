@@ -39,12 +39,18 @@ export const BUILT_IN_TRACKS: AudioTrack[] = [
   { id: 'sb_bowls', title: 'Singing Bowls (Live)', artist: 'Sound Bath · Public Domain', category: 'soundbath', cors: true, src: IA('SingingBowlImprovisation', 'bowls_64kb.mp3') },
   // ── Real recording — Study / focus (CC0) ──
   { id: 'st_white', title: 'White Noise', artist: 'Study · Public Domain', category: 'study', src: IA('WhiteNoise_296', 'whitestatic_64kb.mp3'), cors: true },
+  // ── Real recordings — bundled & self-hosted (offline, mp3, EQ-ready) ──
+  { id: 'nat_ocean', title: 'Ocean Waves', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/ocean.mp3', cors: true },
+  { id: 'nat_river', title: 'River', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/river.mp3', cors: true },
+  { id: 'nat_stream', title: 'Mountain Stream', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/stream.mp3', cors: true },
+  { id: 'nat_forest', title: 'Forest Birds', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/forest.mp3', cors: true },
+  { id: 'nat_fire', title: 'Fireplace', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/fire.mp3', cors: true },
+  { id: 'sb_tibetan_r', title: 'Tibetan Bowl', artist: 'Sound Bath', category: 'soundbath', src: '/sounds/bowl.mp3', cors: true },
+  { id: 'sb_handpan', title: 'Handpan', artist: 'Sound Bath', category: 'soundbath', src: '/sounds/handpan.mp3', cors: true },
+  { id: 'sb_kalobela', title: 'Kalobela', artist: 'Sound Bath', category: 'soundbath', src: '/sounds/kalobela.mp3', cors: true },
   // ── Generative ambience engine (offline, no network) ──
   { id: 'rain', title: 'Night Rain', artist: 'Ambient Engine', category: 'ambient' },
-  { id: 'ocean', title: 'Calm Ocean', artist: 'Ambient Engine', category: 'ambient' },
-  { id: 'forest', title: 'Morning Forest', artist: 'Ambient Engine', category: 'ambient' },
-  { id: 'fire', title: 'Evening Fire', artist: 'Ambient Engine', category: 'ambient' },
-  { id: 'tibetan', title: 'Tibetan Bowls', artist: 'Sound Bath Engine', category: 'soundbath' },
+  { id: 'tibetan', title: 'Tibetan Bowls (Engine)', artist: 'Sound Bath Engine', category: 'soundbath' },
   { id: 'crystal', title: 'Crystal Bowl Healing', artist: 'Sound Bath Engine', category: 'soundbath' },
   { id: 'binaural', title: 'Focus Binaural 40Hz', artist: 'Study Engine', category: 'study' },
   // Gaming music (generative)
