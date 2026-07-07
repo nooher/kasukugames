@@ -1281,7 +1281,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
   const [linkCopied, setLinkCopied] = useState(false)
   const [editSocials, setEditSocials] = useState<ProfileSocials>(profile.socials || {})
 
-  const profileUrl = `https://kasukugames.vercel.app/@${profile.username}`
+  const profileUrl = `https://games.kasuku.tz/@${profile.username}`
   const shareText = `Check out my KasukuGames profile! 🎮 Train. Compete. Transcend. ${profileUrl}`
 
   const handleShareWhatsApp = () => {
