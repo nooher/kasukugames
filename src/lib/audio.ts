@@ -18,7 +18,7 @@ export interface AudioTrack {
   duration?: number
 }
 
-const QURAN = (n: number) => `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${n}.mp3`
+const QURAN = (n: number, edition = 'ar.alafasy') => `https://cdn.islamic.network/quran/audio-surah/128/${edition}/${n}.mp3`
 const IA = (id: string, file: string) => `https://archive.org/download/${id}/${file}`
 
 export const BUILT_IN_TRACKS: AudioTrack[] = [
@@ -30,6 +30,19 @@ export const BUILT_IN_TRACKS: AudioTrack[] = [
   { id: 'q_ikhlas', title: 'Al-Ikhlas', artist: 'Quran · Mishary Alafasy', category: 'quran', src: QURAN(112) },
   { id: 'q_falaq', title: 'Al-Falaq', artist: 'Quran · Mishary Alafasy', category: 'quran', src: QURAN(113) },
   { id: 'q_nas', title: 'An-Nas', artist: 'Quran · Mishary Alafasy', category: 'quran', src: QURAN(114) },
+  // Abdul Basit Abdus Samad (Murattal)
+  { id: 'q_ab_fatiha', title: 'Al-Fatiha', artist: 'Quran · Abdul Basit (Murattal)', category: 'quran', src: QURAN(1, 'ar.abdulbasitmurattal') },
+  { id: 'q_ab_yaseen', title: 'Surah Ya-Sin', artist: 'Quran · Abdul Basit (Murattal)', category: 'quran', src: QURAN(36, 'ar.abdulbasitmurattal') },
+  { id: 'q_ab_rahman', title: 'Ar-Rahman', artist: 'Quran · Abdul Basit (Murattal)', category: 'quran', src: QURAN(55, 'ar.abdulbasitmurattal') },
+  { id: 'q_ab_mulk', title: 'Al-Mulk', artist: 'Quran · Abdul Basit (Murattal)', category: 'quran', src: QURAN(67, 'ar.abdulbasitmurattal') },
+  // Abdul Basit (Mujawwad — melodic)
+  { id: 'q_abm_fatiha', title: 'Al-Fatiha', artist: 'Quran · Abdul Basit (Mujawwad)', category: 'quran', src: QURAN(1, 'ar.abdulbasitmujawwad') },
+  { id: 'q_abm_rahman', title: 'Ar-Rahman', artist: 'Quran · Abdul Basit (Mujawwad)', category: 'quran', src: QURAN(55, 'ar.abdulbasitmujawwad') },
+  // Abdullah Basfar
+  { id: 'q_bf_fatiha', title: 'Al-Fatiha', artist: 'Quran · Abdullah Basfar', category: 'quran', src: QURAN(1, 'ar.abdullahbasfar') },
+  { id: 'q_bf_yaseen', title: 'Surah Ya-Sin', artist: 'Quran · Abdullah Basfar', category: 'quran', src: QURAN(36, 'ar.abdullahbasfar') },
+  { id: 'q_bf_kahf', title: 'Al-Kahf', artist: 'Quran · Abdullah Basfar', category: 'quran', src: QURAN(18, 'ar.abdullahbasfar') },
+  { id: 'q_bf_waqiah', title: 'Al-Waqiah', artist: 'Quran · Abdullah Basfar', category: 'quran', src: QURAN(56, 'ar.abdullahbasfar') },
   // ── Real readings — Bible (LibriVox, Public Domain) ──
   { id: 'b_psalm1', title: 'Psalm 1 (KJV)', artist: 'Bible · LibriVox (PD)', category: 'bible', cors: true, src: IA('psalms_kjv_1202_librivox', 'psalms_01_kjv_64kb.mp3') },
   { id: 'b_psalm8', title: 'Psalm 8 (KJV)', artist: 'Bible · LibriVox (PD)', category: 'bible', cors: true, src: IA('psalms_kjv_1202_librivox', 'psalms_08_kjv_64kb.mp3') },
