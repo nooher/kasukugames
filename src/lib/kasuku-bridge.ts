@@ -9,6 +9,9 @@ const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || 'e
 
 const supabase = createClient(url, key)
 
+// Shared client for realtime (Live Rooms) — same identity/session as auth.
+export { supabase }
+
 export interface KasukuProfile {
   id: string
   handle: string

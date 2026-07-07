@@ -41,6 +41,7 @@ import {
   generateWhatsAppInvite, generateInstagramInvite,
   type Connection, type RelationType,
 } from './lib/connections'
+import { listenForInvites, sendLiveInvite, makeRoomCode, type LivePlayer, type LiveInvite } from './lib/liveRoom'
 // GameCard import removed — HomeSection no longer uses the full game grid
 import Logo from './components/Logo'
 import FloatingPlayer from './components/FloatingPlayer'
@@ -76,6 +77,7 @@ const Calisthenics = lazy(() => import('./games/Calisthenics'))
 const BreathHold = lazy(() => import('./games/BreathHold'))
 const ScriptureQuest = lazy(() => import('./games/ScriptureQuest'))
 const SpinTheBottle = lazy(() => import('./games/SpinTheBottle'))
+const LiveParty = lazy(() => import('./games/LiveParty'))
 const CouplesQuiz = lazy(() => import('./games/CouplesQuiz'))
 
 export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
@@ -139,6 +141,9 @@ export default function App() {
   const [section, setSection] = useState<Section>('home')
   const [activeGame, setActiveGame] = useState<string | null>(null)
   const [inboundInvite, setInboundInvite] = useState<{ game: string; from: string } | null>(null)
+  const [live, setLive] = useState<{ code: string; isHost: boolean } | null>(null)
+  const [liveInvite, setLiveInvite] = useState<LiveInvite | null>(null)
+  const [pendingRoom, setPendingRoom] = useState<string | null>(null)
   const lastGameResult = useRef<GameResult | null>(null)
   const [playerVisible, setPlayerVisible] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -229,19 +234,54 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
-  // Deep links: /play?invite=<game>&from=<name> opens the invite; /@user cleans up.
+  // Deep links: /play?invite=<game>&from=<name> opens the invite;
+  // /play?room=<code>&live=1 joins a live room; /@user cleans up.
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search)
       const g = params.get('invite')
-      if (g && GAMES.some(x => x.id === g)) {
+      const room = params.get('room')
+      if (room && /^[A-Za-z0-9]{4,6}$/.test(room)) {
+        setPendingRoom(room.toUpperCase())
+      } else if (g && GAMES.some(x => x.id === g)) {
         setInboundInvite({ game: g, from: (params.get('from') || 'A friend').slice(0, 40) })
       }
-      if (params.get('invite') || window.location.pathname.startsWith('/@')) {
+      if (params.get('invite') || room || window.location.pathname.startsWith('/@')) {
         window.history.replaceState({}, '', '/')
       }
     } catch { /* ignore malformed URLs */ }
   }, [])
+
+  // A signed-in player: listen for live-game invites, and auto-join a pending room.
+  const meLive: LivePlayer | null = profile
+    ? { id: profile.username, handle: profile.username, name: profile.displayName, avatar: profile.avatar, photoUrl: profile.photoUrl }
+    : null
+
+  useEffect(() => {
+    if (!profile?.username) return
+    const off = listenForInvites(profile.username, inv => setLiveInvite(inv))
+    return off
+  }, [profile?.username])
+
+  useEffect(() => {
+    if (!pendingRoom) return
+    if (profile && !live) { setLive({ code: pendingRoom, isHost: false }); setPendingRoom(null) }
+    else if (!profile) { setShowLogin(true); setLoginMode('signup') }
+  }, [profile, pendingRoom, live])
+
+  const goLive = useCallback((conn?: Connection) => {
+    if (!profile) { setShowLogin(true); setLoginMode('signup'); return }
+    const code = makeRoomCode()
+    setLive({ code, isHost: true })
+    const targetHandle = conn ? (conn.contactMethod === 'username' ? conn.contactValue : conn.username) : ''
+    if (targetHandle) {
+      sendLiveInvite(targetHandle, {
+        code, game: 'party',
+        fromHandle: profile.username, fromName: profile.displayName,
+        fromAvatar: profile.avatar, fromPhoto: profile.photoUrl,
+      })
+    }
+  }, [profile])
 
   useEffect(() => {
     if (profile) {
@@ -384,6 +424,14 @@ export default function App() {
     return <LaunchScreen onComplete={() => { setLaunchDone(true); sessionStorage.setItem('kg_launched', '1') }} />
   }
 
+  if (live && meLive) {
+    return (
+      <Suspense fallback={<LoadingView P={P} />}>
+        <LiveParty me={meLive} code={live.code} isHost={live.isHost} onExit={() => setLive(null)} />
+      </Suspense>
+    )
+  }
+
   if (activeGame) {
     const GameComponent = GAME_COMPONENTS[activeGame]
     if (GameComponent) {
@@ -420,6 +468,20 @@ export default function App() {
               {profile ? t('play_now') : t('signup_and_play')}
             </button>
             <button onClick={() => setInboundInvite(null)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textMuted, borderRadius: RADIUS.full, padding: '10px 20px', width: '100%', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('maybe_later')}</button>
+          </div>
+        </div>
+      )}
+      {/* Live-game invite ping (someone online invited you to a live room) */}
+      {liveInvite && (
+        <div onClick={() => setLiveInvite(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 320 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 20, padding: 26, maxWidth: 360, width: '100%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+            {liveInvite.fromPhoto
+              ? <img src={liveInvite.fromPhoto} alt={liveInvite.fromName} style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', margin: '0 auto 10px', display: 'block', border: `2px solid ${P.rose}` }} />
+              : <div style={{ fontSize: 48, marginBottom: 6 }}>{liveInvite.fromAvatar || '🎮'}</div>}
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: P.rose, marginBottom: 8 }}>🔴 Live game</div>
+            <div style={{ fontSize: 16, color: P.textMuted, marginBottom: 20 }}><b style={{ color: P.text }}>{liveInvite.fromName}</b> is inviting you to play live — right now!</div>
+            <button onClick={() => { setLive({ code: liveInvite.code, isHost: false }); setLiveInvite(null) }} style={{ ...premiumBtn(P.rose), width: '100%', justifyContent: 'center', marginBottom: 10 }}>Join now →</button>
+            <button onClick={() => setLiveInvite(null)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textMuted, borderRadius: RADIUS.full, padding: '10px 20px', width: '100%', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('maybe_later')}</button>
           </div>
         </div>
       )}
@@ -610,7 +672,7 @@ export default function App() {
       )}
       {section === 'daily' && <DailySection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
       {section === 'leaderboard' && <LeaderboardSection profile={profile} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
-      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
+      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onLogin={() => setShowLogin(true)} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'notifications' && <NotificationsSection P={P} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} gct={glassCardTheme} />}
@@ -984,8 +1046,8 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
 /* ================================================================
    CONNECTIONS
    ================================================================ */
-function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, gct }: {
-  profile: PlayerProfile | null; onPlay: (id: string) => void; onLogin: () => void
+function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, P, isDark, mo, mc, is, gct }: {
+  profile: PlayerProfile | null; onPlay: (id: string) => void; onGoLive: (conn?: Connection) => void; onLogin: () => void
   P: PaletteType; isDark: boolean; mo: CSSProperties; mc: CSSProperties; is: CSSProperties; gct: () => CSSProperties
 }) {
   const [connections, setConnections] = useState<Connection[]>(loadConnections)
@@ -1041,6 +1103,16 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
         <button onClick={() => setShowAdd(true)} style={{ ...premiumBtn(P.emerald), padding: '10px 20px', fontSize: 13 }}><UserPlus size={14} /> {t('add')}</button>
       </div>
 
+      {/* Live Room CTA — real-time online play */}
+      <button onClick={() => onGoLive()} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${P.rose}40` }}>
+        <span style={{ fontSize: 30 }}>🔴</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>Start a Live Room</div>
+          <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>Play together in real time — spin the bottle, truth or dare, and more, live.</div>
+        </div>
+        <span style={{ fontSize: 20, color: P.rose }}>→</span>
+      </button>
+
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: P.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           <PartyPopper size={18} color={P.fuchsia} /> {t('party_games')}
@@ -1086,7 +1158,8 @@ function ConnectionsSection({ profile, onPlay, onLogin, P, isDark, mo, mc, is, g
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => setInviteConn(conn)} style={{ background: meta.color, border: 'none', borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${meta.color}30` }}><Send size={14} color="#fff" /></button>
+                    <button onClick={() => onGoLive(conn)} title="Play live now" style={{ background: P.rose, border: 'none', borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${P.rose}30`, fontSize: 15 }}>🔴</button>
+                    <button onClick={() => setInviteConn(conn)} title="Send invite" style={{ background: meta.color, border: 'none', borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${meta.color}30` }}><Send size={14} color="#fff" /></button>
                     <button onClick={() => handleRemove(conn.id)} style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Trash2 size={14} color={P.textDim} /></button>
                   </div>
                 </div>
