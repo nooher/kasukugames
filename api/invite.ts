@@ -33,6 +33,8 @@ export default async function handler(
   const invite = pick('invite')
   const from = pick('from') || 'A friend'
   const handle = pick('u').toLowerCase().replace(/[^a-z0-9_]/g, '')
+  const room = pick('room').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
+  const isLive = !!room || pick('live') === '1'
 
   let name = from
   let pic = FALLBACK_IMG
@@ -51,9 +53,15 @@ export default async function handler(
     } catch { /* fall back to name + default image */ }
   }
 
-  const title = `${name} invited you to play on KasukuGames`
-  const desc = `Tap to join ${name} — 30 free games. Olympics of the Mind. 🎮`
-  const target = `/?invite=${encodeURIComponent(invite)}&from=${encodeURIComponent(from)}`
+  const title = isLive
+    ? `${name} invited you to a LIVE game — join now! 🔴`
+    : `${name} invited you to play on KasukuGames`
+  const desc = isLive
+    ? `Play together in real time on KasukuGames — tap to join ${name}. 🎮`
+    : `Tap to join ${name} — 30 free games. Olympics of the Mind. 🎮`
+  const target = room
+    ? `/?room=${encodeURIComponent(room)}&live=1&from=${encodeURIComponent(from)}`
+    : `/?invite=${encodeURIComponent(invite)}&from=${encodeURIComponent(from)}`
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300')
