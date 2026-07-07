@@ -73,7 +73,7 @@ export default function GameCard({ game, onPlay }: Props) {
             {cat.label}
           </span>
 
-          {/* Game emoji icon */}
+          {/* Category badge */}
           <div style={{
             width: 40,
             height: 40,
@@ -81,11 +81,13 @@ export default function GameCard({ game, onPlay }: Props) {
             background: cat.color + '14',
             display: 'grid',
             placeItems: 'center',
-            fontSize: 28,
+            fontSize: 16,
+            fontWeight: 800,
+            color: cat.color,
             lineHeight: 1,
             flexShrink: 0,
           }}>
-            {game.icon}
+            {cat.label.charAt(0)}
           </div>
         </div>
 

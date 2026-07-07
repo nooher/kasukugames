@@ -6,8 +6,10 @@ import {
   BarChart3, Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2,
 } from 'lucide-react'
-import { RADIUS, MOTION, solidBtn, SHADOW, GLASS, TYPOGRAPHY, SPACING, glassCard, heroGlow, premiumBtn } from './lib/design'
-import { PALETTE, BRAND } from './lib/brand'
+import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, glassCard, heroGlow, premiumBtn } from './lib/design'
+import { BRAND } from './lib/brand'
+import { t, loadLang, saveLang, type Lang } from './lib/i18n'
+import { loadTheme, saveTheme, getPalette, type Theme } from './lib/theme'
 import { GAMES } from './lib/games'
 import { CATEGORY_META, TARGET_META, type GameCategory } from './lib/cognitive'
 import {
@@ -119,9 +121,14 @@ export default function App() {
   const [wallet, setWallet] = useState<TokenWallet>(loadWallet)
   const [unreadNotifs, setUnreadNotifs] = useState(getUnreadCount)
   const [loginReward, setLoginReward] = useState<{ tokens: number; day: number; isComeback: boolean; comebackBonus: number } | null>(null)
+  const [lang, setLang] = useState<Lang>(loadLang)
+  const [theme, setTheme] = useState<Theme>(loadTheme)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstall, setShowInstall] = useState(false)
   const [luckyResult, setLuckyResult] = useState<{ tokens: number; label: string } | null>(null)
+
+  // Update module-level palette for theme-aware rendering
+  P = getPalette(theme)
 
   useEffect(() => {
     requestNotificationPermission()
@@ -135,12 +142,12 @@ export default function App() {
       const result = processLogin()
       if (result.tokens > 0) {
         setLoginReward(result)
-        const w = earnTokens(result.tokens, result.isComeback ? `Karibu tena! +${result.comebackBonus}` : `Tuzo ya kuingia siku ${result.day}`)
+        const w = earnTokens(result.tokens, result.isComeback ? `${t('welcome_back')} +${result.comebackBonus}` : t('login_day_reward').replace('{day}', String(result.day)))
         setWallet(w)
       }
       const milestones = checkMilestones(profile)
       for (const m of milestones) {
-        const w = earnTokens(m.tokens, `Hatua: ${m.label}`)
+        const w = earnTokens(m.tokens, t('milestone').replace('{label}', m.label))
         setWallet(w)
       }
     }
@@ -179,7 +186,7 @@ export default function App() {
         if (game && p) {
           submitScore(activeGame, game.title, p.id, p.displayName, score)
         }
-        const w = earnTokens(TOKEN_EARN_RATES.gameComplete, `Umekamilisha ${game?.title || 'mchezo'}`)
+        const w = earnTokens(TOKEN_EARN_RATES.gameComplete, t('game_completed').replace('{game}', game?.title || ''))
         setWallet(w)
       }
     }
@@ -189,7 +196,7 @@ export default function App() {
   const handleLuckyDraw = () => {
     const result = spinLuckyDraw()
     if (result) {
-      const w = earnTokens(result.tokens, `Bahati nasibu: ${result.label}`)
+      const w = earnTokens(result.tokens, t('lucky_draw_result').replace('{label}', result.label))
       setWallet(w)
       setLuckyResult(result)
       setTimeout(() => setLuckyResult(null), 3000)
@@ -209,10 +216,10 @@ export default function App() {
     return (
       <div style={{ padding: '80px 4vw', textAlign: 'center' }}>
         <p style={{ color: P.textMuted, fontSize: 16, marginBottom: 20 }}>
-          {GAMES.find(g => g.id === activeGame)?.title || activeGame} — Inakuja hivi karibuni
+          {GAMES.find(g => g.id === activeGame)?.title || activeGame} — {t('coming_soon')}
         </p>
         <button onClick={() => setActiveGame(null)} style={premiumBtn(P.sapphire)}>
-          <ArrowLeft size={16} /> Rudi Nyumbani
+          <ArrowLeft size={16} /> {t('go_home')}
         </button>
       </div>
     )
@@ -221,16 +228,16 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', background: P.bg }}>
       {/* === PREMIUM HEADER === */}
-      <header style={headerStyle}>
+      <header style={headerStyle()}>
         <button onClick={() => setSection('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           <Logo size={36} showText />
         </button>
         <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <NavBtn icon={<Calendar size={18} />} label="Daily" active={section === 'daily'} onClick={() => setSection('daily')} />
-          <NavBtn icon={<Trophy size={18} />} label="Ranks" active={section === 'leaderboard'} onClick={() => setSection('leaderboard')} />
-          <NavBtn icon={<Users size={18} />} label="Watu" active={section === 'connections'} onClick={() => setSection('connections')} />
-          <NavBtn icon={<ShoppingBag size={18} />} label="Duka" active={section === 'shop'} onClick={() => setSection('shop')} />
-          <button onClick={() => { setSection('notifications'); markAllRead(); setUnreadNotifs(0) }} style={{ ...navBtnStyle, position: 'relative' }}>
+          <NavBtn icon={<Calendar size={18} />} label={t('daily')} active={section === 'daily'} onClick={() => setSection('daily')} />
+          <NavBtn icon={<Trophy size={18} />} label={t('ranks')} active={section === 'leaderboard'} onClick={() => setSection('leaderboard')} />
+          <NavBtn icon={<Users size={18} />} label={t('people')} active={section === 'connections'} onClick={() => setSection('connections')} />
+          <NavBtn icon={<ShoppingBag size={18} />} label={t('shop')} active={section === 'shop'} onClick={() => setSection('shop')} />
+          <button onClick={() => { setSection('notifications'); markAllRead(); setUnreadNotifs(0) }} style={{ ...navBtnStyle(), position: 'relative' }}>
             <Bell size={18} />
             {unreadNotifs > 0 && (
               <span style={{
@@ -245,7 +252,7 @@ export default function App() {
           <NavBtn icon={<Music size={18} />} label="" active={playerVisible} onClick={() => setPlayerVisible(p => !p)} accent={playerVisible ? P.amber : undefined} />
           {profile ? (
             <button onClick={() => setSection('profile')} style={{
-              ...navBtnStyle,
+              ...navBtnStyle(),
               background: section === 'profile' ? P.sapphire + '20' : 'none',
               gap: 6,
             }}>
@@ -253,7 +260,7 @@ export default function App() {
               <span style={{ fontSize: 11, fontWeight: 800, color: RANK_META[profile.rank].color }}>{profile.level}</span>
             </button>
           ) : (
-            <button onClick={() => setShowLogin(true)} style={{ ...navBtnStyle, color: P.sapphire }}>
+            <button onClick={() => setShowLogin(true)} style={{ ...navBtnStyle(), color: P.sapphire }}>
               <LogIn size={18} />
             </button>
           )}
@@ -274,32 +281,32 @@ export default function App() {
       {/* === LOGIN MODAL === */}
       {showLogin && (
         <div style={modalOverlay} onClick={() => setShowLogin(false)}>
-          <div style={modalCard} onClick={e => e.stopPropagation()}>
+          <div style={modalCard()} onClick={e => e.stopPropagation()}>
             <Logo size={36} style={{ marginBottom: SPACING.lg }} />
-            <h2 style={{ margin: '0 0 6px', ...TYPOGRAPHY.heading, color: P.text }}>Jiunge na KasukuGames</h2>
+            <h2 style={{ margin: '0 0 6px', ...TYPOGRAPHY.heading, color: P.text }}>{t('join_kasukugames')}</h2>
             <p style={{ margin: `0 0 ${SPACING.lg}px`, fontSize: 14, color: P.textMuted, lineHeight: 1.5 }}>
-              Tumia jina lako la Kasuku au tengeneza mpya
+              {t('use_kasuku_or_create')}
             </p>
             <input
               value={loginName}
               onChange={e => setLoginName(e.target.value)}
-              placeholder="Username"
+              placeholder={t('username')}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              style={inputStyle}
+              style={inputStyle()}
               autoFocus
             />
             <input
               value={loginDisplay}
               onChange={e => setLoginDisplay(e.target.value)}
-              placeholder="Display name (optional)"
+              placeholder={t('display_name_optional')}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              style={{ ...inputStyle, marginTop: 12 }}
+              style={{ ...inputStyle(), marginTop: 12 }}
             />
             <button onClick={handleLogin} style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', marginTop: SPACING.lg }}>
-              Ingia
+              {t('sign_in')}
             </button>
             <p style={{ margin: '20px 0 0', fontSize: 11, color: P.textDim, textAlign: 'center' }}>
-              Shared login with Kasuku & Muhuri
+              {t('shared_login')}
             </p>
           </div>
         </div>
@@ -323,7 +330,7 @@ export default function App() {
       {section === 'connections' && <ConnectionsSection profile={profile} onPlay={setActiveGame} onLogin={() => setShowLogin(true)} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} />}
       {section === 'notifications' && <NotificationsSection />}
-      {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} />}
+      {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} />}
 
       {/* Login reward toast */}
       {loginReward && loginReward.tokens > 0 && (
@@ -338,9 +345,9 @@ export default function App() {
           <Gift size={22} color={P.gold} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>
-              {loginReward.isComeback ? 'Karibu tena!' : `Siku ${loginReward.day} — Tuzo ya Kuingia`}
+              {loginReward.isComeback ? t('welcome_back') : t('login_day_reward').replace('{day}', String(loginReward.day))}
             </div>
-            <div style={{ fontSize: 12, color: P.gold, fontWeight: 600 }}>+{loginReward.tokens} sarafu</div>
+            <div style={{ fontSize: 12, color: P.gold, fontWeight: 600 }}>+{loginReward.tokens} {t('tokens')}</div>
           </div>
           <button onClick={() => setLoginReward(null)} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 6 }}>
             <X size={14} />
@@ -375,11 +382,11 @@ export default function App() {
         }}>
           <Download size={22} color={P.sapphire} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>Pakua KasukuGames</div>
-            <div style={{ fontSize: 12, color: P.textMuted }}>Cheza offline, haraka zaidi</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{t('download_kasukugames')}</div>
+            <div style={{ fontSize: 12, color: P.textMuted }}>{t('play_offline')}</div>
           </div>
           <button onClick={handleInstall} style={{ ...premiumBtn(P.sapphire), padding: '10px 22px', fontSize: 13 }}>
-            Pakua
+            {t('download')}
           </button>
           <button onClick={() => setShowInstall(false)} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 6 }}>
             <X size={16} />
@@ -406,11 +413,11 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 10, color: P.textDim, fontVariantNumeric: 'tabular-nums' }}>
-            {GAMES.length} disciplines
+            {GAMES.length} {t('disciplines').toLowerCase()}
           </span>
           <span style={{ width: 3, height: 3, borderRadius: '50%', background: P.textDim, flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: P.textDim, fontVariantNumeric: 'tabular-nums' }}>
-            {new Set(GAMES.flatMap(g => g.targets)).size} cognitive targets
+            {new Set(GAMES.flatMap(g => g.targets)).size} {t('cognitive_targets').toLowerCase()}
           </span>
           <span style={{ width: 3, height: 3, borderRadius: '50%', background: P.textDim, flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: P.textDim }}>
@@ -466,7 +473,7 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
               <Flame size={16} />
               <span style={{ fontSize: 16, fontWeight: 900 }}>{profile.streakDays}</span>
             </div>
-            <span style={{ fontSize: 9, color: P.textDim, letterSpacing: '0.05em', textTransform: 'uppercase' }}>streak</span>
+            <span style={{ fontSize: 9, color: P.textDim, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('streak')}</span>
           </div>
         </div>
       )}
@@ -507,7 +514,7 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
             lineHeight: 1.5,
             fontWeight: 500,
           }}>
-            Train. Compete. Transcend.
+            {t('train_compete_transcend')}
           </p>
 
           {/* 3 stat pills */}
@@ -515,9 +522,9 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
             display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap',
             marginBottom: 36,
           }}>
-            <StatPill icon={<Brain size={14} />} value={`${GAMES.length} Disciplines`} color={P.sapphire} />
-            <StatPill icon={<Target size={14} />} value={`${uniqueTargets.size} Cognitive Targets`} color={P.emerald} />
-            <StatPill icon={<Sparkles size={14} />} value="Infinite Potential" color={P.gold} />
+            <StatPill icon={<Brain size={14} />} value={`${GAMES.length} ${t('disciplines')}`} color={P.sapphire} />
+            <StatPill icon={<Target size={14} />} value={`${uniqueTargets.size} ${t('cognitive_targets')}`} color={P.emerald} />
+            <StatPill icon={<Sparkles size={14} />} value={t('infinite_potential')} color={P.gold} />
           </div>
 
           {/* Animated cognitive target chips */}
@@ -549,7 +556,7 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
       <div style={{ padding: '0 4vw 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <Target size={15} color={P.amber} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>Changamoto za Leo</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{t('daily_challenges')}</span>
         </div>
         <div style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
           {dailyChallenges.map(ch => (
@@ -583,7 +590,7 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Tafuta mchezo, cognitive target..."
+            placeholder={t('search_placeholder')}
             style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: P.text, fontSize: 13 }}
           />
         </label>
@@ -591,7 +598,7 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
 
       {/* Category nav */}
       <nav style={{ padding: '0 4vw 20px', display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
-        <CatPill label="Zote" count={GAMES.length} active={activeCat === 'all'} color={P.sapphire} icon={<Gamepad2 size={13} />} onClick={() => setActiveCat('all')} />
+        <CatPill label={t('all')} count={GAMES.length} active={activeCat === 'all'} color={P.sapphire} icon={<Gamepad2 size={13} />} onClick={() => setActiveCat('all')} />
         {categories.map(([key, meta]) => {
           const count = catCounts.get(key) || 0
           if (count === 0) return null
@@ -612,7 +619,7 @@ function HomeSection({ filtered, activeCat, setActiveCat, query, setQuery, catCo
         {filtered.length === 0 && (
           <div style={{ gridColumn: '1 / -1', padding: 80, textAlign: 'center' }}>
             <Search size={28} color={P.textDim} style={{ marginBottom: 12 }} />
-            <p style={{ color: P.textDim, fontSize: 14 }}>Hakuna mchezo unaolingana na utafutaji wako.</p>
+            <p style={{ color: P.textDim, fontSize: 14 }}>{t('no_games_match')}</p>
           </div>
         )}
       </div>
@@ -631,16 +638,16 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw }: { profile: Play
     <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: SPACING.xl }}>
         <Calendar size={24} color={P.amber} />
-        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>Changamoto za Leo</h2>
+        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('daily_challenges')}</h2>
       </div>
 
       {!profile && (
         <div style={{ ...glassCard(), marginBottom: 24, padding: '28px 32px', textAlign: 'center' }}>
           <p style={{ fontSize: 14, color: P.textMuted, margin: '0 0 16px', lineHeight: 1.5 }}>
-            Ingia ili upate XP na badges kutoka changamoto
+            {t('sign_in_first')}
           </p>
           <button onClick={onLogin} style={premiumBtn(P.sapphire)}>
-            <LogIn size={14} /> Ingia
+            <LogIn size={14} /> {t('sign_in')}
           </button>
         </div>
       )}
@@ -648,7 +655,7 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw }: { profile: Play
       {/* Login streak timeline */}
       {profile && (
         <div style={{ ...glassCard(), padding: '22px 26px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 16 }}>Tuzo za Kuingia</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 16 }}>{t('login_rewards')}</div>
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             {/* Connecting line */}
             <div style={{
@@ -713,8 +720,8 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw }: { profile: Play
             <Gift size={24} color={P.gold} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: P.text }}>Bahati Nasibu</div>
-            <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>Jaribu bahati yako — hadi sarafu 1,000!</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: P.text }}>{t('lucky_draw')}</div>
+            <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{t('lucky_draw_desc')}</div>
           </div>
           <Sparkles size={22} color={P.gold} />
         </button>
@@ -753,10 +760,10 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw }: { profile: Play
         <div style={{ ...glassCard(), padding: '24px 28px', marginTop: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
             <Flame size={18} color={P.amber} />
-            <span style={{ fontSize: 16, fontWeight: 800, color: P.text }}>Mfuatano wako: {profile.streakDays} siku</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: P.text }}>{t('your_streak')}: {profile.streakDays} {t('days')}</span>
           </div>
           <p style={{ fontSize: 13, color: P.textMuted, margin: 0, lineHeight: 1.5 }}>
-            Cheza kila siku kupata mfuatano mrefu na XP bonus +{Math.min(profile.streakDays * 5, 50)}%
+            {t('play_daily_streak')} +{Math.min(profile.streakDays * 5, 50)}%
           </p>
         </div>
       )}
@@ -776,7 +783,7 @@ function LeaderboardSection({ profile }: { profile: PlayerProfile | null }) {
     <div style={{ padding: '40px 4vw', maxWidth: 720 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <Trophy size={24} color={P.gold} />
-        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>Leaderboard</h2>
+        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('leaderboard')}</h2>
       </div>
 
       {/* Board selector */}
@@ -845,7 +852,7 @@ function LeaderboardSection({ profile }: { profile: PlayerProfile | null }) {
       </div>
 
       {/* Full list */}
-      <div style={cardStyle}>
+      <div style={cardStyle()}>
         {entries.map((e, i) => (
           <div key={e.playerId} style={{
             display: 'flex', alignItems: 'center', gap: 14,
@@ -893,9 +900,9 @@ function LeaderboardSection({ profile }: { profile: PlayerProfile | null }) {
         }}>
           <span style={{ fontSize: 22 }}>{profile.avatar}</span>
           <div style={{ flex: 1 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>Wewe</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{t('you')}</span>
             <div style={{ fontSize: 11, color: P.textMuted, marginTop: 2 }}>
-              {RANK_META[profile.rank].label} · Level {profile.level}
+              {RANK_META[profile.rank].label} · {t('level')} {profile.level}
             </div>
           </div>
           <span style={{ fontSize: 16, fontWeight: 900, color: P.sapphire, fontVariantNumeric: 'tabular-nums' }}>{profile.totalScore.toLocaleString()}</span>
@@ -955,20 +962,20 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
     return (
       <div style={{ padding: '40px 4vw', maxWidth: 640, textAlign: 'center' }}>
         <Users size={36} color={P.textDim} style={{ marginBottom: 16 }} />
-        <h2 style={{ margin: '0 0 10px', ...TYPOGRAPHY.heading, color: P.text }}>Watu Wako</h2>
+        <h2 style={{ margin: '0 0 10px', ...TYPOGRAPHY.heading, color: P.text }}>{t('your_people')}</h2>
         <p style={{ fontSize: 14, color: P.textMuted, margin: '0 0 24px', lineHeight: 1.5 }}>
-          Ingia kwanza ili kuongeza marafiki na wapendwa
+          {t('sign_in_login')}
         </p>
-        <button onClick={onLogin} style={premiumBtn(P.sapphire)}><LogIn size={14} /> Ingia</button>
+        <button onClick={onLogin} style={premiumBtn(P.sapphire)}><LogIn size={14} /> {t('sign_in')}</button>
       </div>
     )
   }
 
   const relationGroups = [
-    { key: 'romantic', label: 'Wapendwa', types: ['husband', 'wife', 'hubby', 'wifey', 'partner', 'bae'] },
-    { key: 'family', label: 'Familia', types: ['brother', 'sister', 'sibling', 'son', 'daughter', 'parent'] },
-    { key: 'friends', label: 'Marafiki', types: ['friend', 'bestfriend', 'bff'] },
-    { key: 'peers', label: 'Wenzako', types: ['classmate', 'colleague', 'teammate'] },
+    { key: 'romantic', label: t('loved_ones'), types: ['husband', 'wife', 'hubby', 'wifey', 'partner', 'bae'] },
+    { key: 'family', label: t('family'), types: ['brother', 'sister', 'sibling', 'son', 'daughter', 'parent'] },
+    { key: 'friends', label: t('friends'), types: ['friend', 'bestfriend', 'bff'] },
+    { key: 'peers', label: t('peers'), types: ['classmate', 'colleague', 'teammate'] },
   ]
 
   return (
@@ -976,17 +983,17 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Users size={24} color={P.rose} />
-          <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>Watu Wako</h2>
+          <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('your_people')}</h2>
         </div>
         <button onClick={() => setShowAdd(true)} style={{ ...premiumBtn(P.emerald), padding: '10px 20px', fontSize: 13 }}>
-          <UserPlus size={14} /> Ongeza
+          <UserPlus size={14} /> {t('add')}
         </button>
       </div>
 
       {/* Party games banner */}
       <div style={{ ...glassCard(), padding: '24px 26px', marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: P.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <PartyPopper size={18} color={P.fuchsia} /> Michezo ya Pamoja
+          <PartyPopper size={18} color={P.fuchsia} /> {t('party_games')}
         </div>
         <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
           {PARTY_GAMES.map(g => (
@@ -996,7 +1003,7 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
             }}>
               <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>{g.icon}</span>
               <div style={{ fontSize: 13, fontWeight: 700, color: P.text }}>{g.name}</div>
-              <div style={{ fontSize: 11, color: P.textMuted, marginTop: 3 }}>{g.minPlayers}-{g.maxPlayers} wachezaji</div>
+              <div style={{ fontSize: 11, color: P.textMuted, marginTop: 3 }}>{g.minPlayers}-{g.maxPlayers} {t('players')}</div>
             </button>
           ))}
         </div>
@@ -1006,12 +1013,12 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
       {connections.length === 0 ? (
         <div style={{ ...glassCard(), padding: '56px 28px', textAlign: 'center' }}>
           <Heart size={36} color={P.textDim} style={{ marginBottom: 14 }} />
-          <p style={{ fontSize: 15, fontWeight: 700, color: P.text, margin: '0 0 6px' }}>Hakuna watu bado</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: P.text, margin: '0 0 6px' }}>{t('no_people_yet')}</p>
           <p style={{ fontSize: 13, color: P.textMuted, margin: '0 0 20px', lineHeight: 1.5 }}>
-            Ongeza mpenzi, rafiki, ndugu, au mwanafunzi mwenzio
+            {t('add_loved_ones')}
           </p>
           <button onClick={() => setShowAdd(true)} style={premiumBtn(P.emerald)}>
-            <UserPlus size={14} /> Ongeza Mtu wa Kwanza
+            <UserPlus size={14} /> {t('add_first_person')}
           </button>
         </div>
       ) : (
@@ -1047,7 +1054,7 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
                           </span>
                         </div>
                         <div style={{ fontSize: 11, color: P.textDim, marginTop: 3 }}>
-                          {conn.gamesPlayed > 0 ? `${conn.gamesPlayed} michezo · ${conn.wins}W-${conn.losses}L` : 'Bado hamjacheza'}
+                          {conn.gamesPlayed > 0 ? `${conn.gamesPlayed} ${t('games_played').toLowerCase()} · ${conn.wins}W-${conn.losses}L` : t('not_played_yet')}
                           {conn.contactMethod === 'whatsapp' && ' · WhatsApp'}
                           {conn.contactMethod === 'instagram' && ' · Instagram'}
                         </div>
@@ -1079,12 +1086,12 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
       {/* Add connection modal */}
       {showAdd && (
         <div style={modalOverlay} onClick={() => setShowAdd(false)}>
-          <div style={{ ...modalCard, maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 20px', ...TYPOGRAPHY.subheading, color: P.text }}>Ongeza Mtu</h3>
+          <div style={{ ...modalCard(), maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 20px', ...TYPOGRAPHY.subheading, color: P.text }}>{t('add_person')}</h3>
 
-            <input value={addName} onChange={e => setAddName(e.target.value)} placeholder="Jina lao" style={inputStyle} autoFocus />
+            <input value={addName} onChange={e => setAddName(e.target.value)} placeholder={t('their_name')} style={inputStyle()} autoFocus />
 
-            <div style={{ marginTop: 18, marginBottom: 8, ...TYPOGRAPHY.caption, color: P.textMuted }}>Uhusiano</div>
+            <div style={{ marginTop: 18, marginBottom: 8, ...TYPOGRAPHY.caption, color: P.textMuted }}>{t('relationship')}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
               {(Object.entries(RELATION_META) as [RelationType, typeof RELATION_META[RelationType]][]).map(([key, meta]) => (
                 <button key={key} onClick={() => setAddRelation(key)} style={{
@@ -1100,7 +1107,7 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
               ))}
             </div>
 
-            <div style={{ marginBottom: 8, ...TYPOGRAPHY.caption, color: P.textMuted }}>Njia ya Kuwafikia</div>
+            <div style={{ marginBottom: 8, ...TYPOGRAPHY.caption, color: P.textMuted }}>{t('contact_method')}</div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               {([['whatsapp', 'WhatsApp'], ['instagram', 'Instagram'], ['username', 'Username']] as const).map(([m, label]) => (
                 <button key={m} onClick={() => setAddMethod(m)} style={{
@@ -1120,16 +1127,16 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
               value={addContact}
               onChange={e => setAddContact(e.target.value)}
               placeholder={addMethod === 'whatsapp' ? '+255 7XX XXX XXX' : addMethod === 'instagram' ? '@username' : 'username'}
-              style={inputStyle}
+              style={inputStyle()}
             />
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, cursor: 'pointer' }}>
               <input type="checkbox" checked={addSharePic} onChange={e => setAddSharePic(e.target.checked)} />
-              <span style={{ fontSize: 12, color: P.textMuted }}>Shiriki picha yako ya wasifu kwenye mwaliko</span>
+              <span style={{ fontSize: 12, color: P.textMuted }}>{t('share_photo')}</span>
             </label>
 
             <button onClick={handleAdd} style={{ ...premiumBtn(P.emerald), width: '100%', justifyContent: 'center', marginTop: 20 }}>
-              <UserPlus size={14} /> Ongeza
+              <UserPlus size={14} /> {t('add')}
             </button>
           </div>
         </div>
@@ -1138,7 +1145,7 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
       {/* Invite modal */}
       {inviteConn && (
         <div style={modalOverlay} onClick={() => setInviteConn(null)}>
-          <div style={{ ...modalCard, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...modalCard(), maxWidth: 420 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <span style={{ fontSize: 32 }}>{inviteConn.avatar}</span>
               <div>
@@ -1150,7 +1157,7 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
             </div>
 
             <div style={{ fontSize: 13, fontWeight: 600, color: P.textMuted, marginBottom: 12 }}>
-              Chagua mchezo wa kumtumia
+              {t('choose_game_invite')}
             </div>
 
             {PARTY_GAMES.map(g => (
@@ -1169,7 +1176,7 @@ function ConnectionsSection({ profile, onPlay, onLogin }: { profile: PlayerProfi
 
             <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 14, marginTop: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: P.textMuted, marginBottom: 10 }}>
-                Au changamoto ya mchezo wowote
+                {t('or_challenge_any')}
               </div>
               {GAMES.filter(g => g.category !== 'party').slice(0, 6).map(g => (
                 <button key={g.id} onClick={() => handleInvite(inviteConn, 'challenge', g.title)} style={{
@@ -1211,26 +1218,26 @@ function ShopSection({ wallet, setWallet }: { wallet: TokenWallet; setWallet: (w
     <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
         <ShoppingBag size={24} color={P.violet} />
-        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>Duka</h2>
+        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('shop')}</h2>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
         <Coins size={18} color={P.gold} />
         <span style={{ fontSize: 22, fontWeight: 900, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance.toLocaleString()}</span>
-        <span style={{ fontSize: 13, color: P.textMuted }}>sarafu</span>
+        <span style={{ fontSize: 13, color: P.textMuted }}>{t('tokens')}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {(['shop', 'packs', 'history'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
+        {(['shop', 'packs', 'history'] as const).map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)} style={{
             padding: '8px 20px', borderRadius: RADIUS.full,
-            background: tab === t ? P.violet : P.card,
-            color: tab === t ? '#fff' : P.textMuted,
-            border: `1px solid ${tab === t ? P.violet : P.border}`,
+            background: tab === tabKey ? P.violet : P.card,
+            color: tab === tabKey ? '#fff' : P.textMuted,
+            border: `1px solid ${tab === tabKey ? P.violet : P.border}`,
             fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            boxShadow: tab === t ? SHADOW.glow(P.violet) : GLASS.highlight,
+            boxShadow: tab === tabKey ? SHADOW.glow(P.violet) : GLASS.highlight,
             transition: `all ${MOTION.fast}`,
           }}>
-            {t === 'shop' ? 'Bidhaa' : t === 'packs' ? 'Nunua Sarafu' : 'Historia'}
+            {tabKey === 'shop' ? t('items') : tabKey === 'packs' ? t('buy_tokens') : t('history')}
           </button>
         ))}
       </div>
@@ -1269,7 +1276,7 @@ function ShopSection({ wallet, setWallet }: { wallet: TokenWallet; setWallet: (w
                     boxShadow: canAfford && !owned ? `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${item.color}30` : 'none',
                   }}
                 >
-                  {owned ? <><Check size={12} /> Umenunua</> : <><Coins size={11} /> {item.price}</>}
+                  {owned ? <><Check size={12} /> {t('purchased')}</> : <><Coins size={11} /> {item.price}</>}
                 </button>
               </div>
             )
@@ -1292,7 +1299,7 @@ function ShopSection({ wallet, setWallet }: { wallet: TokenWallet; setWallet: (w
             }}>
               {pack.label === 'Best Value' && (
                 <div style={{ ...TYPOGRAPHY.caption, color: P.gold, marginBottom: 10 }}>
-                  Thamani Bora
+                  {t('best_value')}
                 </div>
               )}
               <Coins size={28} color={P.gold} style={{ marginBottom: 10 }} />
@@ -1309,10 +1316,10 @@ function ShopSection({ wallet, setWallet }: { wallet: TokenWallet; setWallet: (w
       )}
 
       {tab === 'history' && (
-        <div style={cardStyle}>
+        <div style={cardStyle()}>
           {wallet.transactions.length === 0 ? (
             <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-              <p style={{ fontSize: 13, color: P.textDim }}>Hakuna shughuli bado</p>
+              <p style={{ fontSize: 13, color: P.textDim }}>{t('no_transactions')}</p>
             </div>
           ) : wallet.transactions.slice(0, 30).map(tx => (
             <div key={tx.id} style={{
@@ -1355,15 +1362,15 @@ function NotificationsSection() {
     <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: SPACING.xl }}>
         <Bell size={24} color={P.sapphire} />
-        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>Arifa</h2>
+        <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('notifications')}</h2>
       </div>
       {notifs.length === 0 ? (
         <div style={{ ...glassCard(), padding: '56px 28px', textAlign: 'center' }}>
           <Bell size={36} color={P.textDim} style={{ marginBottom: 14 }} />
-          <p style={{ fontSize: 14, color: P.textDim }}>Hakuna arifa mpya</p>
+          <p style={{ fontSize: 14, color: P.textDim }}>{t('no_notifications')}</p>
         </div>
       ) : (
-        <div style={cardStyle}>
+        <div style={cardStyle()}>
           {notifs.map(n => (
             <div key={n.id} style={{
               padding: '16px 22px', display: 'flex', alignItems: 'flex-start', gap: 14,
@@ -1398,7 +1405,7 @@ function NotificationsSection() {
 /* ================================================================
    PROFILE — Dramatic Header
    ================================================================ */
-function ProfileSection({ profile, setProfile, wallet }: { profile: PlayerProfile; setProfile: (p: PlayerProfile | null) => void; wallet?: TokenWallet }) {
+function ProfileSection({ profile, setProfile, wallet, lang, setLang, theme, setTheme }: { profile: PlayerProfile; setProfile: (p: PlayerProfile | null) => void; wallet?: TokenWallet; lang: Lang; setLang: (l: Lang) => void; theme: Theme; setTheme: (t: Theme) => void }) {
   const earnedBadges = BADGES.filter(b => profile.badges.includes(b.id))
   const unearnedBadges = BADGES.filter(b => !profile.badges.includes(b.id))
   const rankColor = RANK_META[profile.rank].color
@@ -1437,7 +1444,7 @@ function ProfileSection({ profile, setProfile, wallet }: { profile: PlayerProfil
         }}>
           <Crown size={16} color={rankColor} />
           <span style={{ fontSize: 14, fontWeight: 800, color: rankColor }}>{RANK_META[profile.rank].label}</span>
-          <span style={{ fontSize: 12, color: P.textMuted, fontWeight: 600 }}>Level {profile.level}</span>
+          <span style={{ fontSize: 12, color: P.textMuted, fontWeight: 600 }}>{t('level')} {profile.level}</span>
         </div>
 
         <div style={{ marginTop: 20, maxWidth: 360, margin: '20px auto 0' }}>
@@ -1447,19 +1454,19 @@ function ProfileSection({ profile, setProfile, wallet }: { profile: PlayerProfil
 
       {/* Stats grid — 3 columns mobile, responsive */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
-        <StatCard icon={<BarChart3 size={18} />} color={P.sapphire} label="Total XP" value={profile.xp.toLocaleString()} />
-        <StatCard icon={<Coins size={18} />} color={P.gold} label="Sarafu" value={wallet?.balance.toLocaleString() || '0'} />
-        <StatCard icon={<Gamepad2 size={18} />} color={P.emerald} label="Michezo" value={profile.totalGames.toString()} />
-        <StatCard icon={<Flame size={18} />} color={P.amber} label="Mfuatano" value={`${profile.streakDays} siku`} />
-        <StatCard icon={<Trophy size={18} />} color={P.gold} label="Jumla Score" value={profile.totalScore.toLocaleString()} />
-        <StatCard icon={<TrendingUp size={18} />} color={P.teal} label="Mfuatano Mrefu" value={`${profile.longestStreak} siku`} />
-        <StatCard icon={<Award size={18} />} color={P.violet} label="Badges" value={earnedBadges.length.toString()} />
+        <StatCard icon={<BarChart3 size={18} />} color={P.sapphire} label={t('total_xp')} value={profile.xp.toLocaleString()} />
+        <StatCard icon={<Coins size={18} />} color={P.gold} label={t('tokens')} value={wallet?.balance.toLocaleString() || '0'} />
+        <StatCard icon={<Gamepad2 size={18} />} color={P.emerald} label={t('games_played')} value={profile.totalGames.toString()} />
+        <StatCard icon={<Flame size={18} />} color={P.amber} label={t('streak')} value={`${profile.streakDays} ${t('days')}`} />
+        <StatCard icon={<Trophy size={18} />} color={P.gold} label={t('total_score')} value={profile.totalScore.toLocaleString()} />
+        <StatCard icon={<TrendingUp size={18} />} color={P.teal} label={t('longest_streak')} value={`${profile.longestStreak} ${t('days')}`} />
+        <StatCard icon={<Award size={18} />} color={P.violet} label={t('badges')} value={earnedBadges.length.toString()} />
       </div>
 
       {/* Badges */}
       <div style={{ ...glassCard(), padding: '24px 26px', marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Award size={18} color={P.violet} /> Badges
+          <Award size={18} color={P.violet} /> {t('badges')}
         </h3>
         {earnedBadges.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: earnedBadges.length > 0 ? 18 : 0 }}>
@@ -1499,44 +1506,69 @@ function ProfileSection({ profile, setProfile, wallet }: { profile: PlayerProfil
       {/* Teams & Social */}
       <div style={{ ...glassCard(), padding: '24px 26px', marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Users size={18} color={P.teal} /> Timu & Marafiki
+          <Users size={18} color={P.teal} /> {t('teams_friends')}
         </h3>
         {profile.teamId ? (
           <div style={{ fontSize: 13, color: P.textMuted }}>Team member</div>
         ) : (
           <div style={{ textAlign: 'center', padding: '14px 0' }}>
-            <p style={{ fontSize: 13, color: P.textMuted, margin: '0 0 14px' }}>Hujajiunga na timu bado</p>
+            <p style={{ fontSize: 13, color: P.textMuted, margin: '0 0 14px' }}>{t('no_team_yet')}</p>
             <button style={{ ...premiumBtn(P.teal), fontSize: 13, padding: '10px 24px' }}>
-              <Users size={14} /> Unda Timu
+              <Users size={14} /> {t('create_team')}
             </button>
           </div>
         )}
         <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${P.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: P.textMuted }}>Marafiki ({profile.friendIds.length})</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: P.textMuted }}>{t('friends_count')} ({profile.friendIds.length})</span>
             <button style={{ background: 'none', border: 'none', color: P.sapphire, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-              + Ongeza
+              + {t('add')}
             </button>
           </div>
           {profile.friendIds.length === 0 && (
             <p style={{ fontSize: 12, color: P.textDim, margin: 0, lineHeight: 1.5 }}>
-              Shiriki link yako na marafiki kushindana pamoja
+              {t('share_link')}
             </p>
           )}
         </div>
         {profile.coupledWith === null && (
           <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${P.border}`, textAlign: 'center' }}>
             <Heart size={18} color={P.rose} style={{ marginBottom: 8 }} />
-            <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 10px' }}>Couple Challenge — Shindana na mpenzi wako</p>
+            <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 10px' }}>{t('couple_challenge')}</p>
             <button style={{
               background: 'none', border: `1px solid ${P.rose}40`, color: P.rose,
               borderRadius: RADIUS.full, padding: '8px 20px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
               boxShadow: GLASS.highlight,
             }}>
-              <Heart size={13} /> Connect
+              <Heart size={13} /> {t('connect')}
             </button>
           </div>
         )}
+      </div>
+
+      {/* Settings */}
+      <div style={{ ...glassCard(), padding: '20px 26px', marginBottom: 24 }}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: P.text }}>{t('settings')}</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: P.textMuted }}>{t('language')}</span>
+          <button onClick={() => { const next: Lang = lang === 'en' ? 'sw' : 'en'; saveLang(next); setLang(next); }} style={{
+            padding: '8px 18px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 700,
+            background: P.sapphire + '15', color: P.sapphire, border: `1px solid ${P.sapphire}30`,
+            cursor: 'pointer', boxShadow: GLASS.highlight,
+          }}>
+            {lang === 'en' ? 'English' : 'Kiswahili'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: P.textMuted }}>{t('theme')}</span>
+          <button onClick={() => { const next: Theme = theme === 'dark' ? 'light' : 'dark'; saveTheme(next); setTheme(next); }} style={{
+            padding: '8px 18px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 700,
+            background: P.amber + '15', color: P.amber, border: `1px solid ${P.amber}30`,
+            cursor: 'pointer', boxShadow: GLASS.highlight,
+          }}>
+            {theme === 'dark' ? t('dark') : t('light')}
+          </button>
+        </div>
       </div>
 
       {/* Logout */}
@@ -1546,7 +1578,7 @@ function ProfileSection({ profile, setProfile, wallet }: { profile: PlayerProfil
         width: '100%',
         boxShadow: GLASS.highlight,
       }}>
-        Toka
+        {t('logout')}
       </button>
     </div>
   )
@@ -1591,7 +1623,7 @@ function XPBar({ xp, large }: { xp: number; large?: boolean }) {
       {large && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: P.textDim }}>
           <span>{current.toLocaleString()} XP</span>
-          <span>{needed.toLocaleString()} XP to next level</span>
+          <span>{needed.toLocaleString()} {t('xp_to_next')}</span>
         </div>
       )}
     </div>
@@ -1621,7 +1653,7 @@ function StatCard({ icon, color, label, value }: { icon: React.ReactNode; color:
 function NavBtn({ icon, label, active, onClick, accent }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; accent?: string }) {
   return (
     <button onClick={onClick} style={{
-      ...navBtnStyle,
+      ...navBtnStyle(),
       color: accent || (active ? P.text : P.textMuted),
       background: active && !accent ? P.sapphire + '15' : 'none',
       borderRadius: RADIUS.md,
@@ -1664,7 +1696,7 @@ function Loading() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 12 }}>
       <Brain size={32} color={P.sapphire} style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
-      <span style={{ color: P.textMuted, fontSize: 14, fontWeight: 600 }}>Inapakia...</span>
+      <span style={{ color: P.textMuted, fontSize: 14, fontWeight: 600 }}>{t('loading')}</span>
     </div>
   )
 }
@@ -1672,41 +1704,47 @@ function Loading() {
 /* ================================================================
    STYLE CONSTANTS
    ================================================================ */
-const P = PALETTE
+let P = getPalette('dark')
 
-const headerStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '0 4vw',
-  height: 56,
-  borderBottom: `1px solid ${P.border}`,
-  position: 'sticky',
-  top: 0,
-  background: P.bg,
-  zIndex: 100,
-  boxShadow: `${GLASS.highlight}, 0 4px 20px rgba(0,0,0,0.4)`,
+function headerStyle(): CSSProperties {
+  return {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0 4vw',
+    height: 56,
+    borderBottom: `1px solid ${P.border}`,
+    position: 'sticky',
+    top: 0,
+    background: P.bg,
+    zIndex: 100,
+    boxShadow: `${GLASS.highlight}, 0 4px 20px rgba(0,0,0,0.4)`,
+  }
 }
 
-const navBtnStyle: CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: P.textMuted,
-  cursor: 'pointer',
-  padding: '8px 10px',
-  borderRadius: RADIUS.md,
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 5,
-  transition: `color ${MOTION.fast}, background ${MOTION.fast}`,
+function navBtnStyle(): CSSProperties {
+  return {
+    background: 'none',
+    border: 'none',
+    color: P.textMuted,
+    cursor: 'pointer',
+    padding: '8px 10px',
+    borderRadius: RADIUS.md,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    transition: `color ${MOTION.fast}, background ${MOTION.fast}`,
+  }
 }
 
-const cardStyle: CSSProperties = {
-  background: P.card,
-  border: `1px solid ${P.border}`,
-  borderRadius: RADIUS.lg,
-  boxShadow: `${GLASS.highlight}, ${GLASS.edge}, ${SHADOW.md}`,
-  overflow: 'hidden',
+function cardStyle(): CSSProperties {
+  return {
+    background: P.card,
+    border: `1px solid ${P.border}`,
+    borderRadius: RADIUS.lg,
+    boxShadow: `${GLASS.highlight}, ${GLASS.edge}, ${SHADOW.md}`,
+    overflow: 'hidden',
+  }
 }
 
 const modalOverlay: CSSProperties = {
@@ -1719,26 +1757,30 @@ const modalOverlay: CSSProperties = {
   padding: 24,
 }
 
-const modalCard: CSSProperties = {
-  background: P.card,
-  border: `1px solid ${P.borderLight}`,
-  borderRadius: RADIUS.xl,
-  padding: '36px 32px',
-  maxWidth: 400,
-  width: '100%',
-  boxShadow: `${SHADOW.xl}, ${GLASS.highlight}`,
+function modalCard(): CSSProperties {
+  return {
+    background: P.card,
+    border: `1px solid ${P.borderLight}`,
+    borderRadius: RADIUS.xl,
+    padding: '36px 32px',
+    maxWidth: 400,
+    width: '100%',
+    boxShadow: `${SHADOW.xl}, ${GLASS.highlight}`,
+  }
 }
 
-const inputStyle: CSSProperties = {
-  width: '100%',
-  padding: '13px 16px',
-  borderRadius: RADIUS.md,
-  background: P.surface,
-  border: `1px solid ${P.border}`,
-  color: P.text,
-  fontSize: 14,
-  outline: 'none',
-  boxSizing: 'border-box',
-  transition: `border-color ${MOTION.fast}`,
-  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
+function inputStyle(): CSSProperties {
+  return {
+    width: '100%',
+    padding: '13px 16px',
+    borderRadius: RADIUS.md,
+    background: P.surface,
+    border: `1px solid ${P.border}`,
+    color: P.text,
+    fontSize: 14,
+    outline: 'none',
+    boxSizing: 'border-box',
+    transition: `border-color ${MOTION.fast}`,
+    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
+  }
 }
