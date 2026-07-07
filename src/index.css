@@ -156,4 +156,15 @@ img { display: block; max-width: 100%; }
   .section {
     padding: 24px 16px;
   }
+
+  .nav-label {
+    display: none !important;
+  }
+}
+
+/* Safe-area for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
 }
