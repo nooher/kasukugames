@@ -675,7 +675,7 @@ export default function App() {
       {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onLogin={() => setShowLogin(true)} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'notifications' && <NotificationsSection P={P} cs={cardStyle} gct={glassCardTheme} />}
-      {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} gct={glassCardTheme} />}
+      {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} onOpenPeople={() => setSection('connections')} gct={glassCardTheme} />}
 
       {/* Login reward toast */}
       {loginReward && loginReward.tokens > 0 && (
@@ -1366,9 +1366,9 @@ const COVER_KEY = 'kg_cover_color'
 function loadCover(): string { return localStorage.getItem(COVER_KEY) || COVER_COLORS[0] }
 function saveCover(c: string) { localStorage.setItem(COVER_KEY, c) }
 
-function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, onLangToggle, onThemeToggle, gct }: {
+function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, onLangToggle, onThemeToggle, onOpenPeople, gct }: {
   profile: PlayerProfile; setProfile: (p: PlayerProfile | null) => void; wallet?: TokenWallet
-  P: PaletteType; isDark: boolean; lang: Lang; theme: Theme; onLangToggle: () => void; onThemeToggle: () => void; gct: () => CSSProperties
+  P: PaletteType; isDark: boolean; lang: Lang; theme: Theme; onLangToggle: () => void; onThemeToggle: () => void; onOpenPeople: () => void; gct: () => CSSProperties
 }) {
   const earnedBadges = BADGES.filter(b => profile.badges.includes(b.id))
   const unearnedBadges = BADGES.filter(b => !profile.badges.includes(b.id))
@@ -1710,30 +1710,16 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
           </div>
         )}
 
-        {/* Teams & Friends */}
-        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 20 }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}><Users size={16} color={P.teal} /> {t('teams_friends')}</h3>
-          {profile.teamId ? <div style={{ fontSize: 13, color: P.textMuted }}>Team member</div> : (
-            <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 12px' }}>{t('no_team_yet')}</p>
-              <button style={{ ...premiumBtn(P.teal), fontSize: 12, padding: '9px 22px' }}><Users size={13} /> {t('create_team')}</button>
-            </div>
-          )}
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${P.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: P.textMuted }}>{t('friends_count')} ({profile.friendIds.length})</span>
-              <button style={{ background: 'none', border: 'none', color: P.sapphire, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ {t('add')}</button>
-            </div>
-            {profile.friendIds.length === 0 && <p style={{ fontSize: 11, color: P.textDim, margin: 0, lineHeight: 1.5 }}>{t('share_link')}</p>}
+        {/* Your People — everything (friends, partner, teams, live games) lives
+            in the dedicated People tab, so no dead/duplicate controls here. */}
+        <button onClick={onOpenPeople} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 20, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ width: 46, height: 46, borderRadius: 14, background: P.teal + '20', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Users size={22} color={P.teal} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: P.text }}>{t('your_people')}</div>
+            <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{t('people_cta_desc')}</div>
           </div>
-          {profile.coupledWith === null && (
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${P.border}`, textAlign: 'center' }}>
-              <Heart size={16} color={P.rose} style={{ marginBottom: 6 }} />
-              <p style={{ fontSize: 11, color: P.textMuted, margin: '0 0 8px' }}>{t('couple_challenge')}</p>
-              <button style={{ background: 'none', border: `1px solid ${P.rose}35`, color: P.rose, borderRadius: RADIUS.full, padding: '7px 18px', fontSize: 11, fontWeight: 600, cursor: 'pointer', boxShadow: isDark ? GLASS.highlight : 'none' }}><Heart size={12} /> {t('connect')}</button>
-            </div>
-          )}
-        </div>
+          <span style={{ fontSize: 20, color: P.teal }}>→</span>
+        </button>
 
         <div style={{ textAlign: 'center', padding: '16px 0 8px', fontSize: 11, color: P.textDim, fontWeight: 600 }}>
           Part of <a href="https://kasuku.tz" target="_blank" rel="noopener noreferrer" style={{ color: '#e0913f', fontWeight: 700, textDecoration: 'none' }}>Kasuku</a>

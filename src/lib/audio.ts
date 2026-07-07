@@ -1,11 +1,13 @@
 // KasukuGames floating audio player — local music, Quran, Bible, sound bath.
 // No external APIs — all local/uploaded files + built-in ambient tracks.
 
+export type AudioCategory = 'music' | 'quran' | 'bible' | 'soundbath' | 'ambient' | 'gaming' | 'brainmassage'
+
 export interface AudioTrack {
   id: string
   title: string
   artist: string
-  category: 'music' | 'quran' | 'bible' | 'soundbath' | 'ambient'
+  category: AudioCategory
   src?: string
   duration?: number
 }
@@ -24,6 +26,17 @@ export const BUILT_IN_TRACKS: AudioTrack[] = [
   { id: 'psalm23', title: 'Psalm 23', artist: 'Bible', category: 'bible' },
   { id: 'john316', title: 'John 3:16', artist: 'Bible', category: 'bible' },
   { id: 'proverbs3', title: 'Proverbs 3:5-6', artist: 'Bible', category: 'bible' },
+  // Gaming music
+  { id: 'game_synthwave', title: 'Synthwave Drive', artist: 'Gaming', category: 'gaming' },
+  { id: 'game_arcade', title: '8-Bit Arcade', artist: 'Gaming', category: 'gaming' },
+  { id: 'game_epic', title: 'Epic Boss Battle', artist: 'Gaming', category: 'gaming' },
+  { id: 'game_focus', title: 'Focus Grind', artist: 'Gaming', category: 'gaming' },
+  // Brain-massage sounds
+  { id: 'bm_theta', title: 'Theta Calm · 6Hz', artist: 'Brain Massage', category: 'brainmassage' },
+  { id: 'bm_alpha', title: 'Alpha Focus · 10Hz', artist: 'Brain Massage', category: 'brainmassage' },
+  { id: 'bm_delta', title: 'Deep Sleep · 2Hz', artist: 'Brain Massage', category: 'brainmassage' },
+  { id: 'bm_isochronic', title: 'Isochronic Pulse', artist: 'Brain Massage', category: 'brainmassage' },
+  { id: 'bm_brown', title: 'Warm Brown Noise', artist: 'Brain Massage', category: 'brainmassage' },
 ]
 
 export type PlayerState = {

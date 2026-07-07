@@ -18,6 +18,46 @@ function noise(ac: AudioContext, duration: number): AudioBufferSourceNode {
   return src
 }
 
+// ── Shared effects chain (3-band EQ + reverb) ────────────────────────────────
+// Both generative tracks AND the <audio> element route through this, so EQ /
+// reverb "change how you hear it" apply to everything the player emits.
+interface Fx {
+  input: GainNode
+  low: BiquadFilterNode; mid: BiquadFilterNode; high: BiquadFilterNode
+  dry: GainNode; wet: GainNode; out: GainNode
+}
+let fx: Fx | null = null
+let elementSource: MediaElementAudioSourceNode | null = null
+
+function makeImpulse(ac: AudioContext): AudioBuffer {
+  const len = Math.floor(ac.sampleRate * 2.6)
+  const buf = ac.createBuffer(2, len, ac.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch)
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4)
+  }
+  return buf
+}
+
+function getFx(): Fx {
+  const ac = getCtx()
+  if (fx) return fx
+  const input = ac.createGain()
+  const low = ac.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 220
+  const mid = ac.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1100; mid.Q.value = 0.7
+  const high = ac.createBiquadFilter(); high.type = 'highshelf'; high.frequency.value = 3400
+  const conv = ac.createConvolver(); conv.buffer = makeImpulse(ac)
+  const dry = ac.createGain(); dry.gain.value = 1
+  const wet = ac.createGain(); wet.gain.value = 0
+  const out = ac.createGain(); out.gain.value = 1
+  input.connect(low); low.connect(mid); mid.connect(high)
+  high.connect(dry); dry.connect(out)
+  high.connect(conv); conv.connect(wet); wet.connect(out)
+  out.connect(ac.destination)
+  fx = { input, low, mid, high, dry, wet, out }
+  return fx
+}
+
 interface GenNodes {
   sources: AudioScheduledSourceNode[]
   gains: GainNode[]
@@ -526,6 +566,113 @@ function meditationPad(ac: AudioContext, master: GainNode, root: number, charact
   return { sources, gains, master }
 }
 
+// ── Brain-massage generators (binaural beats + isochronic + brown noise) ──
+function binauralBeat(ac: AudioContext, master: GainNode, carrier: number, beat: number): GenNodes {
+  const sources: AudioScheduledSourceNode[] = []; const gains: GainNode[] = []
+  const merger = ac.createChannelMerger(2); merger.connect(master)
+  const mk = (freq: number, chan: number) => {
+    const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = freq
+    const g = ac.createGain(); g.gain.value = 0.16
+    o.connect(g).connect(merger, 0, chan); o.start(); sources.push(o); gains.push(g)
+  }
+  mk(carrier, 0); mk(carrier + beat, 1)
+  const pad = ac.createOscillator(); pad.type = 'sine'; pad.frequency.value = carrier / 2
+  const pg = ac.createGain(); pg.gain.value = 0.05; pad.connect(pg).connect(master); pad.start()
+  sources.push(pad); gains.push(pg)
+  return { sources, gains, master }
+}
+
+function isochronic(ac: AudioContext, master: GainNode, freq: number, pulse: number): GenNodes {
+  const sources: AudioScheduledSourceNode[] = []; const gains: GainNode[] = []
+  const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = freq
+  const g = ac.createGain(); g.gain.value = 0.0001
+  o.connect(g).connect(master); o.start(); sources.push(o); gains.push(g)
+  const lfo = ac.createOscillator(); lfo.type = 'square'; lfo.frequency.value = pulse
+  const lg = ac.createGain(); lg.gain.value = 0.2
+  lfo.connect(lg).connect(g.gain); lfo.start(); sources.push(lfo); gains.push(lg)
+  return { sources, gains, master, lfo: [lfo] }
+}
+
+function brownNoise(ac: AudioContext, master: GainNode): GenNodes {
+  const src = noise(ac, 4)
+  const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480
+  const lp2 = ac.createBiquadFilter(); lp2.type = 'lowpass'; lp2.frequency.value = 900
+  const g = ac.createGain(); g.gain.value = 0.5
+  src.connect(lp).connect(lp2).connect(g).connect(master); src.start()
+  return { sources: [src], gains: [g], master }
+}
+
+// ── Gaming generators ──
+function synthwave(ac: AudioContext, master: GainNode): GenNodes {
+  const sources: AudioScheduledSourceNode[] = []; const gains: GainNode[] = []
+  for (const f of [110, 130.81, 164.81]) {
+    const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900
+    const g = ac.createGain(); g.gain.value = 0.045
+    o.connect(lp).connect(g).connect(master); o.start(); sources.push(o); gains.push(g)
+  }
+  const bass = ac.createOscillator(); bass.type = 'triangle'; bass.frequency.value = 55
+  const bg = ac.createGain(); bg.gain.value = 0.0001; bass.connect(bg).connect(master); bass.start()
+  sources.push(bass); gains.push(bg)
+  const lfo = ac.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 2
+  const lg = ac.createGain(); lg.gain.value = 0.18; lfo.connect(lg).connect(bg.gain); lfo.start()
+  sources.push(lfo); gains.push(lg)
+  return { sources, gains, master, lfo: [lfo] }
+}
+
+function arcade(ac: AudioContext, master: GainNode): GenNodes {
+  const sources: AudioScheduledSourceNode[] = []; const gains: GainNode[] = []
+  const notes = [523.25, 659.25, 783.99, 1046.5]
+  notes.forEach((f, i) => {
+    const o = ac.createOscillator(); o.type = 'square'; o.frequency.value = f
+    const g = ac.createGain(); g.gain.value = 0.0001
+    o.connect(g).connect(master); o.start(); sources.push(o); gains.push(g)
+    const lfo = ac.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 8 + i * 0.9
+    const lg = ac.createGain(); lg.gain.value = 0.06
+    lfo.connect(lg).connect(g.gain); lfo.start(); sources.push(lfo); gains.push(lg)
+  })
+  const bass = ac.createOscillator(); bass.type = 'triangle'; bass.frequency.value = 130.81
+  const bg = ac.createGain(); bg.gain.value = 0.05; bass.connect(bg).connect(master); bass.start()
+  sources.push(bass); gains.push(bg)
+  return { sources, gains, master }
+}
+
+function epic(ac: AudioContext, master: GainNode): GenNodes {
+  const sources: AudioScheduledSourceNode[] = []; const gains: GainNode[] = []
+  const bus = ac.createGain(); bus.gain.value = 0.9; bus.connect(master)
+  for (const f of [65.41, 98, 130.81, 196]) {
+    const o = ac.createOscillator(); o.type = f < 100 ? 'sine' : 'triangle'; o.frequency.value = f
+    const g = ac.createGain(); g.gain.value = 0.06; o.connect(g).connect(bus); o.start()
+    sources.push(o); gains.push(g)
+  }
+  const swell = ac.createOscillator(); swell.type = 'sine'; swell.frequency.value = 0.08
+  const sg = ac.createGain(); sg.gain.value = 0.35; swell.connect(sg).connect(bus.gain); swell.start()
+  sources.push(swell); gains.push(sg)
+  const drum = noise(ac, 2)
+  const dlp = ac.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 120
+  const dg = ac.createGain(); dg.gain.value = 0.0001; drum.connect(dlp).connect(dg).connect(master); drum.start()
+  sources.push(drum); gains.push(dg)
+  const dlfo = ac.createOscillator(); dlfo.type = 'square'; dlfo.frequency.value = 1
+  const dlg = ac.createGain(); dlg.gain.value = 0.5; dlfo.connect(dlg).connect(dg.gain); dlfo.start()
+  sources.push(dlfo); gains.push(dlg)
+  return { sources, gains, master, lfo: [swell, dlfo] }
+}
+
+function focusDrive(ac: AudioContext, master: GainNode): GenNodes {
+  const sources: AudioScheduledSourceNode[] = []; const gains: GainNode[] = []
+  const src = noise(ac, 4)
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 0.6
+  const g = ac.createGain(); g.gain.value = 0.07; src.connect(bp).connect(g).connect(master); src.start()
+  sources.push(src); gains.push(g)
+  const bass = ac.createOscillator(); bass.type = 'sine'; bass.frequency.value = 65.41
+  const bg = ac.createGain(); bg.gain.value = 0.0001; bass.connect(bg).connect(master); bass.start()
+  sources.push(bass); gains.push(bg)
+  const lfo = ac.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 2
+  const lg = ac.createGain(); lg.gain.value = 0.12; lfo.connect(lg).connect(bg.gain); lfo.start()
+  sources.push(lfo); gains.push(lg)
+  return { sources, gains, master, lfo: [lfo] }
+}
+
 const GENERATORS: Record<string, Generator> = {
   rain,
   ocean,
@@ -540,6 +687,17 @@ const GENERATORS: Record<string, Generator> = {
   psalm23: (ac, m) => meditationPad(ac, m, 164.81, 'bright'),
   john316: (ac, m) => meditationPad(ac, m, 123.47, 'warm'),
   proverbs3: (ac, m) => meditationPad(ac, m, 98, 'deep'),
+  // gaming
+  game_synthwave: synthwave,
+  game_arcade: arcade,
+  game_epic: epic,
+  game_focus: focusDrive,
+  // brain massage
+  bm_theta: (ac, m) => binauralBeat(ac, m, 200, 6),
+  bm_alpha: (ac, m) => binauralBeat(ac, m, 220, 10),
+  bm_delta: (ac, m) => binauralBeat(ac, m, 150, 2),
+  bm_isochronic: (ac, m) => isochronic(ac, m, 210, 7),
+  bm_brown: brownNoise,
 }
 
 const TRACK_DURATION: Record<string, number> = {
@@ -547,6 +705,8 @@ const TRACK_DURATION: Record<string, number> = {
   tibetan: 480, crystal: 480, binaural: 480,
   alfatiha: 300, yaseen: 420, arrahman: 360,
   psalm23: 300, john316: 300, proverbs3: 300,
+  game_synthwave: 600, game_arcade: 600, game_epic: 600, game_focus: 600,
+  bm_theta: 900, bm_alpha: 900, bm_delta: 900, bm_isochronic: 900, bm_brown: 900,
 }
 
 export interface MusicEngine {
@@ -558,6 +718,12 @@ export interface MusicEngine {
   isPlaying(): boolean
   getTrackId(): string | null
   getDuration(trackId: string): number
+  /** Route an <audio> element through the shared EQ/reverb chain (once). */
+  connectElement(el: HTMLAudioElement): void
+  /** 3-band EQ in dB (roughly -12..+12). */
+  setEQ(low: number, mid: number, high: number): void
+  /** Reverb/space amount 0..1. */
+  setReverb(amount: number): void
 }
 
 export function createMusicEngine(): MusicEngine {
@@ -586,7 +752,7 @@ export function createMusicEngine(): MusicEngine {
     const ac = getCtx()
     const master = ac.createGain()
     master.gain.value = volume
-    master.connect(ac.destination)
+    master.connect(getFx().input)
 
     nodes = gen(ac, master)
     currentTrack = trackId
@@ -614,6 +780,30 @@ export function createMusicEngine(): MusicEngine {
     }
   }
 
+  function connectElement(el: HTMLAudioElement) {
+    const ac = getCtx()
+    if (ac.state === 'suspended') ac.resume().catch(() => {})
+    if (elementSource) return
+    try {
+      elementSource = ac.createMediaElementSource(el)
+      elementSource.connect(getFx().input)
+    } catch { /* already connected elsewhere, or unsupported */ }
+  }
+
+  function setEQ(low: number, mid: number, high: number) {
+    const f = getFx(); const now = getCtx().currentTime
+    f.low.gain.setTargetAtTime(low, now, 0.04)
+    f.mid.gain.setTargetAtTime(mid, now, 0.04)
+    f.high.gain.setTargetAtTime(high, now, 0.04)
+  }
+
+  function setReverb(amount: number) {
+    const a = Math.max(0, Math.min(1, amount))
+    const f = getFx(); const now = getCtx().currentTime
+    f.wet.gain.setTargetAtTime(a, now, 0.05)
+    f.dry.gain.setTargetAtTime(1 - 0.4 * a, now, 0.05)
+  }
+
   return {
     play,
     stop,
@@ -623,5 +813,8 @@ export function createMusicEngine(): MusicEngine {
     isPlaying: () => playing,
     getTrackId: () => currentTrack,
     getDuration: (id: string) => TRACK_DURATION[id] || 300,
+    connectElement,
+    setEQ,
+    setReverb,
   }
 }

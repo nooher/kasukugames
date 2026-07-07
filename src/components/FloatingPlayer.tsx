@@ -2,13 +2,13 @@ import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties }
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   Repeat, Shuffle, ChevronDown, ChevronUp, Music, X,
-  BookOpen, Waves, Upload, List,
+  BookOpen, Waves, FolderOpen, List, Gamepad2, Brain, SlidersHorizontal,
 } from 'lucide-react'
 import { RADIUS, MOTION } from '../lib/design'
 import { getPalette, type Theme } from '../lib/theme'
 import {
   BUILT_IN_TRACKS, formatTime, getLocalTracks, addLocalTrack,
-  type AudioTrack, type PlayerState, initialPlayerState,
+  type AudioTrack, type AudioCategory, type PlayerState, initialPlayerState,
 } from '../lib/audio'
 import { createMusicEngine, type MusicEngine } from '../lib/music-engine'
 import { t } from '../lib/i18n'
@@ -25,7 +25,12 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
 
   const [state, setState] = useState<PlayerState>(initialPlayerState)
   const [expanded, setExpanded] = useState(false)
-  const [tab, setTab] = useState<'queue' | 'library'>('library')
+  const [tab, setTab] = useState<'queue' | 'library' | 'sound'>('library')
+  const [cat, setCat] = useState<'all' | AudioCategory>('all')
+  const [eq, setEq] = useState({ low: 0, mid: 0, high: 0 })
+  const [reverb, setReverbAmt] = useState(0)
+  const [rate, setRate] = useState(1)
+  const [preset, setPreset] = useState('Flat')
   const [dragPos, setDragPos] = useState({ x: 20, y: -1 })
   const [dragging, setDragging] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -42,6 +47,11 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       setDragPos(p => ({ ...p, y: window.innerHeight - 90 }))
     }
   }, [dragPos.y])
+
+  // Live EQ / reverb / playback-speed — "change how you hear the music".
+  useEffect(() => { engineRef.current?.setEQ(eq.low, eq.mid, eq.high) }, [eq])
+  useEffect(() => { engineRef.current?.setReverb(reverb) }, [reverb])
+  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = rate }, [rate, state.track?.id])
 
   const allTracks = [...BUILT_IN_TRACKS, ...getLocalTracks()]
 
@@ -61,8 +71,10 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       engineRef.current?.stop()
       setState(s => ({ ...s, track, playing: true, queue: q, queueIndex: idx, currentTime: 0 }))
       if (track.src && audioRef.current) {
+        engineRef.current?.connectElement(audioRef.current)
         audioRef.current.src = track.src
         audioRef.current.volume = state.volume
+        audioRef.current.playbackRate = rate
         audioRef.current.play().catch(() => {})
       }
     }
@@ -85,8 +97,10 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       } else {
         engineRef.current?.stop()
         if (track.src && audioRef.current) {
+          engineRef.current?.connectElement(audioRef.current)
           audioRef.current.src = track.src
           audioRef.current.volume = prev.volume
+          audioRef.current.playbackRate = rate
           audioRef.current.play().catch(() => {})
         }
         return { ...prev, track, playing: true, queueIndex: next, currentTime: 0 }
@@ -263,21 +277,51 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
   if (!visible) return null
 
   const pct = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
-  const catIcon = (cat: AudioTrack['category']) => {
-    switch (cat) {
+  const catIcon = (c: AudioCategory) => {
+    switch (c) {
       case 'quran': case 'bible': return <BookOpen size={12} />
       case 'soundbath': return <Waves size={12} />
+      case 'gaming': return <Gamepad2 size={12} />
+      case 'brainmassage': return <Brain size={12} />
       default: return <Music size={12} />
     }
   }
-  const catColor = (cat: AudioTrack['category']) => {
-    switch (cat) {
+  const catColor = (c: AudioCategory) => {
+    switch (c) {
       case 'quran': return P.emerald
       case 'bible': return P.sapphire
       case 'soundbath': return P.violet
       case 'ambient': return P.teal
+      case 'gaming': return P.fuchsia
+      case 'brainmassage': return P.cyan
       default: return P.amber
     }
+  }
+  // Category filter chips (label + which category they select)
+  const CATS: { key: 'all' | AudioCategory; label: string }[] = [
+    { key: 'all', label: t('all') },
+    { key: 'music', label: t('local_audio') },
+    { key: 'soundbath', label: t('sound_bath') },
+    { key: 'quran', label: 'Quran' },
+    { key: 'bible', label: 'Bible' },
+    { key: 'gaming', label: t('gaming_music') },
+    { key: 'brainmassage', label: t('brain_massage') },
+    { key: 'ambient', label: t('ambient') },
+  ]
+  const shownTracks = cat === 'all' ? allTracks : allTracks.filter(tr => tr.category === cat)
+  const PRESETS: { name: string; eq: [number, number, number]; rev: number }[] = [
+    { name: 'Flat', eq: [0, 0, 0], rev: 0 },
+    { name: 'Bass', eq: [7, 1, -1], rev: 0.05 },
+    { name: 'Vocal', eq: [-2, 4, 2], rev: 0.1 },
+    { name: 'Focus', eq: [-3, 2, 4], rev: 0 },
+    { name: 'Chill', eq: [3, 0, 2], rev: 0.35 },
+    { name: 'Gaming', eq: [5, 2, 4], rev: 0.15 },
+    { name: 'Night', eq: [2, -2, -4], rev: 0.2 },
+  ]
+  const applyPreset = (p: typeof PRESETS[number]) => {
+    setPreset(p.name)
+    setEq({ low: p.eq[0], mid: p.eq[1], high: p.eq[2] })
+    setReverbAmt(p.rev)
   }
 
   return (
@@ -373,7 +417,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
         {expanded && (
           <div style={{ borderTop: `1px solid ${P.border}` }}>
             <div style={{ display: 'flex', gap: 0 }}>
-              {(['library', 'queue'] as const).map(tb => (
+              {([['library', t('library')], ['queue', t('queue')], ['sound', t('sound')]] as const).map(([tb, label]) => (
                 <button
                   key={tb}
                   onClick={() => setTab(tb)}
@@ -382,21 +426,35 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
                     borderBottom: `2px solid ${tab === tb ? P.amber : 'transparent'}`,
                     color: tab === tb ? P.text : P.textMuted,
                     fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                   }}
                 >
-                  {t(tb === 'library' ? 'library' : 'queue')}
+                  {tb === 'sound' && <SlidersHorizontal size={12} />}{label}
                 </button>
               ))}
             </div>
 
-            <div style={{ maxHeight: 240, overflowY: 'auto', padding: '8px 0' }}>
+            <div style={{ maxHeight: 264, overflowY: 'auto', padding: '8px 0' }}>
               {tab === 'library' && (
                 <>
+                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '2px 14px 8px', scrollbarWidth: 'none' }}>
+                    {CATS.map(c => (
+                      <button key={c.key} onClick={() => setCat(c.key)} style={{
+                        flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontSize: 10.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                        background: cat === c.key ? P.amber : 'transparent',
+                        color: cat === c.key ? (isDark ? '#000' : '#fff') : P.textMuted,
+                        border: `1px solid ${cat === c.key ? P.amber : P.border}`,
+                      }}>{c.label}</button>
+                    ))}
+                  </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', cursor: 'pointer', color: P.amber, fontSize: 12, fontWeight: 600 }}>
-                    <Upload size={14} /> {t('upload_music')}
+                    <FolderOpen size={14} /> {t('play_local_audio')}
                     <input type="file" accept="audio/*" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
                   </label>
-                  {allTracks.map(tr => (
+                  {shownTracks.length === 0 && (
+                    <div style={{ padding: '16px 14px', textAlign: 'center', color: P.textDim, fontSize: 11 }}>{t('no_track')}</div>
+                  )}
+                  {shownTracks.map(tr => (
                     <button
                       key={tr.id}
                       onClick={() => playTrack(tr)}
@@ -445,6 +503,48 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
                     </div>
                   </button>
                 ))
+              )}
+              {tab === 'sound' && (
+                <div style={{ padding: '2px 14px 10px' }}>
+                  <div style={{ fontSize: 9, color: P.textDim, marginBottom: 7, letterSpacing: 0.5, textTransform: 'uppercase' }}>{t('presets')}</div>
+                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 12, scrollbarWidth: 'none' }}>
+                    {PRESETS.map(p => (
+                      <button key={p.name} onClick={() => applyPreset(p)} style={{
+                        flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontSize: 10.5, fontWeight: 600, cursor: 'pointer',
+                        background: preset === p.name ? P.amber : 'transparent',
+                        color: preset === p.name ? (isDark ? '#000' : '#fff') : P.textMuted,
+                        border: `1px solid ${preset === p.name ? P.amber : P.border}`,
+                      }}>{p.name}</button>
+                    ))}
+                  </div>
+                  {([['low', t('bass')], ['mid', t('mid')], ['high', t('treble')]] as const).map(([band, label]) => (
+                    <div key={band} style={{ marginBottom: 9 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: P.textMuted, marginBottom: 3 }}>
+                        <span>{label}</span><span>{eq[band] > 0 ? '+' : ''}{eq[band]} dB</span>
+                      </div>
+                      <input type="range" min={-12} max={12} step={1} value={eq[band]}
+                        onChange={e => { setPreset('Custom'); const v = Number(e.target.value); setEq(s => ({ ...s, [band]: v })) }}
+                        style={{ width: '100%', accentColor: P.amber }} />
+                    </div>
+                  ))}
+                  <div style={{ marginBottom: 9 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: P.textMuted, marginBottom: 3 }}>
+                      <span>{t('reverb')}</span><span>{Math.round(reverb * 100)}%</span>
+                    </div>
+                    <input type="range" min={0} max={1} step={0.05} value={reverb}
+                      onChange={e => { setPreset('Custom'); setReverbAmt(Number(e.target.value)) }}
+                      style={{ width: '100%', accentColor: P.violet }} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: P.textMuted, marginBottom: 3 }}>
+                      <span>{t('speed')}</span><span>{rate.toFixed(2)}×</span>
+                    </div>
+                    <input type="range" min={0.5} max={1.5} step={0.05} value={rate}
+                      onChange={e => setRate(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: P.teal }} />
+                    <div style={{ fontSize: 9, color: P.textDim, marginTop: 3 }}>{t('speed_note')}</div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
