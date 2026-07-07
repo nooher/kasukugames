@@ -138,6 +138,7 @@ export default function App() {
   const [profile, setProfile] = useState<PlayerProfile | null>(loadProfile)
   const [section, setSection] = useState<Section>('home')
   const [activeGame, setActiveGame] = useState<string | null>(null)
+  const [inboundInvite, setInboundInvite] = useState<{ game: string; from: string } | null>(null)
   const lastGameResult = useRef<GameResult | null>(null)
   const [playerVisible, setPlayerVisible] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -226,6 +227,20 @@ export default function App() {
     const handler = (e: Event) => { e.preventDefault(); setDeferredPrompt(e as BeforeInstallPromptEvent); setShowInstall(true) }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  // Deep links: /play?invite=<game>&from=<name> opens the invite; /@user cleans up.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const g = params.get('invite')
+      if (g && GAMES.some(x => x.id === g)) {
+        setInboundInvite({ game: g, from: (params.get('from') || 'A friend').slice(0, 40) })
+      }
+      if (params.get('invite') || window.location.pathname.startsWith('/@')) {
+        window.history.replaceState({}, '', '/')
+      }
+    } catch { /* ignore malformed URLs */ }
   }, [])
 
   useEffect(() => {
@@ -393,6 +408,21 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: P.bg }}>
+      {/* Inbound invite (opened via games.kasuku.tz/play?invite=…&from=…) */}
+      {inboundInvite && (
+        <div onClick={() => setInboundInvite(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 300 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 20, padding: 26, maxWidth: 360, width: '100%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
+            <div style={{ fontSize: 44, marginBottom: 6 }}>🎮</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#e0913f', marginBottom: 8 }}>{t('youre_invited')}</div>
+            <div style={{ fontSize: 16, color: P.textMuted, marginBottom: 2 }}><b style={{ color: P.text }}>{inboundInvite.from}</b> {t('invited_you_to_play')}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: P.text, marginBottom: 20 }}>{GAMES.find(g => g.id === inboundInvite.game)?.title || inboundInvite.game}</div>
+            <button onClick={() => { if (profile) { setActiveGame(inboundInvite.game); setInboundInvite(null) } else { setShowLogin(true); setLoginMode('signup') } }} style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', marginBottom: 10 }}>
+              {profile ? t('play_now') : t('signup_and_play')}
+            </button>
+            <button onClick={() => setInboundInvite(null)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textMuted, borderRadius: RADIUS.full, padding: '10px 20px', width: '100%', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('maybe_later')}</button>
+          </div>
+        </div>
+      )}
       {/* HEADER */}
       {/* TOP HEADER — slim on mobile */}
       <header style={headerStyle}>
