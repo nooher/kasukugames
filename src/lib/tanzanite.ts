@@ -267,3 +267,102 @@ export function digRough(block: BlockId, depth: number, rng: () => number): Roug
     depth, block,
   }
 }
+/** A jackpot geode rough — larger, cleaner, higher vanadium. */
+export function geodeRough(block: BlockId, depth: number, rng: () => number): Rough {
+  return {
+    id: `g${Date.now().toString(36)}${(_seq++).toString(36)}`,
+    caratRough: round2(6 + rng() * 10), vanadium: clamp01(0.75 + rng() * 0.25),
+    clarity: clamp01(0.7 + rng() * 0.25), fracture: clamp01(rng() * 0.3), depth, block,
+  }
+}
+
+// ── Mine events (random, weighted by strata hazard) ────────────────────────
+export type MineEventKind = 'good' | 'bad' | 'jackpot' | 'lore'
+export interface MineEvent { id: string; kind: MineEventKind; title: string; body: string }
+const MINE_EVENTS: { ev: MineEvent; w: number; hazardScaled?: boolean }[] = [
+  { ev: { id: 'gas', kind: 'bad', title: 'Graphite gas pocket', body: 'The air goes bad — the graphitic gneiss releases gas. The shift is called off.' }, w: 1.0, hazardScaled: true },
+  { ev: { id: 'water', kind: 'bad', title: 'Water inrush', body: 'A fissure floods the drive. Pumps can’t keep up — climb out now.' }, w: 0.9, hazardScaled: true },
+  { ev: { id: 'rockfall', kind: 'bad', title: 'Rockfall', body: 'The hanging wall shears. You’re fine — but you lose ground and half the shift.' }, w: 0.8, hazardScaled: true },
+  { ev: { id: 'vug', kind: 'good', title: 'A rich vug', body: 'A pocket opens in the calc-silicate — a bonus rough tumbles out.' }, w: 1.0 },
+  { ev: { id: 'seam', kind: 'good', title: 'Vein seam', body: 'You trace a seam of boudins — the next digs strike easier.' }, w: 0.7 },
+  { ev: { id: 'geode', kind: 'jackpot', title: 'A tanzanite geode!', body: 'A cavity glitters with crystal — the find of a season. A superb rough is yours.' }, w: 0.16 },
+  { ev: { id: 'fossil', kind: 'lore', title: 'Ancient metamorphism', body: 'Folded graphite records the Pan-African collision that grew these gems ~585 Ma ago.' }, w: 0.5 },
+]
+export function rollMineEvent(strataHazard: number, blockHazMul: number, rng: () => number): MineEvent | null {
+  if (rng() > 0.28) return null
+  const pool = MINE_EVENTS.map(m => ({ ...m, wEff: m.w * (m.hazardScaled ? (0.4 + strataHazard * blockHazMul * 2) : 1) }))
+  const total = pool.reduce((s, p) => s + p.wEff, 0)
+  let r = rng() * total
+  for (const p of pool) { if ((r -= p.wEff) <= 0) return p.ev }
+  return null
+}
+
+// ── Market: fluctuating demand + headline events ───────────────────────────
+export interface MarketEvent { id: string; headline: string; mult: number }
+export const MARKET_EVENTS: MarketEvent[] = [
+  { id: 'tiffany', headline: 'Tiffany unveils a tanzanite collection — demand surges', mult: 1.35 },
+  { id: 'crackdown', headline: 'Smuggling crackdown tightens legal supply — prices rise', mult: 1.22 },
+  { id: 'gala', headline: 'A royal wears tanzanite at a gala — the world takes notice', mult: 1.28 },
+  { id: 'export', headline: 'New export levy squeezes margins', mult: 0.86 },
+  { id: 'rumor', headline: 'Rumours of a fresh strike spook buyers', mult: 0.82 },
+  { id: 'auction', headline: 'A record stone tops a Geneva auction — the market runs hot', mult: 1.42 },
+  { id: 'calm', headline: 'A quiet trading week', mult: 1.0 },
+]
+export function rollMarketEvent(rng: () => number): MarketEvent {
+  return MARKET_EVENTS[Math.floor(rng() * MARKET_EVENTS.length)]
+}
+
+// ── Contracts (commissions) ────────────────────────────────────────────────
+export interface Contract {
+  id: string; buyer: string; minCarat: number; minColor: number; needCert: boolean
+  reward: number; expiresIn: number  // in number of stones processed
+}
+const CONTRACT_BUYERS = ['A Nairobi jeweller', 'A Gulf collector', 'A Milan atelier', 'The State Gem House', 'A Hong Kong auctioneer', 'A New York bridal house']
+export function generateContract(rankIndex: number, rng: () => number): Contract {
+  const tier = 1 + rankIndex * 0.5 + rng()
+  const minCarat = round2(1 + tier * 1.1)
+  const minColor = Math.min(92, 55 + Math.floor(rankIndex * 6 + rng() * 15))
+  const needCert = rng() > 0.35
+  const base = Math.round(minCarat * minColor * (needCert ? 22 : 14) * (1 + rankIndex * 0.15))
+  return {
+    id: `c${Date.now().toString(36)}${(_seq++).toString(36)}`,
+    buyer: CONTRACT_BUYERS[Math.floor(rng() * CONTRACT_BUYERS.length)],
+    minCarat, minColor, needCert, reward: base, expiresIn: 4 + Math.floor(rng() * 4),
+  }
+}
+export function contractMet(g: Graded, certified: boolean, c: Contract): boolean {
+  return g.carat >= c.minCarat && g.colorScore >= c.minColor && (!c.needCert || certified)
+}
+
+// ── Trophies (PlayStation-style) ───────────────────────────────────────────
+export type Tier = 'bronze' | 'silver' | 'gold' | 'platinum'
+export interface Trophy { id: string; name: string; desc: string; tier: Tier }
+export const TROPHIES: Trophy[] = [
+  { id: 'first-blue', name: 'The Blue Awakens', desc: 'Treat your first stone to blue', tier: 'bronze' },
+  { id: 'first-sale', name: 'First Trade', desc: 'Sell your first stone', tier: 'bronze' },
+  { id: 'first-cert', name: 'On the Ledger', desc: 'Certify a stone', tier: 'bronze' },
+  { id: 'reef', name: 'The Reef', desc: 'Reach the Tanzanite Reef (120 m)', tier: 'bronze' },
+  { id: 'exceptional', name: 'Exceptional', desc: 'Grade an AAAA (Exceptional) stone', tier: 'silver' },
+  { id: 'abyss', name: 'Into the Abyss', desc: 'Dig past 600 m', tier: 'silver' },
+  { id: 'geode', name: 'Geode Hunter', desc: 'Strike a tanzanite geode', tier: 'silver' },
+  { id: 'collector', name: 'Sold to a Collector', desc: 'Sell to an international collector', tier: 'silver' },
+  { id: 'contract3', name: 'Reliable House', desc: 'Fulfil 3 commissions', tier: 'gold' },
+  { id: 'vault5', name: 'The Vault', desc: 'Keep 5 stones in your collection', tier: 'gold' },
+  { id: 'house', name: 'Tanzanite House', desc: 'Reach the Tanzanite House rank', tier: 'gold' },
+  { id: 'codex', name: 'Loremaster', desc: 'Unlock the full Codex', tier: 'gold' },
+  { id: 'legend', name: 'Legend of Merelani', desc: 'Reach the final rank', tier: 'platinum' },
+]
+export const TIER_COLOR: Record<Tier, string> = { bronze: '#c58a5a', silver: '#c8ccd8', gold: '#e6c24a', platinum: '#8fd0e6' }
+
+// ── Vault / collection value (kept, uncut-value stones) ────────────────────
+export function collectionValue(kept: Graded[]): number {
+  return kept.reduce((s, g) => s + Math.round(g.value * 1.4), 0) // kept stones appreciate
+}
+
+// ── extra codex facts (appended) ───────────────────────────────────────────
+CODEX.push(
+  { id: 'blocks', title: 'The blocks of Merelani', body: 'The field is divided into mining blocks — from mechanised operations to artisanal claims — each with its own character of rough and risk.' },
+  { id: 'oxygen', title: 'Breathing at depth', body: 'Graphite in the host rock consumes oxygen; deep Merelani drives can turn dangerously airless, one of mining’s real hazards here.' },
+  { id: 'contract', title: 'Selling to a house', body: 'Cutters and houses commission specific stones — a set carat, colour and certificate — rewarding a grower who can deliver to spec.' },
+  { id: 'vault', title: 'Keeping the finest', body: 'The rarest, finest stones are often held, not sold — as heirlooms and stores of value that appreciate as the deposit nears exhaustion.' },
+)
