@@ -13,7 +13,7 @@ const C = {
 }
 const SEAT_COLORS = [C.pink, C.blue, C.green, C.purple, C.orange, C.teal, C.amber, C.red]
 
-type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps' | 'hot' | 'gma' | 'ttl'
+type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps' | 'hot' | 'gma' | 'ttl' | 'wc' | 'er' | 'results'
 interface GState {
   screen: Screen
   turnIdx?: number
@@ -71,6 +71,13 @@ interface GState {
   ttlGuesses?: Record<string, number>
   ttlPhase?: 'write' | 'guess'
   ttlRevealed?: boolean
+  // word chain
+  wcTurnId?: string
+  wcWords?: string[]
+  // emoji riddle
+  erRiddle?: { emoji: string; answer: string }
+  erSolved?: Record<string, boolean>
+  erRevealed?: boolean
 }
 
 const TRUTHS = [
@@ -195,6 +202,27 @@ const GMA_QS = [
   { q: 'My guilty pleasure is…', options: ['Sweets', 'Reality TV', 'Online shopping', 'Long naps'] },
 ]
 
+const EMOJI_RIDDLES: { emoji: string; answer: string }[] = [
+  { emoji: '🦁👑', answer: 'lion king' },
+  { emoji: '🕷️🧍', answer: 'spider man' },
+  { emoji: '❄️👸', answer: 'frozen' },
+  { emoji: '🍫🏭', answer: 'chocolate factory' },
+  { emoji: '🦇🧍', answer: 'batman' },
+  { emoji: '🌊🐠🔍', answer: 'finding nemo' },
+  { emoji: '🚢🧊💔', answer: 'titanic' },
+  { emoji: '🧙⚡🤓', answer: 'harry potter' },
+  { emoji: '🐝🎬', answer: 'bee movie' },
+  { emoji: '🦖🏝️', answer: 'jurassic park' },
+  { emoji: '🏃‍♂️🍫', answer: 'forrest gump' },
+  { emoji: '☕➕🥛', answer: 'latte' },
+  { emoji: '🍞🧈', answer: 'bread and butter' },
+  { emoji: '🌧️➕☀️', answer: 'rainbow' },
+  { emoji: '🐘🧠', answer: 'memory' },
+  { emoji: '⏰🍏', answer: 'time apple' },
+  { emoji: '👀🥔', answer: 'couch potato' },
+  { emoji: '🔥🦊', answer: 'firefox' },
+]
+
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '👏', '💋', '🥰', '😳']
 
 const rid = () => Math.random().toString(36).slice(2)
@@ -294,6 +322,12 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (d.a === 'ttlguess') { if (from !== cur.ttlAsker) pushState({ ...cur, ttlGuesses: { ...(cur.ttlGuesses || {}), [from]: d.idx } }) }
     else if (d.a === 'ttlreveal') revealTtl()
     else if (d.a === 'ttlnext') nextTtl()
+    else if (d.a === 'wcword') wcApply(from, d.word)
+    else if (d.a === 'erguess') erSubmit(from, d.text)
+    else if (d.a === 'ereveal') revealEr()
+    else if (d.a === 'ernext') nextEr()
+    else if (d.a === 'results') pushState({ screen: 'results' })
+    else if (d.a === 'resetscores') pushState({ screen: 'menu', scores: {} })
     else if (d.a === 'menu') pushState({ screen: 'menu' })
   }
 
@@ -415,6 +449,40 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
   const nextTtl = () => { const cur = gRef.current; const order = ids(); const i = cur.ttlAsker ? order.indexOf(cur.ttlAsker) : -1; pushState({ ...cur, ttlAsker: order[(i + 1) % Math.max(1, order.length)], ttlStatements: undefined, ttlLie: undefined, ttlGuesses: {}, ttlPhase: 'write', ttlRevealed: false }) }
 
+  // ── Word Chain ──
+  const startWc = () => pushState({ screen: 'wc', wcTurnId: ids()[0] || me.id, wcWords: [], scores: keepScores() })
+  const wcApply = (from: string, word: string) => {
+    const cur = gRef.current
+    if (from !== cur.wcTurnId) return
+    const w = cur.wcWords || []
+    const clean = word.trim().toLowerCase()
+    if (!/^[a-z]{2,}$/.test(clean)) return
+    if (w.some(x => x === clean)) return
+    const req = w.length ? w[w.length - 1].slice(-1) : ''
+    if (req && clean[0] !== req) return
+    const order = ids(); const i = order.indexOf(from)
+    const s = { ...(cur.scores || {}) }; s[from] = (s[from] || 0) + 5
+    pushState({ ...cur, wcWords: [...w, clean], wcTurnId: order[(i + 1) % Math.max(1, order.length)], scores: s })
+  }
+
+  // ── Emoji Riddle ──
+  const normAns = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const startEr = () => pushState({ screen: 'er', erRiddle: pick(EMOJI_RIDDLES), erSolved: {}, erRevealed: false, scores: keepScores() })
+  const erSubmit = (from: string, text: string) => {
+    const cur = gRef.current
+    if (!cur.erRiddle || cur.erRevealed || cur.erSolved?.[from]) return
+    if (normAns(text) === normAns(cur.erRiddle.answer)) {
+      const s = { ...(cur.scores || {}) }; s[from] = (s[from] || 0) + 10
+      pushState({ ...cur, erSolved: { ...(cur.erSolved || {}), [from]: true }, scores: s })
+    }
+  }
+  const revealEr = () => pushState({ ...gRef.current, erRevealed: true })
+  const nextEr = () => pushState({ ...gRef.current, erRiddle: pick(EMOJI_RIDDLES), erSolved: {}, erRevealed: false })
+
+  // ── Finish / winner celebration ──
+  const goResults = () => pushState({ screen: 'results', scores: keepScores() })
+  const resetScores = () => pushState({ screen: 'menu', scores: {} })
+
   // Host taps Start — go straight into the challenged game, or the picker.
   const launchInitial = () => {
     if (initialGame === 'spin') pushState({ screen: 'spin', spinAngle: 0, spinning: false })
@@ -428,6 +496,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (initialGame === 'hot') startHot()
     else if (initialGame === 'gma') startGma()
     else if (initialGame === 'ttl') startTtl()
+    else if (initialGame === 'wc') startWc()
+    else if (initialGame === 'er') startEr()
     else startMenu()
   }
 
@@ -473,6 +543,12 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const onTtlGuess = (idx: number) => { sfxTap(); if (isHost) { if (me.id !== gRef.current.ttlAsker) pushState({ ...gRef.current, ttlGuesses: { ...(gRef.current.ttlGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'ttlguess', idx }) }
   const onTtlReveal = () => { sfxReveal(); act({ a: 'ttlreveal' }, revealTtl) }
   const onTtlNext = () => act({ a: 'ttlnext' }, nextTtl)
+  const onWcSubmit = (word: string) => { sfxCorrect(); if (isHost) wcApply(me.id, word); else roomRef.current?.send('act', { a: 'wcword', word }) }
+  const onErGuess = (text: string) => { if (isHost) erSubmit(me.id, text); else roomRef.current?.send('act', { a: 'erguess', text }) }
+  const onErReveal = () => { sfxReveal(); act({ a: 'ereveal' }, revealEr) }
+  const onErNext = () => act({ a: 'ernext' }, nextEr)
+  const onFinish = () => { sfxLevelUp(); act({ a: 'results' }, goResults) }
+  const onResetScores = () => act({ a: 'resetscores' }, resetScores)
   const onBackMenu = () => act({ a: 'menu' }, startMenu)
 
   // ── reactions + chat (peer broadcast) ──
@@ -547,7 +623,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
           <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
-          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} onHot={() => { if (isHost) startHot() }} onGma={() => { if (isHost) startGma() }} onTtl={() => { if (isHost) startTtl() }} />
+          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} onHot={() => { if (isHost) startHot() }} onGma={() => { if (isHost) startGma() }} onTtl={() => { if (isHost) startTtl() }} onWc={() => { if (isHost) startWc() }} onEr={() => { if (isHost) startEr() }} onFinish={onFinish} scores={g.scores} />
         )}
         {g.screen === 'spin' && (
           <SpinView g={g} players={players} me={me} isHost={isHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
@@ -578,6 +654,15 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
         )}
         {g.screen === 'ttl' && (
           <TtlView g={g} me={me} players={players} isHost={isHost} onSubmit={onTtlSubmit} onGuess={onTtlGuess} onReveal={onTtlReveal} onNext={onTtlNext} onBack={onBackMenu} nameOf={nameOf} />
+        )}
+        {g.screen === 'wc' && (
+          <WcView g={g} me={me} isHost={isHost} onSubmit={onWcSubmit} onBack={onBackMenu} nameOf={nameOf} />
+        )}
+        {g.screen === 'er' && (
+          <ErView g={g} me={me} players={players} isHost={isHost} onGuess={onErGuess} onReveal={onErReveal} onNext={onErNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+        )}
+        {g.screen === 'results' && (
+          <ResultsView g={g} me={me} players={players} isHost={isHost} onPlayOn={onBackMenu} onReset={onResetScores} Avatar={Avatar} nameOf={nameOf} />
         )}
       </div>
 
@@ -646,11 +731,13 @@ function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avat
   )
 }
 
-function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps, onHot, onGma, onTtl }: any) {
+function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps, onHot, onGma, onTtl, onWc, onEr, onFinish, scores }: any) {
   const items = [
     { key: 'trivia', label: 'Trivia Duel', emoji: '🧠', color: C.green, fn: onTrivia },
     { key: 'ttl', label: 'Two Truths & a Lie', emoji: '🕵️', color: C.teal, fn: onTtl },
     { key: 'gma', label: 'Guess My Answer', emoji: '💘', color: C.pink, fn: onGma },
+    { key: 'er', label: 'Emoji Riddle', emoji: '🧩', color: C.purple, fn: onEr },
+    { key: 'wc', label: 'Word Chain', emoji: '🔗', color: C.green, fn: onWc },
     { key: 'spin', label: 'Spin the Bottle', emoji: '🍾', color: C.pink, fn: onSpinStart },
     { key: 'tod', label: 'Truth or Dare', emoji: '🎯', color: C.purple, fn: onTod },
     { key: 'nhie', label: 'Never Have I Ever', emoji: '🙈', color: C.teal, fn: onNhie },
@@ -660,14 +747,18 @@ function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMl
     { key: 'mlt', label: 'Most Likely To', emoji: '👉', color: C.amber, fn: onMlt },
     { key: 'rps', label: 'Rock Paper Scissors', emoji: '✊', color: C.red, fn: onRps },
   ]
+  const hasScores = scores && Object.keys(scores).length > 0
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ textAlign: 'center', color: C.muted, marginBottom: 4 }}>{isHost ? 'Pick a game — you both play it live' : 'Host is choosing a game…'}</div>
       {items.map(it => (
-        <button key={it.key} onClick={() => isHost && it.fn()} disabled={!isHost} style={{ display: 'flex', alignItems: 'center', gap: 16, background: C.card, border: `1px solid ${C.border}`, borderLeft: `4px solid ${it.color}`, borderRadius: RADIUS.lg, padding: '18px 20px', color: C.text, fontSize: 18, fontWeight: 700, cursor: isHost ? 'pointer' : 'default', opacity: isHost ? 1 : 0.6, textAlign: 'left', transition: `all ${MOTION.fast}` }}>
-          <span style={{ fontSize: 30 }}>{it.emoji}</span> {it.label}
+        <button key={it.key} onClick={() => isHost && it.fn()} disabled={!isHost} style={{ display: 'flex', alignItems: 'center', gap: 16, background: C.card, border: `1px solid ${C.border}`, borderLeft: `4px solid ${it.color}`, borderRadius: RADIUS.lg, padding: '16px 20px', color: C.text, fontSize: 17, fontWeight: 700, cursor: isHost ? 'pointer' : 'default', opacity: isHost ? 1 : 0.6, textAlign: 'left', transition: `all ${MOTION.fast}` }}>
+          <span style={{ fontSize: 28 }}>{it.emoji}</span> {it.label}
         </button>
       ))}
+      {isHost && hasScores && (
+        <button onClick={onFinish} style={{ ...solidBtn(C.amber), padding: '14px', fontSize: 15, marginTop: 4 }}>🏁 Finish &amp; crown the winner</button>
+      )}
     </div>
   )
 }
@@ -1102,6 +1193,127 @@ function TtlView({ g, me, players, isHost, onSubmit, onGuess, onReveal, onNext, 
           ) : (isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next player →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host continues…</div>)}
         </>
       )}
+    </div>
+  )
+}
+
+function WcView({ g, me, onSubmit, onBack, nameOf }: any) {
+  const words: string[] = g.wcWords || []
+  const req = words.length ? words[words.length - 1].slice(-1) : ''
+  const myTurn = g.wcTurnId === me.id
+  const turnLabel = myTurn ? 'Your turn' : `${nameOf?.(g.wcTurnId) || 'Someone'}'s turn`
+  const [word, setWord] = useState('')
+  const [err, setErr] = useState('')
+  useEffect(() => { setWord(''); setErr('') }, [g.wcTurnId, words.length])
+  const submit = () => {
+    const c = word.trim().toLowerCase()
+    if (!/^[a-z]{2,}$/.test(c)) { setErr('Letters only, 2+ characters'); return }
+    if (req && c[0] !== req) { setErr(`Must start with "${req.toUpperCase()}"`); return }
+    if (words.some(x => x === c)) { setErr('That word is already used'); return }
+    onSubmit(c); setWord('')
+  }
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>🔗 Word Chain</div>
+      <div style={{ textAlign: 'center', fontSize: 15, color: C.text }}>{turnLabel} — {req ? <>next word starts with <b style={{ color: C.green, fontSize: 22 }}>{req.toUpperCase()}</b></> : 'say any word'}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxHeight: 170, overflowY: 'auto' }}>
+        {words.map((w, i) => <span key={i} style={{ padding: '6px 12px', borderRadius: 999, background: C.card, border: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600 }}>{w}</span>)}
+        {!words.length && <span style={{ color: C.dim, fontSize: 13 }}>The chain starts here…</span>}
+      </div>
+      {myTurn ? (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input value={word} onChange={e => { setWord(e.target.value); setErr('') }} onKeyDown={e => e.key === 'Enter' && submit()} placeholder={req ? `${req.toUpperCase()}…` : 'your word'} autoFocus style={{ flex: 1, background: C.bg, border: `1px solid ${err ? C.red : C.border}`, borderRadius: RADIUS.md, color: C.text, padding: '12px 14px', fontSize: 16, outline: 'none' }} />
+          <button onClick={submit} style={solidBtn(C.green)}>Send</button>
+        </div>
+      ) : <div style={{ textAlign: 'center', color: C.muted, animation: 'kgpulse 1.4s infinite' }}>Waiting for {nameOf?.(g.wcTurnId) || 'the next player'}…</div>}
+      {err && <div style={{ textAlign: 'center', color: C.red, fontSize: 13 }}>{err}</div>}
+      <div style={{ textAlign: 'center', fontSize: 11, color: C.dim }}>+5 points per valid word · no repeats</div>
+    </div>
+  )
+}
+
+function ErView({ g, me, players, isHost, onGuess, onReveal, onNext, onBack, Avatar, nameOf }: any) {
+  const riddle = g.erRiddle || { emoji: '', answer: '' }
+  const solved = g.erSolved || {}
+  const iSolved = solved[me.id]
+  const [guess, setGuess] = useState('')
+  const [feedback, setFeedback] = useState('')
+  useEffect(() => { setGuess(''); setFeedback('') }, [g.erRiddle?.emoji])
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const submit = () => {
+    if (!guess.trim()) return
+    setFeedback(norm(guess) === norm(riddle.answer) ? '✓ Correct!' : 'Nope — try again')
+    onGuess(guess); setGuess('')
+  }
+  const solvedCount = Object.keys(solved).length
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>🧩 Emoji Riddle — guess the phrase</div>
+      <div style={{ textAlign: 'center', fontSize: 54, padding: '18px 0' }}>{riddle.emoji}</div>
+      {!g.erRevealed ? (
+        <>
+          {!iSolved ? (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={guess} onChange={e => { setGuess(e.target.value); setFeedback('') }} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="Type your guess…" autoFocus style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, color: C.text, padding: '12px 14px', fontSize: 16, outline: 'none' }} />
+              <button onClick={submit} style={solidBtn(C.purple)}>Guess</button>
+            </div>
+          ) : <div style={{ textAlign: 'center', color: C.green, fontWeight: 700 }}>✓ You got it! Waiting for others…</div>}
+          {feedback && !iSolved && <div style={{ textAlign: 'center', color: feedback.startsWith('✓') ? C.green : C.muted, fontSize: 14 }}>{feedback}</div>}
+          <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{solvedCount}/{players.length} solved it</div>
+          {isHost && <button onClick={onReveal} style={solidBtn(C.amber)}>Reveal answer 👀</button>}
+        </>
+      ) : (
+        <>
+          <div style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: C.pink }}>{riddle.answer}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {players.map((p: LivePlayer) => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: '8px 12px' }}>
+                <Avatar p={p} size={30} />
+                <div style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{p.id === me.id ? 'You' : (nameOf?.(p.id) || p.name)}</div>
+                <span>{solved[p.id] ? '✅ +10' : '—'}</span>
+              </div>
+            ))}
+          </div>
+          {isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next riddle →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host continues…</div>}
+        </>
+      )}
+    </div>
+  )
+}
+
+function ResultsView({ g, me, players, isHost, onPlayOn, onReset, Avatar, nameOf }: any) {
+  const ranked = [...players].map((p: LivePlayer) => ({ p, sc: (g.scores || {})[p.id] || 0 })).sort((a, b) => b.sc - a.sc)
+  const winner = ranked[0]
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+      <style>{`@keyframes kgpop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}`}</style>
+      <div style={{ fontSize: 14, color: C.muted, textTransform: 'uppercase', letterSpacing: 2 }}>🏁 Final results</div>
+      {winner && winner.sc > 0 && (
+        <div style={{ animation: 'kgpop .6s ease-out' }}>
+          <div style={{ fontSize: 56 }}>👑</div>
+          <Avatar p={winner.p} size={84} />
+          <div style={{ fontSize: 24, fontWeight: 800, marginTop: 8 }}>{winner.p.id === me.id ? 'You win!' : `${nameOf?.(winner.p.id) || winner.p.name} wins!`}</div>
+          <div style={{ fontSize: 16, color: C.amber, fontWeight: 700 }}>{winner.sc} points 🎉</div>
+        </div>
+      )}
+      <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {ranked.map(({ p, sc }, i) => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.card, border: `1px solid ${i === 0 ? C.amber : C.border}`, borderRadius: RADIUS.md, padding: '10px 14px' }}>
+            <span style={{ width: 22, fontWeight: 800, color: i === 0 ? C.amber : C.muted }}>{i + 1}</span>
+            <Avatar p={p} size={34} />
+            <div style={{ flex: 1, textAlign: 'left', fontWeight: 600 }}>{p.id === me.id ? 'You' : (nameOf?.(p.id) || p.name)}</div>
+            <span style={{ fontWeight: 800, color: C.amber }}>{sc}</span>
+          </div>
+        ))}
+      </div>
+      {isHost ? (
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onPlayOn} style={solidBtn(C.teal)}>Keep playing →</button>
+          <button onClick={onReset} style={{ ...solidBtn(C.card2), border: `1px solid ${C.border}` }}>Reset scores</button>
+        </div>
+      ) : <div style={{ color: C.muted }}>Host decides what's next…</div>}
     </div>
   )
 }
