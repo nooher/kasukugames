@@ -36,6 +36,7 @@ interface GState {
   nhieRevealed?: boolean
   // would-you-rather / this-or-that (shared A/B vote)
   choiceKind?: 'wyr' | 'tot'
+  choiceCat?: string
   choicePrompt?: { a: string; b: string }
   choiceVotes?: Record<string, 'a' | 'b'>
   choiceRevealed?: boolean
@@ -166,18 +167,42 @@ const NHIE_BY_CAT: Record<string, string[]> = {
     'Never have I ever doubted a choice long after making it.',
   ],
 }
-const WYR = [
-  { a: 'Travel the world together', b: 'Build a dream home together' },
-  { a: 'A quiet night in', b: 'A wild night out' },
-  { a: 'Forehead kisses', b: 'Long hugs' },
-  { a: 'Text all day', b: 'One long call at night' },
-  { a: 'Breakfast in bed', b: 'A midnight snack run' },
-  { a: 'Cook together', b: 'Order in and chill' },
-  { a: 'Slow dancing', b: 'Singing in the car' },
-  { a: 'Surprise gifts', b: 'Handwritten notes' },
-  { a: 'Rewatch a favourite', b: 'Try something new' },
-  { a: 'Sunrise together', b: 'Sunset together' },
-]
+const WYR_CATS = ['Fun', 'Deep', 'Couple', 'Spicy'] as const
+const WYR_BY_CAT: Record<string, { a: string; b: string }[]> = {
+  Fun: [
+    { a: 'Be able to fly', b: 'Be invisible' },
+    { a: 'Never wait in a queue again', b: 'Never hit traffic again' },
+    { a: 'Have unlimited data', b: 'Have unlimited fuel' },
+    { a: 'Be a famous singer', b: 'Be a famous footballer' },
+    { a: 'Always be 10 minutes early', b: 'Always have the perfect comeback' },
+    { a: 'Speak every language', b: 'Talk to animals' },
+    { a: 'Live by the beach', b: 'Live in the mountains' },
+  ],
+  Deep: [
+    { a: 'Know how you die', b: 'Know when you die' },
+    { a: 'Relive your best day', b: 'Erase your worst day' },
+    { a: 'Be respected', b: 'Be loved' },
+    { a: 'Have more time', b: 'Have more money' },
+    { a: 'Change one decision', b: 'See one moment of your future' },
+    { a: 'Be famous', b: 'Be at peace' },
+  ],
+  Couple: [
+    { a: 'Travel the world together', b: 'Build a dream home together' },
+    { a: 'A quiet night in', b: 'A wild night out' },
+    { a: 'Forehead kisses', b: 'Long hugs' },
+    { a: 'Text all day', b: 'One long call at night' },
+    { a: 'Cook together', b: 'Order in and chill' },
+    { a: 'Surprise gifts', b: 'Handwritten notes' },
+    { a: 'Sunrise together', b: 'Sunset together' },
+  ],
+  Spicy: [
+    { a: 'A slow dance', b: 'A stolen kiss' },
+    { a: 'A weekend away, just us', b: 'A surprise date night' },
+    { a: 'Whisper it', b: 'Write it in a note' },
+    { a: 'Candlelight', b: 'City lights' },
+    { a: 'Hold hands in public', b: 'Steal glances across the room' },
+  ],
+}
 const TOT = [
   { a: 'Coffee', b: 'Tea' }, { a: 'Beach', b: 'Mountains' }, { a: 'Morning', b: 'Night' },
   { a: 'Sweet', b: 'Savoury' }, { a: 'Call', b: 'Text' }, { a: 'City', b: 'Village' },
@@ -371,7 +396,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
       pushState({ ...cur, choiceVotes: votes })
     }
     else if (d.a === 'choicereveal') pushState({ ...cur, choiceRevealed: true })
-    else if (d.a === 'nextChoice') startChoice(cur.choiceKind || 'wyr')
+    else if (d.a === 'nextChoice') startChoice(cur.choiceKind || 'wyr', cur.choiceCat || 'Couple')
+    else if (d.a === 'choiceCat') startChoice(cur.choiceKind || 'wyr', d.cat)
     else if (d.a === 'tvote') pushState({ ...cur, triviaVotes: { ...(cur.triviaVotes || {}), [from]: d.choice } })
     else if (d.a === 'treveal') revealTrivia()
     else if (d.a === 'tnext') nextTrivia()
@@ -447,7 +473,10 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     pushState({ screen: 'tod', askerId: order[askerIdx], targetId: order[targetIdx], kind: null, prompt: null })
   }
   const startNhie = (cat = 'Party') => pushState({ screen: 'nhie', nhieCat: cat, nhiePrompt: pick(NHIE_BY_CAT[cat] || NHIE_BY_CAT.Party), nhieVotes: {}, nhieRevealed: false, scores: keepScores() })
-  const startChoice = (kind: 'wyr' | 'tot') => pushState({ screen: 'choice', choiceKind: kind, choicePrompt: pick(kind === 'wyr' ? WYR : TOT), choiceVotes: {}, choiceRevealed: false })
+  const startChoice = (kind: 'wyr' | 'tot', cat = 'Couple') => {
+    const prompt = kind === 'wyr' ? pick(WYR_BY_CAT[cat] || WYR_BY_CAT.Couple) : pick(TOT)
+    pushState({ screen: 'choice', choiceKind: kind, choiceCat: cat, choicePrompt: prompt, choiceVotes: {}, choiceRevealed: false, scores: keepScores() })
+  }
 
   // ── shared scoreboard ──
   const keepScores = () => gRef.current.scores || {}
@@ -610,7 +639,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else roomRef.current?.send('act', { a: 'choicevote', choice })
   }
   const onChoiceReveal = () => { sfxReveal(); act({ a: 'choicereveal' }, () => pushState({ ...gRef.current, choiceRevealed: true })) }
-  const onChoiceNext = () => act({ a: 'nextChoice' }, () => startChoice(gRef.current.choiceKind || 'wyr'))
+  const onChoiceNext = () => act({ a: 'nextChoice' }, () => startChoice(gRef.current.choiceKind || 'wyr', gRef.current.choiceCat || 'Couple'))
+  const onChoiceCat = (cat: string) => act({ a: 'choiceCat', cat }, () => startChoice(gRef.current.choiceKind || 'wyr', cat))
   const onTriviaVote = (choice: number) => { sfxTap(); if (isHost) pushState({ ...gRef.current, triviaVotes: { ...(gRef.current.triviaVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'tvote', choice }) }
   const onTriviaReveal = () => { sfxReveal(); act({ a: 'treveal' }, revealTrivia) }
   const onTriviaNext = () => act({ a: 'tnext' }, nextTrivia)
@@ -726,7 +756,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
           <NhieView g={g} me={me} players={players} isHost={isHost} onVote={onVote} onReveal={onReveal} onNext={onNextNhie} onCat={onNhieCat} onBack={onBackMenu} Avatar={Avatar} />
         )}
         {g.screen === 'choice' && (
-          <ChoiceView g={g} me={me} players={players} isHost={isHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+          <ChoiceView g={g} me={me} players={players} isHost={isHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onCat={onChoiceCat} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'trivia' && (
           <TriviaView g={g} me={me} players={players} isHost={isHost} onVote={onTriviaVote} onReveal={onTriviaReveal} onNext={onTriviaNext} onCat={onTriviaCat} onBack={onBackMenu} />
@@ -999,7 +1029,7 @@ function NhieView({ g, me, players, isHost, onVote, onReveal, onNext, onCat, onB
   )
 }
 
-function ChoiceView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, Avatar, nameOf }: any) {
+function ChoiceView({ g, me, players, isHost, onVote, onReveal, onNext, onCat, onBack, Avatar, nameOf }: any) {
   const votes = g.choiceVotes || {}
   const myVote = votes[me.id]
   const p = g.choicePrompt || { a: '', b: '' }
@@ -1009,6 +1039,13 @@ function ChoiceView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      {isWyr && isHost && (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {WYR_CATS.map(c => (
+            <button key={c} onClick={() => onCat(c)} style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: (g.choiceCat || 'Couple') === c ? (c === 'Spicy' ? C.red : C.blue) : 'transparent', color: (g.choiceCat || 'Couple') === c ? '#fff' : C.muted, border: `1px solid ${(g.choiceCat || 'Couple') === c ? (c === 'Spicy' ? C.red : C.blue) : C.border}` }}>{c === 'Spicy' ? '🌶️ ' : ''}{c}</button>
+          ))}
+        </div>
+      )}
       <div style={{ textAlign: 'center', fontSize: 13, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>{isWyr ? 'Would you rather…' : 'This or that — do you match?'}</div>
 
       {!g.choiceRevealed ? (
@@ -1403,6 +1440,7 @@ function ErView({ g, me, players, isHost, onGuess, onReveal, onNext, onBack, Ava
 function ResultsView({ g, me, players, isHost, onPlayOn, onReset, Avatar, nameOf }: any) {
   const ranked = [...players].map((p: LivePlayer) => ({ p, sc: (g.scores || {})[p.id] || 0 })).sort((a, b) => b.sc - a.sc)
   const winner = ranked[0]
+  useEffect(() => { try { if (winner && winner.sc > 0) sfxLevelUp() } catch { /* audio blocked */ } }, [])
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
       <style>{`@keyframes kgpop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
