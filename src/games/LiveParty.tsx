@@ -13,7 +13,7 @@ const C = {
 }
 const SEAT_COLORS = [C.pink, C.blue, C.green, C.purple, C.orange, C.teal, C.amber, C.red]
 
-type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps'
+type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps' | 'hot' | 'gma' | 'ttl'
 interface GState {
   screen: Screen
   turnIdx?: number
@@ -53,6 +53,24 @@ interface GState {
   rpsRevealed?: boolean
   rpsWins?: Record<string, number>
   rpsRound?: number
+  // hot takes (agree/disagree)
+  hotPrompt?: string
+  hotVotes?: Record<string, 'agree' | 'disagree'>
+  hotRevealed?: boolean
+  // guess my answer (couples)
+  gmaSubject?: string
+  gmaQ?: { q: string; options: string[] }
+  gmaPick?: number
+  gmaGuesses?: Record<string, number>
+  gmaPhase?: 'answer' | 'guess'
+  gmaRevealed?: boolean
+  // two truths & a lie
+  ttlAsker?: string
+  ttlStatements?: string[]
+  ttlLie?: number
+  ttlGuesses?: Record<string, number>
+  ttlPhase?: 'write' | 'guess'
+  ttlRevealed?: boolean
 }
 
 const TRUTHS = [
@@ -159,6 +177,24 @@ const MLT = [
   'adopt ten pets',
 ]
 
+const HOT_TAKES = [
+  'Pineapple belongs on pizza', 'Money can buy happiness', 'Long-distance relationships can work',
+  'Texting is better than calling', 'Breakfast is the best meal of the day', 'Cats are better than dogs',
+  'Social media does more harm than good', 'Being 10 minutes late is no big deal', 'Weddings should be small',
+  'Working from home beats the office', 'Football is the greatest sport', 'You should always split the bill',
+  'Reading beats watching TV', 'It is fine to reheat the same meal all week', 'Morning people have it better',
+]
+const GMA_QS = [
+  { q: 'My ideal weekend is…', options: ['Beach & sun', 'Home & movies', 'An adventure trip', 'Out with friends'] },
+  { q: 'My comfort food is…', options: ['Ugali & fish', 'Pilau', 'Chips mayai', 'Nyama choma'] },
+  { q: 'My love language is…', options: ['Words', 'Quality time', 'Gifts', 'Acts of service'] },
+  { q: 'On a free evening I…', options: ['Read a book', 'Watch a series', 'Call family', 'Go out'] },
+  { q: 'My dream holiday is…', options: ['Zanzibar beach', 'A safari', 'A big city', 'The mountains'] },
+  { q: 'My biggest pet peeve is…', options: ['Being late', 'Loud chewing', 'Messy spaces', 'Slow walkers'] },
+  { q: 'I relax by…', options: ['Music', 'Sleeping', 'Cooking', 'Exercising'] },
+  { q: 'My guilty pleasure is…', options: ['Sweets', 'Reality TV', 'Online shopping', 'Long naps'] },
+]
+
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '👏', '💋', '🥰', '😳']
 
 const rid = () => Math.random().toString(36).slice(2)
@@ -247,6 +283,17 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (d.a === 'rpick') pushState({ ...cur, rpsPicks: { ...(cur.rpsPicks || {}), [from]: d.choice } })
     else if (d.a === 'rreveal') revealRps()
     else if (d.a === 'rnext') nextRps()
+    else if (d.a === 'hotvote') pushState({ ...cur, hotVotes: { ...(cur.hotVotes || {}), [from]: d.choice } })
+    else if (d.a === 'hotreveal') revealHot()
+    else if (d.a === 'hotnext') nextHot()
+    else if (d.a === 'gmaanswer') { if (from === cur.gmaSubject) pushState({ ...cur, gmaPick: d.idx, gmaPhase: 'guess' }) }
+    else if (d.a === 'gmaguess') { if (from !== cur.gmaSubject) pushState({ ...cur, gmaGuesses: { ...(cur.gmaGuesses || {}), [from]: d.idx } }) }
+    else if (d.a === 'gmareveal') revealGma()
+    else if (d.a === 'gmanext') nextGma()
+    else if (d.a === 'ttlsubmit') { if (from === cur.ttlAsker) pushState({ ...cur, ttlStatements: d.statements, ttlLie: d.lie, ttlPhase: 'guess', ttlGuesses: {} }) }
+    else if (d.a === 'ttlguess') { if (from !== cur.ttlAsker) pushState({ ...cur, ttlGuesses: { ...(cur.ttlGuesses || {}), [from]: d.idx } }) }
+    else if (d.a === 'ttlreveal') revealTtl()
+    else if (d.a === 'ttlnext') nextTtl()
     else if (d.a === 'menu') pushState({ screen: 'menu' })
   }
 
@@ -343,6 +390,31 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
   const nextRps = () => pushState({ ...gRef.current, rpsPicks: {}, rpsRevealed: false, rpsRound: (gRef.current.rpsRound || 1) + 1 })
 
+  // ── Hot Takes ──
+  const startHot = () => pushState({ screen: 'hot', hotPrompt: pick(HOT_TAKES), hotVotes: {}, hotRevealed: false, scores: keepScores() })
+  const revealHot = () => pushState({ ...gRef.current, hotRevealed: true })
+  const nextHot = () => pushState({ ...gRef.current, hotPrompt: pick(HOT_TAKES), hotVotes: {}, hotRevealed: false })
+
+  // ── Guess My Answer (couples) ──
+  const startGma = () => pushState({ screen: 'gma', gmaSubject: ids()[0] || me.id, gmaQ: pick(GMA_QS), gmaPick: undefined, gmaGuesses: {}, gmaPhase: 'answer', gmaRevealed: false, scores: keepScores() })
+  const revealGma = () => {
+    const cur = gRef.current; const s = { ...(cur.scores || {}) }; let matched = 0
+    for (const [pid, gi] of Object.entries(cur.gmaGuesses || {})) if (gi === cur.gmaPick) { s[pid] = (s[pid] || 0) + 10; matched++ }
+    if (matched === 0 && cur.gmaSubject) s[cur.gmaSubject] = (s[cur.gmaSubject] || 0) + 5
+    pushState({ ...cur, gmaRevealed: true, scores: s })
+  }
+  const nextGma = () => { const cur = gRef.current; const order = ids(); const i = cur.gmaSubject ? order.indexOf(cur.gmaSubject) : -1; pushState({ ...cur, gmaSubject: order[(i + 1) % Math.max(1, order.length)], gmaQ: pick(GMA_QS), gmaPick: undefined, gmaGuesses: {}, gmaPhase: 'answer', gmaRevealed: false }) }
+
+  // ── Two Truths & a Lie ──
+  const startTtl = () => pushState({ screen: 'ttl', ttlAsker: ids()[0] || me.id, ttlStatements: undefined, ttlLie: undefined, ttlGuesses: {}, ttlPhase: 'write', ttlRevealed: false, scores: keepScores() })
+  const revealTtl = () => {
+    const cur = gRef.current; const s = { ...(cur.scores || {}) }; let fooled = 0
+    for (const [pid, gi] of Object.entries(cur.ttlGuesses || {})) { if (gi === cur.ttlLie) s[pid] = (s[pid] || 0) + 10; else fooled++ }
+    if (cur.ttlAsker) s[cur.ttlAsker] = (s[cur.ttlAsker] || 0) + fooled * 5
+    pushState({ ...cur, ttlRevealed: true, scores: s })
+  }
+  const nextTtl = () => { const cur = gRef.current; const order = ids(); const i = cur.ttlAsker ? order.indexOf(cur.ttlAsker) : -1; pushState({ ...cur, ttlAsker: order[(i + 1) % Math.max(1, order.length)], ttlStatements: undefined, ttlLie: undefined, ttlGuesses: {}, ttlPhase: 'write', ttlRevealed: false }) }
+
   // Host taps Start — go straight into the challenged game, or the picker.
   const launchInitial = () => {
     if (initialGame === 'spin') pushState({ screen: 'spin', spinAngle: 0, spinning: false })
@@ -353,6 +425,9 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (initialGame === 'trivia') startTrivia('Mixed')
     else if (initialGame === 'mlt') startMlt()
     else if (initialGame === 'rps') startRps()
+    else if (initialGame === 'hot') startHot()
+    else if (initialGame === 'gma') startGma()
+    else if (initialGame === 'ttl') startTtl()
     else startMenu()
   }
 
@@ -387,6 +462,17 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const onRpsPick = (choice: 'r' | 'p' | 's') => { sfxTap(); if (isHost) pushState({ ...gRef.current, rpsPicks: { ...(gRef.current.rpsPicks || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'rpick', choice }) }
   const onRpsReveal = () => { sfxReveal(); act({ a: 'rreveal' }, revealRps) }
   const onRpsNext = () => act({ a: 'rnext' }, nextRps)
+  const onHotVote = (choice: 'agree' | 'disagree') => { sfxTap(); if (isHost) pushState({ ...gRef.current, hotVotes: { ...(gRef.current.hotVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'hotvote', choice }) }
+  const onHotReveal = () => { sfxReveal(); act({ a: 'hotreveal' }, revealHot) }
+  const onHotNext = () => act({ a: 'hotnext' }, nextHot)
+  const onGmaAnswer = (idx: number) => { sfxTap(); if (isHost) { if (me.id === gRef.current.gmaSubject) pushState({ ...gRef.current, gmaPick: idx, gmaPhase: 'guess' }) } else roomRef.current?.send('act', { a: 'gmaanswer', idx }) }
+  const onGmaGuess = (idx: number) => { sfxTap(); if (isHost) { if (me.id !== gRef.current.gmaSubject) pushState({ ...gRef.current, gmaGuesses: { ...(gRef.current.gmaGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'gmaguess', idx }) }
+  const onGmaReveal = () => { sfxReveal(); act({ a: 'gmareveal' }, revealGma) }
+  const onGmaNext = () => act({ a: 'gmanext' }, nextGma)
+  const onTtlSubmit = (statements: string[], lie: number) => { sfxCorrect(); if (isHost) { if (me.id === gRef.current.ttlAsker) pushState({ ...gRef.current, ttlStatements: statements, ttlLie: lie, ttlPhase: 'guess', ttlGuesses: {} }) } else roomRef.current?.send('act', { a: 'ttlsubmit', statements, lie }) }
+  const onTtlGuess = (idx: number) => { sfxTap(); if (isHost) { if (me.id !== gRef.current.ttlAsker) pushState({ ...gRef.current, ttlGuesses: { ...(gRef.current.ttlGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'ttlguess', idx }) }
+  const onTtlReveal = () => { sfxReveal(); act({ a: 'ttlreveal' }, revealTtl) }
+  const onTtlNext = () => act({ a: 'ttlnext' }, nextTtl)
   const onBackMenu = () => act({ a: 'menu' }, startMenu)
 
   // ── reactions + chat (peer broadcast) ──
@@ -461,7 +547,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
           <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
-          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} />
+          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} onHot={() => { if (isHost) startHot() }} onGma={() => { if (isHost) startGma() }} onTtl={() => { if (isHost) startTtl() }} />
         )}
         {g.screen === 'spin' && (
           <SpinView g={g} players={players} me={me} isHost={isHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
@@ -483,6 +569,15 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
         )}
         {g.screen === 'rps' && (
           <RpsView g={g} me={me} players={players} isHost={isHost} onPick={onRpsPick} onReveal={onRpsReveal} onNext={onRpsNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+        )}
+        {g.screen === 'hot' && (
+          <HotView g={g} me={me} players={players} isHost={isHost} onVote={onHotVote} onReveal={onHotReveal} onNext={onHotNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+        )}
+        {g.screen === 'gma' && (
+          <GmaView g={g} me={me} players={players} isHost={isHost} onAnswer={onGmaAnswer} onGuess={onGmaGuess} onReveal={onGmaReveal} onNext={onGmaNext} onBack={onBackMenu} nameOf={nameOf} />
+        )}
+        {g.screen === 'ttl' && (
+          <TtlView g={g} me={me} players={players} isHost={isHost} onSubmit={onTtlSubmit} onGuess={onTtlGuess} onReveal={onTtlReveal} onNext={onTtlNext} onBack={onBackMenu} nameOf={nameOf} />
         )}
       </div>
 
@@ -551,14 +646,17 @@ function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avat
   )
 }
 
-function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps }: any) {
+function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps, onHot, onGma, onTtl }: any) {
   const items = [
     { key: 'trivia', label: 'Trivia Duel', emoji: '🧠', color: C.green, fn: onTrivia },
+    { key: 'ttl', label: 'Two Truths & a Lie', emoji: '🕵️', color: C.teal, fn: onTtl },
+    { key: 'gma', label: 'Guess My Answer', emoji: '💘', color: C.pink, fn: onGma },
     { key: 'spin', label: 'Spin the Bottle', emoji: '🍾', color: C.pink, fn: onSpinStart },
     { key: 'tod', label: 'Truth or Dare', emoji: '🎯', color: C.purple, fn: onTod },
     { key: 'nhie', label: 'Never Have I Ever', emoji: '🙈', color: C.teal, fn: onNhie },
     { key: 'wyr', label: 'Would You Rather', emoji: '🤔', color: C.blue, fn: onWyr },
     { key: 'tot', label: 'This or That — do you match?', emoji: '💞', color: C.orange, fn: onTot },
+    { key: 'hot', label: 'Hot Takes', emoji: '🌶️', color: C.red, fn: onHot },
     { key: 'mlt', label: 'Most Likely To', emoji: '👉', color: C.amber, fn: onMlt },
     { key: 'rps', label: 'Rock Paper Scissors', emoji: '✊', color: C.red, fn: onRps },
   ]
@@ -861,6 +959,147 @@ function RpsView({ g, me, players, isHost, onPick, onReveal, onNext, onBack, Ava
             })}
           </div>
           {isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next round →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will start the next round…</div>}
+        </>
+      )}
+    </div>
+  )
+}
+
+function HotView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, Avatar, nameOf }: any) {
+  const votes = g.hotVotes || {}
+  const myVote = votes[me.id]
+  const agree = Object.values(votes).filter(v => v === 'agree').length
+  const disagree = Object.values(votes).filter(v => v === 'disagree').length
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>🌶️ Hot take</div>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, padding: 24, fontSize: 20, fontWeight: 700, textAlign: 'center', lineHeight: 1.4 }}>{g.hotPrompt}</div>
+      {!g.hotRevealed ? (
+        <>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button onClick={() => onVote('agree')} disabled={myVote !== undefined} style={{ ...solidBtn(myVote === 'agree' ? C.green : C.card2), flex: 1, padding: 18, fontSize: 16, border: myVote === 'agree' ? `2px solid ${C.green}` : `1px solid ${C.border}` }}>Agree 👍</button>
+            <button onClick={() => onVote('disagree')} disabled={myVote !== undefined} style={{ ...solidBtn(myVote === 'disagree' ? C.red : C.card2), flex: 1, padding: 18, fontSize: 16, border: myVote === 'disagree' ? `2px solid ${C.red}` : `1px solid ${C.border}` }}>Disagree 👎</button>
+          </div>
+          <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{Object.keys(votes).length}/{players.length} answered</div>
+          {isHost && <button onClick={onReveal} disabled={!Object.keys(votes).length} style={{ ...solidBtn(Object.keys(votes).length ? C.amber : C.dim), opacity: Object.keys(votes).length ? 1 : 0.5 }}>Reveal 👀</button>}
+        </>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 12, textAlign: 'center' }}>
+            <div style={{ flex: 1, background: C.green + '18', border: `1px solid ${C.green}`, borderRadius: RADIUS.md, padding: 14 }}><div style={{ fontSize: 26, fontWeight: 800, color: C.green }}>{agree}</div><div style={{ fontSize: 12, color: C.muted }}>Agree</div></div>
+            <div style={{ flex: 1, background: C.red + '18', border: `1px solid ${C.red}`, borderRadius: RADIUS.md, padding: 14 }}><div style={{ fontSize: 26, fontWeight: 800, color: C.red }}>{disagree}</div><div style={{ fontSize: 12, color: C.muted }}>Disagree</div></div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {players.map((p: LivePlayer) => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: '8px 12px' }}>
+                <Avatar p={p} size={30} />
+                <div style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{p.id === me.id ? 'You' : (nameOf?.(p.id) || p.name)}</div>
+                <span style={{ fontWeight: 700 }}>{votes[p.id] === 'agree' ? '👍' : votes[p.id] === 'disagree' ? '👎' : '—'}</span>
+              </div>
+            ))}
+          </div>
+          {isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next take →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will bring the next one…</div>}
+        </>
+      )}
+    </div>
+  )
+}
+
+function GmaView({ g, me, players, isHost, onAnswer, onGuess, onReveal, onNext, onBack, nameOf }: any) {
+  const subj = g.gmaSubject
+  const iAmSubject = subj === me.id
+  const q = g.gmaQ || { q: '', options: [] }
+  const guesses = g.gmaGuesses || {}
+  const myGuess = guesses[me.id]
+  const subjName = iAmSubject ? 'You' : (nameOf?.(subj) || 'Someone')
+  const guessers = players.filter((p: LivePlayer) => p.id !== subj)
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>💘 Guess {subjName === 'You' ? 'your' : subjName + "'s"} answer</div>
+        <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{q.q}</div>
+      </div>
+      {g.gmaPhase === 'answer' ? (
+        iAmSubject ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>Pick YOUR real answer (secret):</div>
+            {q.options.map((o: string, i: number) => <button key={i} onClick={() => onAnswer(i)} style={{ ...solidBtn(C.card2), padding: '14px 16px', textAlign: 'left', border: `1px solid ${C.border}` }}>{o}</button>)}
+          </div>
+        ) : <div style={{ textAlign: 'center', color: C.muted, marginTop: 20, animation: 'kgpulse 1.4s infinite' }}>{subjName} is choosing their answer…</div>
+      ) : (
+        <>
+          {iAmSubject ? (
+            <div style={{ textAlign: 'center', color: C.muted, marginTop: 6 }}>You answered secretly. Let's see who knows you…</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>What did {subjName} pick?</div>
+              {q.options.map((o: string, i: number) => {
+                const chosen = myGuess === i
+                const correct = g.gmaRevealed && i === g.gmaPick
+                const wrong = g.gmaRevealed && chosen && i !== g.gmaPick
+                return <button key={i} disabled={g.gmaRevealed || myGuess !== undefined} onClick={() => onGuess(i)} style={{ background: correct ? C.green : wrong ? C.red : chosen ? C.blue : C.card2, border: `1px solid ${correct ? C.green : wrong ? C.red : chosen ? C.blue : C.border}`, borderRadius: RADIUS.md, padding: '14px 16px', color: C.text, fontSize: 15, fontWeight: 600, textAlign: 'left', cursor: (g.gmaRevealed || myGuess !== undefined) ? 'default' : 'pointer', opacity: (g.gmaRevealed && !correct && !chosen) ? 0.55 : 1 }}>{o}{correct ? '  ✓' : ''}</button>
+              })}
+            </div>
+          )}
+          {g.gmaRevealed && <div style={{ textAlign: 'center', fontSize: 15, fontWeight: 700, color: C.pink }}>{subjName} picked “{q.options[g.gmaPick]}”</div>}
+          {!g.gmaRevealed ? (
+            <>
+              <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{Object.keys(guesses).length}/{guessers.length} guessed</div>
+              {isHost && <button onClick={onReveal} disabled={!Object.keys(guesses).length} style={{ ...solidBtn(Object.keys(guesses).length ? C.amber : C.dim), opacity: Object.keys(guesses).length ? 1 : 0.5 }}>Reveal 👀</button>}
+            </>
+          ) : (isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next person →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host continues…</div>)}
+        </>
+      )}
+    </div>
+  )
+}
+
+function TtlView({ g, me, players, isHost, onSubmit, onGuess, onReveal, onNext, onBack, nameOf }: any) {
+  const asker = g.ttlAsker
+  const iAmAsker = asker === me.id
+  const askerName = iAmAsker ? 'You' : (nameOf?.(asker) || 'Someone')
+  const [s0, setS0] = useState(''); const [s1, setS1] = useState(''); const [s2, setS2] = useState(''); const [lie, setLie] = useState<number | null>(null)
+  useEffect(() => { setS0(''); setS1(''); setS2(''); setLie(null) }, [g.ttlAsker])
+  const guesses = g.ttlGuesses || {}
+  const myGuess = guesses[me.id]
+  const guessers = players.filter((p: LivePlayer) => p.id !== asker)
+  const ready = s0.trim() && s1.trim() && s2.trim() && lie !== null
+  const setters: Array<[string, (v: string) => void]> = [[s0, setS0], [s1, setS1], [s2, setS2]]
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>🕵️ Two Truths &amp; a Lie — {askerName}</div>
+      {g.ttlPhase === 'write' ? (
+        iAmAsker ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 13, color: C.muted }}>Write 3 statements about you — 2 true, 1 lie. Tap ⚑ on your lie.</div>
+            {setters.map(([val, set], i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input value={val} onChange={e => set(e.target.value)} placeholder={`Statement ${i + 1}`} style={{ flex: 1, background: C.bg, border: `1px solid ${lie === i ? C.red : C.border}`, borderRadius: RADIUS.md, color: C.text, padding: '10px 12px', fontSize: 14, outline: 'none' }} />
+                <button onClick={() => setLie(i)} title="This is the lie" style={{ background: lie === i ? C.red : C.card2, border: `1px solid ${lie === i ? C.red : C.border}`, borderRadius: RADIUS.md, color: '#fff', width: 42, height: 42, cursor: 'pointer', flexShrink: 0 }}>⚑</button>
+              </div>
+            ))}
+            <button onClick={() => { if (ready) onSubmit([s0.trim(), s1.trim(), s2.trim()], lie) }} disabled={!ready} style={{ ...solidBtn(C.teal), opacity: ready ? 1 : 0.5 }}>Send to the room →</button>
+          </div>
+        ) : <div style={{ textAlign: 'center', color: C.muted, marginTop: 20, animation: 'kgpulse 1.4s infinite' }}>{askerName} is writing their statements…</div>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, color: C.muted, textAlign: 'center' }}>{iAmAsker ? 'Will they catch your lie?' : `Which is ${askerName}'s LIE?`}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {(g.ttlStatements || []).map((st: string, i: number) => {
+              const chosen = myGuess === i
+              const isLie = g.ttlRevealed && i === g.ttlLie
+              return <button key={i} disabled={iAmAsker || g.ttlRevealed || myGuess !== undefined} onClick={() => onGuess(i)} style={{ background: isLie ? C.red : chosen ? C.blue : C.card, border: `1px solid ${isLie ? C.red : chosen ? C.blue : C.border}`, borderRadius: RADIUS.md, padding: '14px 16px', color: C.text, fontSize: 15, fontWeight: 600, textAlign: 'left', cursor: (iAmAsker || g.ttlRevealed || myGuess !== undefined) ? 'default' : 'pointer', opacity: (g.ttlRevealed && !isLie && !chosen) ? 0.6 : 1 }}>{st}{isLie ? '  🤥 LIE' : ''}</button>
+            })}
+          </div>
+          {!g.ttlRevealed ? (
+            <>
+              <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{Object.keys(guesses).length}/{guessers.length} guessed</div>
+              {isHost && <button onClick={onReveal} disabled={!Object.keys(guesses).length} style={{ ...solidBtn(Object.keys(guesses).length ? C.amber : C.dim), opacity: Object.keys(guesses).length ? 1 : 0.5 }}>Reveal the lie 🤥</button>}
+            </>
+          ) : (isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next player →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host continues…</div>)}
         </>
       )}
     </div>
