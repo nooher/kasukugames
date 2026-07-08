@@ -42,6 +42,7 @@ export const TARGET_META: Record<CognitiveTarget, { label: string; color: string
 }
 
 export type GameCategory =
+  | 'flagship'
   | 'iq-arena'
   | 'fast-brain'
   | 'language-arena'
@@ -60,6 +61,7 @@ export type GameCategory =
   | 'classic'
 
 export const CATEGORY_META: Record<GameCategory, { label: string; sub: string; color: string }> = {
+  'flagship': { label: 'Flagship', sub: 'The signature Tanzania experience', color: '#7a5cf0' },
   'iq-arena': { label: 'IQ Arena', sub: 'Classic intelligence challenges', color: '#c4a882' },
   'fast-brain': { label: 'Fast Brain', sub: 'Reaction + thinking', color: '#c9a96e' },
   'language-arena': { label: 'Language Arena', sub: 'Linguistic mastery', color: '#8aada8' },

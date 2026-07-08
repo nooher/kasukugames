@@ -84,6 +84,7 @@ const ScriptureQuest = lazy(() => import('./games/ScriptureQuest'))
 const SpinTheBottle = lazy(() => import('./games/SpinTheBottle'))
 const LiveParty = lazy(() => import('./games/LiveParty'))
 const CouplesQuiz = lazy(() => import('./games/CouplesQuiz'))
+const Tanzanite = lazy(() => import('./games/Tanzanite'))
 
 export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
 type GameComp = React.LazyExoticComponent<React.ComponentType<{ onBack: () => void; onGameEnd?: (r: GameResult) => void }>>
@@ -118,6 +119,7 @@ const GAME_COMPONENTS: Record<string, GameComp> = {
   'scripture-quest': ScriptureQuest,
   'spin-the-bottle': SpinTheBottle,
   'couples-quiz': CouplesQuiz,
+  'tanzanite': Tanzanite,
 }
 
 

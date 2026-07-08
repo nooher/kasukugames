@@ -2,6 +2,17 @@ import type { GameDef } from './cognitive'
 
 export const GAMES: GameDef[] = [
   {
+    id: 'tanzanite',
+    title: 'Tanzanite',
+    subtitle: 'The Merelani Deep',
+    category: 'flagship',
+    targets: ['strategic-planning', 'decision-making', 'probabilistic-reasoning', 'spatial-reasoning'],
+    difficulty: 'expert',
+    players: '1',
+    duration: '15+ min',
+    description: 'The flagship. Mine the only tanzanite deposit on Earth, heat-treat rough to unlock the blue, cut along the pleochroic axis, grade the 4Cs, certify on-chain, and trade under scarcity to build your Tanzanite house. Every mechanic is real gemology.',
+  },
+  {
     id: 'matrix-forge',
     title: 'Matrix Forge',
     subtitle: 'Advanced pattern matrices',
