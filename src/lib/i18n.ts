@@ -147,6 +147,8 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   gaming_music: { en: 'Gaming', sw: 'Michezo' },
   brain_massage: { en: 'Brain Massage', sw: 'Ubongo' },
   study: { en: 'Study', sw: 'Kusoma' },
+  audiobooks: { en: 'Audiobooks', sw: 'Vitabu vya Sauti' },
+  browse_kasuku: { en: 'Browse the full library in Kasuku →', sw: 'Vinjari maktaba kamili katika Kasuku →' },
   ambient: { en: 'Ambient', sw: 'Mazingira' },
   sound: { en: 'Sound', sw: 'Sauti' },
   presets: { en: 'Presets', sw: 'Mipangilio' },

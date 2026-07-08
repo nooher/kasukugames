@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties }
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   Repeat, Shuffle, ChevronDown, ChevronUp, Music, X,
-  BookOpen, Waves, FolderOpen, List, Gamepad2, Brain, SlidersHorizontal, GraduationCap,
+  BookOpen, Waves, FolderOpen, List, Gamepad2, Brain, SlidersHorizontal, GraduationCap, Headphones, ExternalLink,
 } from 'lucide-react'
 import { RADIUS, MOTION } from '../lib/design'
 import { getPalette, type Theme } from '../lib/theme'
@@ -285,6 +285,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       case 'gaming': return <Gamepad2 size={12} />
       case 'brainmassage': return <Brain size={12} />
       case 'study': return <GraduationCap size={12} />
+      case 'audiobook': return <Headphones size={12} />
       default: return <Music size={12} />
     }
   }
@@ -297,6 +298,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
       case 'gaming': return P.fuchsia
       case 'brainmassage': return P.cyan
       case 'study': return P.lime
+      case 'audiobook': return P.gold
       default: return P.amber
     }
   }
@@ -310,6 +312,7 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     { key: 'gaming', label: t('gaming_music') },
     { key: 'brainmassage', label: t('brain_massage') },
     { key: 'study', label: t('study') },
+    { key: 'audiobook', label: t('audiobooks') },
     { key: 'ambient', label: t('ambient') },
   ]
   const shownTracks = cat === 'all' ? allTracks : allTracks.filter(tr => tr.category === cat)
@@ -456,6 +459,11 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
                     <FolderOpen size={14} /> {t('play_local_audio')}
                     <input type="file" accept="audio/*" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
                   </label>
+                  {cat === 'audiobook' && (
+                    <a href="https://kasuku.tz" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', color: P.gold, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                      <ExternalLink size={13} /> {t('browse_kasuku')}
+                    </a>
+                  )}
                   {shownTracks.length === 0 && (
                     <div style={{ padding: '16px 14px', textAlign: 'center', color: P.textDim, fontSize: 11 }}>{t('no_track')}</div>
                   )}
