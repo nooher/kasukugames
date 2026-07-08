@@ -29,7 +29,7 @@ import {
 import { signInWithKasuku, signUpWithKasuku, syncKasukuToLocal } from './lib/kasuku-bridge'
 import {
   loadNotifications, markAllRead, getUnreadCount,
-  requestNotificationPermission, submitScore,
+  requestNotificationPermission, submitScore, addNotification,
 } from './lib/notifications'
 import {
   processLogin, spinLuckyDraw, checkMilestones,
@@ -43,8 +43,9 @@ import {
 } from './lib/connections'
 import { listenForInvites, sendLiveInvite, makeRoomCode, LIVE_GAMES, type LivePlayer, type LiveInvite, type NotifStyle } from './lib/liveRoom'
 import { fetchLeaderboard, pushMyStats } from './lib/leaderboard'
-import { followOnKasuku } from './lib/friends'
+import { followOnKasuku, fetchKasukuPeople } from './lib/friends'
 import { joinOnline } from './lib/online'
+import { checkLostRecords, pushRecord } from './lib/records'
 import { sfxLevelUp } from './lib/sfx'
 // GameCard import removed — HomeSection no longer uses the full game grid
 import Logo from './components/Logo'
@@ -306,11 +307,31 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [profile?.username, profile?.xp, profile?.totalGames])
 
-  // Global online presence → live green light for people who are here now.
+  // Global online presence → live green light + "a friend is here" notifications.
   const [online, setOnline] = useState<Set<string>>(new Set())
+  const followsRef = useRef<Map<string, string>>(new Map())
+  const notifiedOnlineRef = useRef<Set<string>>(new Set())
+  const firstOnlineSync = useRef(true)
   useEffect(() => {
     if (!profile?.username) return
-    return joinOnline(profile.username, setOnline)
+    firstOnlineSync.current = true
+    fetchKasukuPeople().then(people => { followsRef.current = new Map(people.map(p => [p.handle.toLowerCase(), p.name])) })
+    // Notify me when a game-record I held gets beaten by someone else.
+    checkLostRecords((game, by) => addNotification({ type: 'record_broken', title: 'Record broken', message: `${by} beat your record in ${game}!`, icon: 'trophy', color: '#f59e0b' }))
+    const me = profile.username.toLowerCase()
+    const off = joinOnline(profile.username, set => {
+      setOnline(set)
+      if (firstOnlineSync.current) { firstOnlineSync.current = false; for (const h of set) notifiedOnlineRef.current.add(h); return }
+      for (const h of set) {
+        if (h === me || notifiedOnlineRef.current.has(h)) continue
+        notifiedOnlineRef.current.add(h)
+        if (followsRef.current.has(h)) {
+          addNotification({ type: 'social', title: 'A friend is online', message: `${followsRef.current.get(h)} is now on KasukuGames — challenge them to a live game!`, icon: 'users', color: '#22c55e' })
+        }
+      }
+      for (const h of Array.from(notifiedOnlineRef.current)) if (!set.has(h)) notifiedOnlineRef.current.delete(h)
+    })
+    return off
   }, [profile?.username])
 
   useEffect(() => {
@@ -433,6 +454,7 @@ export default function App() {
         const game = GAMES.find(g => g.id === activeGame)
         if (game) {
           submitScore(activeGame, game.title, p.id, p.displayName, score)
+          pushRecord(activeGame, game.title, score)
         }
         saveScore({
           gameId: activeGame,

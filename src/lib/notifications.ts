@@ -57,8 +57,8 @@ export function submitScore(gameId: string, gameName: string, playerId: string, 
     if (previousHolder) {
       addNotification({
         type: 'record_broken',
-        title: 'Rekodi Imevunjwa!',
-        message: `${playerName} amevunja rekodi yako kwenye ${gameName} na alama ${score.toLocaleString()}!`,
+        title: 'Record broken!',
+        message: `${playerName} beat your record in ${gameName} with ${score.toLocaleString()}!`,
         icon: 'trophy',
         color: '#f59e0b',
       })
