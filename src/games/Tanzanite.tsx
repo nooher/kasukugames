@@ -12,7 +12,7 @@ import { loadProfile } from '../lib/rewards'
 import { pushHouse, fetchHouses, type HouseEntry } from '../lib/tanzaniteCloud'
 import {
   MINERAL, STRATA, BLOCKS, SHAPES, CODEX, RANKS, UPGRADE_META, TREAT_IDEAL, TROPHIES, TIER_COLOR,
-  strataAt, digRough, geodeRough, rollMineEvent, rollMarketEvent, treat, cutStone, grade, certify,
+  strataAt, digRough, bonusRough, geodeRough, rollMineEvent, rollMarketEvent, treat, cutStone, grade, certify,
   makeOffers, rankOf, upgradeCost, gemColor, colorGradeOf, clamp01, round2,
   generateContract, contractMet, collectionValue,
   type BlockId, type Rough, type Treated, type Cut, type Graded, type Upgrades, type Offer,
@@ -44,7 +44,15 @@ const freshSave = (): Save => ({
   inventory: [], vault: [], trophies: [], contract: null, contractsDone: 0, stonesProcessed: 0,
   soundOn: true, seenIntro: false,
 })
-function loadSave(): Save { try { return { ...freshSave(), ...JSON.parse(localStorage.getItem(SAVE_KEY) || '') } } catch { return freshSave() } }
+function loadSave(): Save {
+  try {
+    const s = { ...freshSave(), ...JSON.parse(localStorage.getItem(SAVE_KEY) || '') }
+    // Self-heal: drop any malformed rough/stone that could crash a render.
+    s.inventory = (Array.isArray(s.inventory) ? s.inventory : []).filter((r: any) => r && typeof r.caratRough === 'number')
+    s.vault = (Array.isArray(s.vault) ? s.vault : []).filter((g: any) => g && typeof g.carat === 'number')
+    return s
+  } catch { return freshSave() }
+}
 
 let _rngState = (Date.now() % 2147483647) || 1
 const rng = () => { _rngState = (_rngState * 48271) % 2147483647; return _rngState / 2147483647 }
@@ -261,11 +269,11 @@ function Mine({ save, patch, sfx, unlockCodex, earnTrophy, go, flash }: any) {
   )
 
   const strata = strataAt(depth)
-  const addRough = (r: Rough) => { if (inv.current.length >= bag) { flash('Bag is full — process or sell first.'); return false } inv.current.push(r); patch((s: Save) => ({ ...s, inventory: [...inv.current] })); return true }
+  const addRough = (r: Rough | null) => { if (!r) return false; if (inv.current.length >= bag) { flash('Bag is full — process or sell first.'); return false } inv.current.push(r); patch((s: Save) => ({ ...s, inventory: [...inv.current] })); return true }
 
   function resolveEvent(ev: MineEvent) {
     if (ev.kind === 'bad') { sfx.wrong(); setStamina(ev.id === 'rockfall' ? Math.max(0, Math.floor(stamina / 2)) : 0); setEvent(ev); unlockCodex('oxygen') }
-    else if (ev.id === 'vug') { const r = digRough(block!, depth, rng) || digRough(block!, depth + 60, () => 0.5)!; addRough(r); setParts(burstParticles(50, 40, C.violet, 16)); setEvent(ev) }
+    else if (ev.id === 'vug') { addRough(bonusRough(block!, depth, rng)); setParts(burstParticles(50, 40, C.violet, 16)); setEvent(ev) }
     else if (ev.id === 'geode') { earnTrophy('geode'); const r = geodeRough(block!, depth, rng); addRough(r); setParts(burstParticles(50, 40, C.gold, 30)); sfx.up(); setEvent(ev) }
     else if (ev.id === 'seam') { setSeamBoost(0.25); setEvent(ev) }
     else { unlockCodex('formed'); setEvent(ev) }
@@ -362,14 +370,22 @@ function TreatLab({ save, rough, sfx, onDone, go, unlockCodex, earnTrophy }: any
   useEffect(() => { if (phase !== 'aim') return; const t = setInterval(() => setNeedle(n => { let nn = n + dir.current * speed; if (nn >= TREAT_IDEAL.max) { nn = TREAT_IDEAL.max; dir.current = -1 } if (nn <= TREAT_IDEAL.min) { nn = TREAT_IDEAL.min; dir.current = 1 } return nn }), 24); return () => clearInterval(t) }, [phase, speed])
   const holdT = useRef(0)
   useEffect(() => { if (phase !== 'hold') return; holdT.current = 0; const t = setInterval(() => { holdT.current += 0.02; setHoldOk(1 - Math.abs(0.5 - (holdT.current % 1)) * 2) }, 20); return () => clearInterval(t) }, [phase])
-  // the cinematic smelt: ramp 0->1 over ~2.2s, then reveal
+  // the cinematic smelt: ramp 0->1 over ~2.2s, then reveal. Uses a time-based
+  // interval (not rAF, which pauses on a backgrounded tab) + a safety net so it
+  // can never soft-lock.
   useEffect(() => {
     if (phase !== 'smelt') return
-    let raf = 0, t0 = 0
-    const tick = (t: number) => { if (!t0) t0 = t; const p = Math.min(1, (t - t0) / 2200); setSmelt(p); if (p < 1) raf = requestAnimationFrame(tick); else { const r = result.current!; if (r.cracked) sfx.wrong(); else { sfx.correct(); if (r.blue > 0.12) earnTrophy('first-blue') } setPhase('done'); onDone(r) } }
-    raf = requestAnimationFrame(tick)
-    const pt = setInterval(() => setParts(p => tickParticles([...p, ...burstParticles(50, 60, '#e0904a', 2)]).slice(-40)), 90)
-    return () => { cancelAnimationFrame(raf); clearInterval(pt) }
+    const t0 = performance.now()
+    let done = false
+    const finish = () => { if (done) return; done = true; const r = result.current!; if (r.cracked) sfx.wrong(); else { sfx.correct(); if (r.blue > 0.12) earnTrophy('first-blue') } setPhase('done'); onDone(r) }
+    const iv = setInterval(() => {
+      const p = Math.min(1, (performance.now() - t0) / 2200)
+      setSmelt(p)
+      setParts(pp => tickParticles([...pp, ...burstParticles(50, 60, '#e0904a', 2)]).slice(-40))
+      if (p >= 1) { clearInterval(iv); finish() }
+    }, 45)
+    const safety = window.setTimeout(finish, 4200)
+    return () => { clearInterval(iv); clearTimeout(safety) }
   }, [phase]) // eslint-disable-line
 
   if (!rough) return <Empty go={go} />
@@ -475,8 +491,7 @@ function Market({ save, graded, cert, patch, sfx, unlockCodex, earnTrophy, flash
   const [mkt] = useState<MarketEvent>(() => rollMarketEvent(rng))
   const [offers] = useState<Offer[]>(() => graded ? makeOffers(graded, !!cert, rng) : [])
   const [done, setDone] = useState<{ gross: number; kept: boolean } | null>(null)
-  if (!graded) return <Empty go={go} />
-  useEffect(() => { if (offers.some(o => o.kind === 'collector')) unlockCodex('legacy') }, []) // eslint-disable-line
+  useEffect(() => { if (graded && offers.some(o => o.kind === 'collector')) unlockCodex('legacy') }, []) // eslint-disable-line
 
   const finishStone = (extra?: (s: Save) => Save) => {
     // contract check + expiry decrement
@@ -518,6 +533,7 @@ function Market({ save, graded, cert, patch, sfx, unlockCodex, earnTrophy, flash
     </div>
   )
 
+  if (!graded) return <Empty go={go} />
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <H title="The trading floor" sub="Colour is king and scarcity rules. A certified, vivid stone can draw a collector paying far more — sell less, for more." />

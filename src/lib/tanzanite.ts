@@ -267,6 +267,16 @@ export function digRough(block: BlockId, depth: number, rng: () => number): Roug
     depth, block,
   }
 }
+/** A guaranteed modest rough (for a "vug" bonus) — never null. */
+export function bonusRough(block: BlockId, depth: number, rng: () => number): Rough {
+  const blk = BLOCKS.find(b => b.id === block)!
+  const q = clamp01((0.45 + rng() * 0.4) * blk.gradeMul)
+  return {
+    id: `v${Date.now().toString(36)}${(_seq++).toString(36)}`,
+    caratRough: round2(1.2 + rng() * 4 + q * 4), vanadium: clamp01(0.4 + q * 0.5 + (rng() - 0.5) * 0.2),
+    clarity: clamp01(0.5 + q * 0.35 + (rng() - 0.5) * 0.2), fracture: clamp01(0.45 - q * 0.3 + (rng() - 0.5) * 0.25), depth, block,
+  }
+}
 /** A jackpot geode rough — larger, cleaner, higher vanadium. */
 export function geodeRough(block: BlockId, depth: number, rng: () => number): Rough {
   return {
