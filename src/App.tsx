@@ -15,7 +15,7 @@ import { GAMES } from './lib/games'
 import { CATEGORY_META, ADULT_CATEGORIES, isAgeVerified, confirmAge, type GameCategory, saveScore } from './lib/cognitive'
 import {
   loadProfile, createProfile, updateProfileAfterGame, saveProfile,
-  xpToNextLevel, RANK_META, BADGES, generateDailyChallenges,
+  xpToNextLevel, RANK_META, BADGES, generateDailyChallenges, getRankForXP,
   MUHURI_META, isVerifiedTier, setMuhuri, getAllMuhuriAssignments, isFounderOrAdmin,
   type PlayerProfile, type MuhuriType, type ProfileSocials,
 } from './lib/rewards'
@@ -42,6 +42,7 @@ import {
   type Connection, type RelationType,
 } from './lib/connections'
 import { listenForInvites, sendLiveInvite, makeRoomCode, type LivePlayer, type LiveInvite } from './lib/liveRoom'
+import { fetchLeaderboard, pushMyStats } from './lib/leaderboard'
 // GameCard import removed — HomeSection no longer uses the full game grid
 import Logo from './components/Logo'
 import FloatingPlayer from './components/FloatingPlayer'
@@ -259,7 +260,20 @@ export default function App() {
 
   useEffect(() => {
     if (!profile?.username) return
-    const off = listenForInvites(profile.username, inv => setLiveInvite(inv))
+    // Announce me on the live leaderboard.
+    pushMyStats({ username: profile.username, displayName: profile.displayName, avatar: profile.avatar, photoUrl: profile.photoUrl, xp: profile.xp, level: profile.level, totalGames: profile.totalGames })
+    const off = listenForInvites(profile.username, inv => {
+      setLiveInvite(inv)
+      try { navigator.vibrate?.([120, 60, 120, 60, 220]) } catch { /* unsupported */ }
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const n = new Notification(`${inv.fromName} invited you to a live game 🔴`, {
+            body: 'Tap to join now on KasukuGames', icon: inv.fromPhoto || '/icon-192.png', tag: 'kg-live-invite',
+          })
+          n.onclick = () => { window.focus(); setLive({ code: inv.code, isHost: false }); setLiveInvite(null); n.close() }
+        }
+      } catch { /* notifications unavailable */ }
+    })
     return off
   }, [profile?.username])
 
@@ -364,6 +378,7 @@ export default function App() {
     const p = updateProfileAfterGame(score, accuracy, level)
     if (p) {
       setProfile(p)
+      pushMyStats({ username: p.username, displayName: p.displayName, avatar: p.avatar, photoUrl: p.photoUrl, xp: p.xp, level: p.level, totalGames: p.totalGames }, true)
       if (activeGame) {
         const game = GAMES.find(g => g.id === activeGame)
         if (game) {
@@ -953,7 +968,23 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
    ================================================================ */
 function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerProfile | null; P: PaletteType; isDark: boolean; cs: CSSProperties; gct: () => CSSProperties }) {
   const [activeBoard, setActiveBoard] = useState('overall')
-  const entries = generateDemoLeaderboard(activeBoard)
+  const [liveEntries, setLiveEntries] = useState<ReturnType<typeof generateDemoLeaderboard> | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    fetchLeaderboard(100).then(rows => {
+      if (!alive || !rows || rows.length === 0) return
+      setLiveEntries(rows.map(e => ({
+        playerId: e.id, username: e.handle, displayName: e.name, avatar: e.avatar,
+        muhuri: undefined as unknown as string | undefined, score: e.xp,
+        rank: getRankForXP(e.xp), level: e.level, teamTag: undefined as unknown as string | undefined,
+      })))
+    })
+    return () => { alive = false }
+  }, [])
+
+  const isLive = !!(liveEntries && liveEntries.length)
+  const entries = isLive ? liveEntries! : generateDemoLeaderboard(activeBoard)
   const activeMeta = LEADERBOARD_CATEGORIES.find(c => c.id === activeBoard)!
 
   return (
@@ -975,10 +1006,12 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
           }}>{cat.label}</button>
         ))}
       </div>
-      <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 20px', lineHeight: 1.5 }}>{activeMeta.description}</p>
+      <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 20px', lineHeight: 1.5 }}>
+        {isLive ? 'Live rankings — real players, updated as everyone plays.' : activeMeta.description}
+      </p>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 32, alignItems: 'flex-end' }}>
-        {[entries[1], entries[0], entries[2]].map((e, i) => {
+        {(entries.length >= 3 ? [entries[1], entries[0], entries[2]] : []).map((e, i) => {
           const pos = [2, 1, 3][i]
           const heights = [100, 140, 80]
           const avatarSizes = [48, 64, 42]

@@ -100,8 +100,11 @@ export default function LiveParty({ me, code, isHost, onExit }: Props) {
   useEffect(() => {
     const room = new LiveRoom(code, me, isHost)
     roomRef.current = room
+    let prevCount = 0
     const offP = room.onPlayers(list => {
       setPlayers(list)
+      if (list.length > prevCount && prevCount > 0) { try { navigator.vibrate?.(60) } catch { /* unsupported */ } }
+      prevCount = list.length
       // host re-syncs authoritative state so late joiners catch up
       if (isHost) roomRef.current?.send('state', gRef.current)
     })

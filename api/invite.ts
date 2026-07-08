@@ -8,7 +8,7 @@
  */
 const SUPA = 'https://ujokjnfdhtswomhgjkfp.supabase.co'
 const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqb2tqbmZkaHRzd29taGdqa2ZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDg5NjcsImV4cCI6MjA5NTkyNDk2N30.Iacm8WUH6kJvRgMvBNzQjLIylAxoIz4MF-CVwKfUeVo'
-const FALLBACK_IMG = 'https://games.kasuku.tz/icons/icon-512.png'
+const FALLBACK_IMG = 'https://games.kasuku.tz/icon-512.png'
 
 function esc(s: string) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
@@ -54,11 +54,11 @@ export default async function handler(
   }
 
   const title = isLive
-    ? `${name} invited you to a LIVE game — join now! 🔴`
-    : `${name} invited you to play on KasukuGames`
+    ? `🔴 ${name} is waiting for you — live game on KasukuGames`
+    : `🎮 ${name} invited you to KasukuGames`
   const desc = isLive
-    ? `Play together in real time on KasukuGames — tap to join ${name}. 🎮`
-    : `Tap to join ${name} — 30 free games. Olympics of the Mind. 🎮`
+    ? `Tap to join ${name} right now — play together live: spin the bottle, truth or dare & more. Free.`
+    : `Tap to play with ${name} — 30 free games: brain training, party games, faith & fitness.`
   const target = room
     ? `/?room=${encodeURIComponent(room)}&live=1&from=${encodeURIComponent(from)}`
     : `/?invite=${encodeURIComponent(invite)}&from=${encodeURIComponent(from)}`
@@ -73,6 +73,9 @@ export default async function handler(
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:image" content="${esc(pic)}">
+<meta property="og:image:width" content="600">
+<meta property="og:image:height" content="600">
+<meta property="og:image:alt" content="${esc(name)} on KasukuGames">
 <meta property="og:url" content="https://games.kasuku.tz/play">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">

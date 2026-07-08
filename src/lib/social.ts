@@ -111,21 +111,21 @@ export function getTeamById(teamId: string): Team | null {
 
 export function generateDemoLeaderboard(category: string): LeaderboardEntry[] {
   const names = [
-    { username: 'mtaalamu', displayName: 'Mtaalamu', avatar: '🧠', muhuri: 'verified' },
-    { username: 'haraka_x', displayName: 'Haraka X', avatar: '⚡', muhuri: 'creator' },
-    { username: 'mwanafunzi', displayName: 'Mwanafunzi', avatar: '📚' },
-    { username: 'jenga_pro', displayName: 'Jenga Pro', avatar: '🏗️' },
-    { username: 'kimbunga', displayName: 'Kimbunga', avatar: '🌪️', muhuri: 'verified' },
-    { username: 'msomi_tz', displayName: 'Msomi TZ', avatar: '🎓' },
-    { username: 'fikra_kali', displayName: 'Fikra Kali', avatar: '💡', muhuri: 'creator' },
-    { username: 'nguvu_mental', displayName: 'Nguvu Mental', avatar: '💪' },
-    { username: 'akili_sharp', displayName: 'Akili Sharp', avatar: '🔬' },
-    { username: 'bongo_brain', displayName: 'Bongo Brain', avatar: '🧬' },
-    { username: 'champion_tz', displayName: 'Champion TZ', avatar: '🏆', muhuri: 'admin' },
-    { username: 'mfalme', displayName: 'Mfalme', avatar: '👑', muhuri: 'verified' },
-    { username: 'daktari_akili', displayName: 'Daktari Akili', avatar: '🩺' },
-    { username: 'profesa', displayName: 'Profesa', avatar: '🎯' },
-    { username: 'mchezaji1', displayName: 'Mchezaji', avatar: '🎮' },
+    { username: 'mtaalamu', displayName: 'BrainAce', avatar: '🧠', muhuri: 'verified' },
+    { username: 'haraka_x', displayName: 'Quick Spark', avatar: '⚡', muhuri: 'creator' },
+    { username: 'mwanafunzi', displayName: 'Scholar', avatar: '📚' },
+    { username: 'jenga_pro', displayName: 'Builder Pro', avatar: '🏗️' },
+    { username: 'kimbunga', displayName: 'Storm Mind', avatar: '🌪️', muhuri: 'verified' },
+    { username: 'msomi_tz', displayName: 'The Graduate', avatar: '🎓' },
+    { username: 'fikra_kali', displayName: 'Sharp Idea', avatar: '💡', muhuri: 'creator' },
+    { username: 'nguvu_mental', displayName: 'Mental Muscle', avatar: '💪' },
+    { username: 'akili_sharp', displayName: 'Sharp Wit', avatar: '🔬' },
+    { username: 'bongo_brain', displayName: 'Genius Gene', avatar: '🧬' },
+    { username: 'champion_tz', displayName: 'Champion', avatar: '🏆', muhuri: 'admin' },
+    { username: 'mfalme', displayName: 'The Legend', avatar: '👑', muhuri: 'verified' },
+    { username: 'daktari_akili', displayName: 'Sage Mind', avatar: '🩺' },
+    { username: 'profesa', displayName: 'Professor', avatar: '🎯' },
+    { username: 'mchezaji1', displayName: 'Gamer X', avatar: '🎮' },
   ]
   const ranks: string[] = ['legend', 'master', 'diamond', 'diamond', 'platinum', 'platinum', 'gold', 'gold', 'gold', 'silver', 'silver', 'silver', 'bronze', 'bronze', 'bronze']
   const levels = [47, 42, 38, 35, 31, 28, 25, 22, 19, 16, 14, 12, 10, 8, 5]
