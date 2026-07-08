@@ -337,6 +337,11 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const [g, setG] = useState<GState>({ screen: 'lobby' })
   const gRef = useRef(g); gRef.current = g
   const playersRef = useRef(players); playersRef.current = players
+  // Host is COMPUTED, not fixed: the present player with the lowest id is host.
+  // If the host leaves, the next player automatically takes over (migration).
+  // Falls back to the initial isHost prop before the first presence sync.
+  const amHost = players.length ? players[0].id === me.id : isHost
+  const amHostRef = useRef(amHost); amHostRef.current = amHost
   const [floats, setFloats] = useState<{ id: string; emoji: string; x: number }[]>([])
   const [chat, setChat] = useState<{ id: string; from: string; name: string; text: string }[]>([])
   const [chatOpen, setChatOpen] = useState(false)
@@ -360,14 +365,15 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
       setPlayers(list)
       if (list.length > prevCount && prevCount > 0) { try { navigator.vibrate?.(60) } catch { /* unsupported */ } }
       prevCount = list.length
-      // host re-syncs authoritative state so late joiners catch up
-      if (isHost) roomRef.current?.send('state', gRef.current)
+      // whoever is currently host re-syncs authoritative state so joiners
+      // (and a freshly-promoted host) stay caught up
+      if (amHostRef.current) roomRef.current?.send('state', gRef.current)
     })
     const offS = room.onStatus(setStatus)
     const offM = room.onMessage((m: LiveMsg) => {
       if (m.from === me.id) return
-      if (m.t === 'state' && !isHost) { setG(m.d); gRef.current = m.d }
-      else if (m.t === 'act' && isHost) applyAction(m.from, m.d)
+      if (m.t === 'state' && !amHostRef.current) { setG(m.d); gRef.current = m.d }
+      else if (m.t === 'act' && amHostRef.current) applyAction(m.from, m.d)
       else if (m.t === 'reaction') spawnFloat(m.d.emoji)
       else if (m.t === 'chat') setChat(c => [...c.slice(-40), { id: rid(), from: m.from, name: m.d.name, text: m.d.text }])
     })
@@ -618,7 +624,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
 
   // ── actions (host acts directly, guest sends) ──
-  const act = (payload: any, hostFn: () => void) => { if (isHost) hostFn(); else roomRef.current?.send('act', payload) }
+  const act = (payload: any, hostFn: () => void) => { if (amHost) hostFn(); else roomRef.current?.send('act', payload) }
 
   const onSpin = () => act({ a: 'spin' }, doSpin)
   const onToTod = () => act({ a: 'toTod' }, () => startTod(gRef.current.landedId || me.id))
@@ -627,7 +633,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const onDoneTurn = () => { sfxLevelUp(); act({ a: 'doneTurn' }, nextTurn) }
   const onVote = (choice: 'have' | 'never') => {
     sfxTap()
-    if (isHost) { const votes = { ...(gRef.current.nhieVotes || {}), [me.id]: choice }; pushState({ ...gRef.current, nhieVotes: votes }) }
+    if (amHost) { const votes = { ...(gRef.current.nhieVotes || {}), [me.id]: choice }; pushState({ ...gRef.current, nhieVotes: votes }) }
     else roomRef.current?.send('act', { a: 'vote', choice })
   }
   const onReveal = () => { sfxReveal(); act({ a: 'reveal' }, () => pushState({ ...gRef.current, nhieRevealed: true })) }
@@ -635,38 +641,38 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const onNhieCat = (cat: string) => act({ a: 'nhieCat', cat }, () => startNhie(cat))
   const onChoiceVote = (choice: 'a' | 'b') => {
     sfxTap()
-    if (isHost) { const votes = { ...(gRef.current.choiceVotes || {}), [me.id]: choice }; pushState({ ...gRef.current, choiceVotes: votes }) }
+    if (amHost) { const votes = { ...(gRef.current.choiceVotes || {}), [me.id]: choice }; pushState({ ...gRef.current, choiceVotes: votes }) }
     else roomRef.current?.send('act', { a: 'choicevote', choice })
   }
   const onChoiceReveal = () => { sfxReveal(); act({ a: 'choicereveal' }, () => pushState({ ...gRef.current, choiceRevealed: true })) }
   const onChoiceNext = () => act({ a: 'nextChoice' }, () => startChoice(gRef.current.choiceKind || 'wyr', gRef.current.choiceCat || 'Couple'))
   const onChoiceCat = (cat: string) => act({ a: 'choiceCat', cat }, () => startChoice(gRef.current.choiceKind || 'wyr', cat))
-  const onTriviaVote = (choice: number) => { sfxTap(); if (isHost) pushState({ ...gRef.current, triviaVotes: { ...(gRef.current.triviaVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'tvote', choice }) }
+  const onTriviaVote = (choice: number) => { sfxTap(); if (amHost) pushState({ ...gRef.current, triviaVotes: { ...(gRef.current.triviaVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'tvote', choice }) }
   const onTriviaReveal = () => { sfxReveal(); act({ a: 'treveal' }, revealTrivia) }
   const onTriviaNext = () => act({ a: 'tnext' }, nextTrivia)
   const onTriviaCat = (cat: string) => act({ a: 'tcat', cat }, () => startTrivia(cat))
-  const onMltVote = (target: string) => { sfxTap(); if (isHost) pushState({ ...gRef.current, mltVotes: { ...(gRef.current.mltVotes || {}), [me.id]: target } }); else roomRef.current?.send('act', { a: 'mvote', target }) }
+  const onMltVote = (target: string) => { sfxTap(); if (amHost) pushState({ ...gRef.current, mltVotes: { ...(gRef.current.mltVotes || {}), [me.id]: target } }); else roomRef.current?.send('act', { a: 'mvote', target }) }
   const onMltReveal = () => { sfxReveal(); act({ a: 'mreveal' }, revealMlt) }
   const onMltNext = () => act({ a: 'mnext' }, nextMlt)
-  const onRpsPick = (choice: 'r' | 'p' | 's') => { sfxTap(); if (isHost) pushState({ ...gRef.current, rpsPicks: { ...(gRef.current.rpsPicks || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'rpick', choice }) }
+  const onRpsPick = (choice: 'r' | 'p' | 's') => { sfxTap(); if (amHost) pushState({ ...gRef.current, rpsPicks: { ...(gRef.current.rpsPicks || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'rpick', choice }) }
   const onRpsReveal = () => { sfxReveal(); act({ a: 'rreveal' }, revealRps) }
   const onRpsNext = () => act({ a: 'rnext' }, nextRps)
-  const onHotVote = (choice: 'agree' | 'disagree') => { sfxTap(); if (isHost) pushState({ ...gRef.current, hotVotes: { ...(gRef.current.hotVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'hotvote', choice }) }
+  const onHotVote = (choice: 'agree' | 'disagree') => { sfxTap(); if (amHost) pushState({ ...gRef.current, hotVotes: { ...(gRef.current.hotVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'hotvote', choice }) }
   const onHotReveal = () => { sfxReveal(); act({ a: 'hotreveal' }, revealHot) }
   const onHotNext = () => act({ a: 'hotnext' }, nextHot)
-  const onGmaAnswer = (idx: number) => { sfxTap(); if (isHost) { if (me.id === gRef.current.gmaSubject) pushState({ ...gRef.current, gmaPick: idx, gmaPhase: 'guess' }) } else roomRef.current?.send('act', { a: 'gmaanswer', idx }) }
-  const onGmaGuess = (idx: number) => { sfxTap(); if (isHost) { if (me.id !== gRef.current.gmaSubject) pushState({ ...gRef.current, gmaGuesses: { ...(gRef.current.gmaGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'gmaguess', idx }) }
+  const onGmaAnswer = (idx: number) => { sfxTap(); if (amHost) { if (me.id === gRef.current.gmaSubject) pushState({ ...gRef.current, gmaPick: idx, gmaPhase: 'guess' }) } else roomRef.current?.send('act', { a: 'gmaanswer', idx }) }
+  const onGmaGuess = (idx: number) => { sfxTap(); if (amHost) { if (me.id !== gRef.current.gmaSubject) pushState({ ...gRef.current, gmaGuesses: { ...(gRef.current.gmaGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'gmaguess', idx }) }
   const onGmaReveal = () => { sfxReveal(); act({ a: 'gmareveal' }, revealGma) }
   const onGmaNext = () => act({ a: 'gmanext' }, nextGma)
-  const onTtlSubmit = (statements: string[], lie: number) => { sfxCorrect(); if (isHost) { if (me.id === gRef.current.ttlAsker) pushState({ ...gRef.current, ttlStatements: statements, ttlLie: lie, ttlPhase: 'guess', ttlGuesses: {} }) } else roomRef.current?.send('act', { a: 'ttlsubmit', statements, lie }) }
-  const onTtlGuess = (idx: number) => { sfxTap(); if (isHost) { if (me.id !== gRef.current.ttlAsker) pushState({ ...gRef.current, ttlGuesses: { ...(gRef.current.ttlGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'ttlguess', idx }) }
+  const onTtlSubmit = (statements: string[], lie: number) => { sfxCorrect(); if (amHost) { if (me.id === gRef.current.ttlAsker) pushState({ ...gRef.current, ttlStatements: statements, ttlLie: lie, ttlPhase: 'guess', ttlGuesses: {} }) } else roomRef.current?.send('act', { a: 'ttlsubmit', statements, lie }) }
+  const onTtlGuess = (idx: number) => { sfxTap(); if (amHost) { if (me.id !== gRef.current.ttlAsker) pushState({ ...gRef.current, ttlGuesses: { ...(gRef.current.ttlGuesses || {}), [me.id]: idx } }) } else roomRef.current?.send('act', { a: 'ttlguess', idx }) }
   const onTtlReveal = () => { sfxReveal(); act({ a: 'ttlreveal' }, revealTtl) }
   const onTtlNext = () => act({ a: 'ttlnext' }, nextTtl)
-  const onWcSubmit = (word: string) => { sfxCorrect(); if (isHost) wcApply(me.id, word); else roomRef.current?.send('act', { a: 'wcword', word }) }
-  const onErGuess = (text: string) => { if (isHost) erSubmit(me.id, text); else roomRef.current?.send('act', { a: 'erguess', text }) }
+  const onWcSubmit = (word: string) => { sfxCorrect(); if (amHost) wcApply(me.id, word); else roomRef.current?.send('act', { a: 'wcword', word }) }
+  const onErGuess = (text: string) => { if (amHost) erSubmit(me.id, text); else roomRef.current?.send('act', { a: 'erguess', text }) }
   const onErReveal = () => { sfxReveal(); act({ a: 'ereveal' }, revealEr) }
   const onErNext = () => act({ a: 'ernext' }, nextEr)
-  const onStoryLine = (line: string) => { sfxCorrect(); if (isHost) storyApply(me.id, line); else roomRef.current?.send('act', { a: 'storyline', line }) }
+  const onStoryLine = (line: string) => { sfxCorrect(); if (amHost) storyApply(me.id, line); else roomRef.current?.send('act', { a: 'storyline', line }) }
   const onStoryEnd = () => { sfxReveal(); act({ a: 'storyend' }, endStory) }
   const onFinish = () => { sfxLevelUp(); act({ a: 'results' }, goResults) }
   const onResetScores = () => act({ a: 'resetscores' }, resetScores)
@@ -729,8 +735,9 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
       {g.scores && Object.keys(g.scores).length > 0 && g.screen !== 'lobby' && g.screen !== 'menu' && (
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '8px 14px', borderBottom: `1px solid ${C.border}`, background: C.card }}>
           {[...players].map(p => ({ p, sc: g.scores![p.id] || 0 })).sort((a, b) => b.sc - a.sc).map(({ p, sc }, i) => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, padding: '3px 10px', borderRadius: 999, background: i === 0 && sc > 0 ? C.amber + '22' : C.bg, border: `1px solid ${i === 0 && sc > 0 ? C.amber : C.border}` }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, padding: '3px 10px 3px 4px', borderRadius: 999, background: i === 0 && sc > 0 ? C.amber + '22' : C.bg, border: `1px solid ${i === 0 && sc > 0 ? C.amber : C.border}` }}>
               {i === 0 && sc > 0 && <span style={{ fontSize: 12 }}>👑</span>}
+              <Avatar p={p} size={22} />
               <span style={{ fontSize: 12, fontWeight: 600 }}>{p.id === me.id ? 'You' : p.name.split(' ')[0]}</span>
               <span style={{ fontSize: 12, fontWeight: 800, color: C.amber }}>{sc}</span>
             </div>
@@ -741,52 +748,52 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
       {/* body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column' }}>
         {g.screen === 'lobby' && (
-          <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
+          <Lobby players={players} me={me} isHost={amHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
-          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} onHot={() => { if (isHost) startHot() }} onGma={() => { if (isHost) startGma() }} onTtl={() => { if (isHost) startTtl() }} onWc={() => { if (isHost) startWc() }} onEr={() => { if (isHost) startEr() }} onStory={() => { if (isHost) startStory() }} onFinish={onFinish} scores={g.scores} />
+          <Menu isHost={amHost} onSpinStart={() => { if (amHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (amHost) beginTod() }} onNhie={() => { if (amHost) startNhie() }} onWyr={() => { if (amHost) startChoice('wyr') }} onTot={() => { if (amHost) startChoice('tot') }} onTrivia={() => { if (amHost) startTrivia('Mixed') }} onMlt={() => { if (amHost) startMlt() }} onRps={() => { if (amHost) startRps() }} onHot={() => { if (amHost) startHot() }} onGma={() => { if (amHost) startGma() }} onTtl={() => { if (amHost) startTtl() }} onWc={() => { if (amHost) startWc() }} onEr={() => { if (amHost) startEr() }} onStory={() => { if (amHost) startStory() }} onFinish={onFinish} scores={g.scores} />
         )}
         {g.screen === 'spin' && (
-          <SpinView g={g} players={players} me={me} isHost={isHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
+          <SpinView g={g} players={players} me={me} isHost={amHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'tod' && (
-          <TodView g={g} me={me} isHost={isHost} nameOf={nameOf} onPickKind={onPickKind} onSendPrompt={onSendPrompt} onDone={onDoneTurn} onBack={onBackMenu} />
+          <TodView g={g} me={me} isHost={amHost} nameOf={nameOf} onPickKind={onPickKind} onSendPrompt={onSendPrompt} onDone={onDoneTurn} onBack={onBackMenu} />
         )}
         {g.screen === 'nhie' && (
-          <NhieView g={g} me={me} players={players} isHost={isHost} onVote={onVote} onReveal={onReveal} onNext={onNextNhie} onCat={onNhieCat} onBack={onBackMenu} Avatar={Avatar} />
+          <NhieView g={g} me={me} players={players} isHost={amHost} onVote={onVote} onReveal={onReveal} onNext={onNextNhie} onCat={onNhieCat} onBack={onBackMenu} Avatar={Avatar} />
         )}
         {g.screen === 'choice' && (
-          <ChoiceView g={g} me={me} players={players} isHost={isHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onCat={onChoiceCat} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+          <ChoiceView g={g} me={me} players={players} isHost={amHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onCat={onChoiceCat} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'trivia' && (
-          <TriviaView g={g} me={me} players={players} isHost={isHost} onVote={onTriviaVote} onReveal={onTriviaReveal} onNext={onTriviaNext} onCat={onTriviaCat} onBack={onBackMenu} />
+          <TriviaView g={g} me={me} players={players} isHost={amHost} onVote={onTriviaVote} onReveal={onTriviaReveal} onNext={onTriviaNext} onCat={onTriviaCat} onBack={onBackMenu} />
         )}
         {g.screen === 'mlt' && (
-          <MltView g={g} me={me} players={players} isHost={isHost} onVote={onMltVote} onReveal={onMltReveal} onNext={onMltNext} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
+          <MltView g={g} me={me} players={players} isHost={amHost} onVote={onMltVote} onReveal={onMltReveal} onNext={onMltNext} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'rps' && (
-          <RpsView g={g} me={me} players={players} isHost={isHost} onPick={onRpsPick} onReveal={onRpsReveal} onNext={onRpsNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+          <RpsView g={g} me={me} players={players} isHost={amHost} onPick={onRpsPick} onReveal={onRpsReveal} onNext={onRpsNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'hot' && (
-          <HotView g={g} me={me} players={players} isHost={isHost} onVote={onHotVote} onReveal={onHotReveal} onNext={onHotNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+          <HotView g={g} me={me} players={players} isHost={amHost} onVote={onHotVote} onReveal={onHotReveal} onNext={onHotNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'gma' && (
-          <GmaView g={g} me={me} players={players} isHost={isHost} onAnswer={onGmaAnswer} onGuess={onGmaGuess} onReveal={onGmaReveal} onNext={onGmaNext} onBack={onBackMenu} nameOf={nameOf} />
+          <GmaView g={g} me={me} players={players} isHost={amHost} onAnswer={onGmaAnswer} onGuess={onGmaGuess} onReveal={onGmaReveal} onNext={onGmaNext} onBack={onBackMenu} nameOf={nameOf} />
         )}
         {g.screen === 'ttl' && (
-          <TtlView g={g} me={me} players={players} isHost={isHost} onSubmit={onTtlSubmit} onGuess={onTtlGuess} onReveal={onTtlReveal} onNext={onTtlNext} onBack={onBackMenu} nameOf={nameOf} />
+          <TtlView g={g} me={me} players={players} isHost={amHost} onSubmit={onTtlSubmit} onGuess={onTtlGuess} onReveal={onTtlReveal} onNext={onTtlNext} onBack={onBackMenu} nameOf={nameOf} />
         )}
         {g.screen === 'wc' && (
-          <WcView g={g} me={me} isHost={isHost} onSubmit={onWcSubmit} onBack={onBackMenu} nameOf={nameOf} />
+          <WcView g={g} me={me} isHost={amHost} onSubmit={onWcSubmit} onBack={onBackMenu} nameOf={nameOf} />
         )}
         {g.screen === 'er' && (
-          <ErView g={g} me={me} players={players} isHost={isHost} onGuess={onErGuess} onReveal={onErReveal} onNext={onErNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+          <ErView g={g} me={me} players={players} isHost={amHost} onGuess={onErGuess} onReveal={onErReveal} onNext={onErNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'story' && (
-          <StoryView g={g} me={me} isHost={isHost} onLine={onStoryLine} onEnd={onStoryEnd} onBack={onBackMenu} nameOf={nameOf} />
+          <StoryView g={g} me={me} isHost={amHost} onLine={onStoryLine} onEnd={onStoryEnd} onBack={onBackMenu} nameOf={nameOf} />
         )}
         {g.screen === 'results' && (
-          <ResultsView g={g} me={me} players={players} isHost={isHost} onPlayOn={onBackMenu} onReset={onResetScores} Avatar={Avatar} nameOf={nameOf} />
+          <ResultsView g={g} me={me} players={players} isHost={amHost} onPlayOn={onBackMenu} onReset={onResetScores} Avatar={Avatar} nameOf={nameOf} />
         )}
       </div>
 
