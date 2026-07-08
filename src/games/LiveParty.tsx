@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import type { CSSProperties } from 'react'
 import { RADIUS, MOTION } from '../lib/design'
 import { sfxTap, sfxReveal, sfxCorrect, sfxLevelUp } from '../lib/sfx'
-import { LiveRoom, type LivePlayer, type LiveMsg } from '../lib/liveRoom'
+import { LiveRoom, LIVE_GAMES, type LivePlayer, type LiveMsg } from '../lib/liveRoom'
 
 /* dark party palette (no gradients) */
 const C = {
@@ -73,9 +73,10 @@ interface Props {
   code: string
   isHost: boolean
   onExit: () => void
+  initialGame?: string
 }
 
-export default function LiveParty({ me, code, isHost, onExit }: Props) {
+export default function LiveParty({ me, code, isHost, onExit, initialGame }: Props) {
   const roomRef = useRef<LiveRoom | null>(null)
   const [players, setPlayers] = useState<LivePlayer[]>([])
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
@@ -181,6 +182,13 @@ export default function LiveParty({ me, code, isHost, onExit }: Props) {
     pushState({ screen: 'tod', askerId: order[askerIdx], targetId: order[targetIdx], kind: null, prompt: null })
   }
   const startNhie = () => pushState({ screen: 'nhie', nhiePrompt: pick(NHIE), nhieVotes: {}, nhieRevealed: false })
+  // Host taps Start — go straight into the challenged game, or the picker.
+  const launchInitial = () => {
+    if (initialGame === 'spin') pushState({ screen: 'spin', spinAngle: 0, spinning: false })
+    else if (initialGame === 'tod') beginTod()
+    else if (initialGame === 'nhie') startNhie()
+    else startMenu()
+  }
 
   // ── actions (host acts directly, guest sends) ──
   const act = (payload: any, hostFn: () => void) => { if (isHost) hostFn(); else roomRef.current?.send('act', payload) }
@@ -255,7 +263,7 @@ export default function LiveParty({ me, code, isHost, onExit }: Props) {
       {/* body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column' }}>
         {g.screen === 'lobby' && (
-          <Lobby players={players} me={me} isHost={isHost} onStart={startMenu} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} />
+          <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
           <Menu isHost={isHost} onSpin={() => act({ a: 'menu' }, doSpin)} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} />
@@ -297,8 +305,10 @@ export default function LiveParty({ me, code, isHost, onExit }: Props) {
 }
 
 /* ── sub-views ── */
-function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avatar }: any) {
+function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avatar, initialGame }: any) {
   const others = players.filter((p: LivePlayer) => p.id !== me.id)
+  const gm = LIVE_GAMES.find(x => x.id === initialGame)
+  const startLabel = gm && gm.id !== 'party' ? `Start ${gm.name} ${gm.emoji}` : 'Start playing →'
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 22 }}>
       <div>
@@ -326,7 +336,7 @@ function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avat
             <button onClick={onWhatsApp} style={{ ...solidBtn(C.green), flex: 1 }}>WhatsApp</button>
           </div>
           <button onClick={onStart} disabled={players.length < 2} style={{ ...solidBtn(players.length < 2 ? C.dim : C.pink), opacity: players.length < 2 ? 0.6 : 1, padding: '14px', fontSize: 16 }}>
-            {players.length < 2 ? 'Waiting for a player…' : 'Start playing →'}
+            {players.length < 2 ? 'Waiting for a player…' : startLabel}
           </button>
         </div>
       )}
