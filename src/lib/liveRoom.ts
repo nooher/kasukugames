@@ -34,6 +34,8 @@ export const LIVE_GAMES: { id: string; name: string; emoji: string }[] = [
   { id: 'spin', name: 'Spin the Bottle', emoji: '🍾' },
   { id: 'tod', name: 'Truth or Dare', emoji: '🎯' },
   { id: 'nhie', name: 'Never Have I Ever', emoji: '🙈' },
+  { id: 'wyr', name: 'Would You Rather', emoji: '🤔' },
+  { id: 'tot', name: 'This or That', emoji: '💞' },
   { id: 'party', name: 'Surprise — pick together', emoji: '🎉' },
 ]
 

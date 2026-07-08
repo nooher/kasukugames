@@ -13,7 +13,7 @@ const C = {
 }
 const SEAT_COLORS = [C.pink, C.blue, C.green, C.purple, C.orange, C.teal, C.amber, C.red]
 
-type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie'
+type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice'
 interface GState {
   screen: Screen
   turnIdx?: number
@@ -31,6 +31,11 @@ interface GState {
   nhiePrompt?: string
   nhieVotes?: Record<string, 'have' | 'never'>
   nhieRevealed?: boolean
+  // would-you-rather / this-or-that (shared A/B vote)
+  choiceKind?: 'wyr' | 'tot'
+  choicePrompt?: { a: string; b: string }
+  choiceVotes?: Record<string, 'a' | 'b'>
+  choiceRevealed?: boolean
 }
 
 const TRUTHS = [
@@ -63,6 +68,25 @@ const NHIE = [
   'Never have I ever saved a photo of you as my favourite.',
   'Never have I ever missed you within an hour of saying bye.',
 ]
+const WYR = [
+  { a: 'Travel the world together', b: 'Build a dream home together' },
+  { a: 'A quiet night in', b: 'A wild night out' },
+  { a: 'Forehead kisses', b: 'Long hugs' },
+  { a: 'Text all day', b: 'One long call at night' },
+  { a: 'Breakfast in bed', b: 'A midnight snack run' },
+  { a: 'Cook together', b: 'Order in and chill' },
+  { a: 'Slow dancing', b: 'Singing in the car' },
+  { a: 'Surprise gifts', b: 'Handwritten notes' },
+  { a: 'Rewatch a favourite', b: 'Try something new' },
+  { a: 'Sunrise together', b: 'Sunset together' },
+]
+const TOT = [
+  { a: 'Coffee', b: 'Tea' }, { a: 'Beach', b: 'Mountains' }, { a: 'Morning', b: 'Night' },
+  { a: 'Sweet', b: 'Savoury' }, { a: 'Call', b: 'Text' }, { a: 'City', b: 'Village' },
+  { a: 'Cats', b: 'Dogs' }, { a: 'Movies', b: 'Music' }, { a: 'Summer', b: 'Rainy season' },
+  { a: 'Plan ahead', b: 'Go with the flow' }, { a: 'Save', b: 'Spend' }, { a: 'Spicy', b: 'Mild' },
+]
+
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '👏', '💋', '🥰', '😳']
 
 const rid = () => Math.random().toString(36).slice(2)
@@ -136,6 +160,12 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     }
     else if (d.a === 'reveal') pushState({ ...cur, nhieRevealed: true })
     else if (d.a === 'nextNhie') startNhie()
+    else if (d.a === 'choicevote') {
+      const votes = { ...(cur.choiceVotes || {}), [from]: d.choice }
+      pushState({ ...cur, choiceVotes: votes })
+    }
+    else if (d.a === 'choicereveal') pushState({ ...cur, choiceRevealed: true })
+    else if (d.a === 'nextChoice') startChoice(cur.choiceKind || 'wyr')
     else if (d.a === 'menu') pushState({ screen: 'menu' })
   }
 
@@ -182,11 +212,14 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     pushState({ screen: 'tod', askerId: order[askerIdx], targetId: order[targetIdx], kind: null, prompt: null })
   }
   const startNhie = () => pushState({ screen: 'nhie', nhiePrompt: pick(NHIE), nhieVotes: {}, nhieRevealed: false })
+  const startChoice = (kind: 'wyr' | 'tot') => pushState({ screen: 'choice', choiceKind: kind, choicePrompt: pick(kind === 'wyr' ? WYR : TOT), choiceVotes: {}, choiceRevealed: false })
   // Host taps Start — go straight into the challenged game, or the picker.
   const launchInitial = () => {
     if (initialGame === 'spin') pushState({ screen: 'spin', spinAngle: 0, spinning: false })
     else if (initialGame === 'tod') beginTod()
     else if (initialGame === 'nhie') startNhie()
+    else if (initialGame === 'wyr') startChoice('wyr')
+    else if (initialGame === 'tot') startChoice('tot')
     else startMenu()
   }
 
@@ -205,6 +238,13 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
   const onReveal = () => { sfxReveal(); act({ a: 'reveal' }, () => pushState({ ...gRef.current, nhieRevealed: true })) }
   const onNextNhie = () => act({ a: 'nextNhie' }, startNhie)
+  const onChoiceVote = (choice: 'a' | 'b') => {
+    sfxTap()
+    if (isHost) { const votes = { ...(gRef.current.choiceVotes || {}), [me.id]: choice }; pushState({ ...gRef.current, choiceVotes: votes }) }
+    else roomRef.current?.send('act', { a: 'choicevote', choice })
+  }
+  const onChoiceReveal = () => { sfxReveal(); act({ a: 'choicereveal' }, () => pushState({ ...gRef.current, choiceRevealed: true })) }
+  const onChoiceNext = () => act({ a: 'nextChoice' }, () => startChoice(gRef.current.choiceKind || 'wyr'))
   const onBackMenu = () => act({ a: 'menu' }, startMenu)
 
   // ── reactions + chat (peer broadcast) ──
@@ -266,7 +306,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
           <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
-          <Menu isHost={isHost} onSpin={() => act({ a: 'menu' }, doSpin)} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} />
+          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} />
         )}
         {g.screen === 'spin' && (
           <SpinView g={g} players={players} me={me} isHost={isHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
@@ -276,6 +316,9 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
         )}
         {g.screen === 'nhie' && (
           <NhieView g={g} me={me} players={players} isHost={isHost} onVote={onVote} onReveal={onReveal} onNext={onNextNhie} onBack={onBackMenu} Avatar={Avatar} />
+        )}
+        {g.screen === 'choice' && (
+          <ChoiceView g={g} me={me} players={players} isHost={isHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
       </div>
 
@@ -344,11 +387,13 @@ function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avat
   )
 }
 
-function Menu({ isHost, onSpinStart, onTod, onNhie }: any) {
+function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot }: any) {
   const items = [
     { key: 'spin', label: 'Spin the Bottle', emoji: '🍾', color: C.pink, fn: onSpinStart },
     { key: 'tod', label: 'Truth or Dare', emoji: '🎯', color: C.purple, fn: onTod },
     { key: 'nhie', label: 'Never Have I Ever', emoji: '🙈', color: C.teal, fn: onNhie },
+    { key: 'wyr', label: 'Would You Rather', emoji: '🤔', color: C.blue, fn: onWyr },
+    { key: 'tot', label: 'This or That — do you match?', emoji: '💞', color: C.orange, fn: onTot },
   ]
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
@@ -483,6 +528,54 @@ function NhieView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, Av
           </div>
           {isHost && <button onClick={onNext} style={solidBtn(C.teal)}>Next one →</button>}
           {!isHost && <div style={{ textAlign: 'center', color: C.muted }}>Host will bring the next one…</div>}
+        </>
+      )}
+    </div>
+  )
+}
+
+function ChoiceView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, Avatar, nameOf }: any) {
+  const votes = g.choiceVotes || {}
+  const myVote = votes[me.id]
+  const p = g.choicePrompt || { a: '', b: '' }
+  const isWyr = g.choiceKind === 'wyr'
+  const matched = g.choiceKind === 'tot' && players.length === 2 && players.every((pl: LivePlayer) => votes[pl.id]) &&
+    votes[players[0].id] === votes[players[1].id]
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 13, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>{isWyr ? 'Would you rather…' : 'This or that — do you match?'}</div>
+
+      {!g.choiceRevealed ? (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {(['a', 'b'] as const).map((k, i) => (
+              <button key={k} onClick={() => onVote(k)} style={{
+                background: myVote === k ? (i === 0 ? C.blue : C.orange) : C.card,
+                border: myVote === k ? `2px solid ${i === 0 ? C.blue : C.orange}` : `1px solid ${C.border}`,
+                borderRadius: RADIUS.lg, padding: '22px 20px', color: C.text, fontSize: 18, fontWeight: 700, cursor: 'pointer', textAlign: 'center', transition: `all ${MOTION.fast}`,
+              }}>{p[k]}</button>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{Object.keys(votes).length}/{players.length} answered</div>
+          {isHost && <button onClick={onReveal} disabled={Object.keys(votes).length === 0} style={{ ...solidBtn(Object.keys(votes).length ? C.amber : C.dim), opacity: Object.keys(votes).length ? 1 : 0.5 }}>Reveal 👀</button>}
+          {!isHost && <div style={{ textAlign: 'center', color: C.dim, fontSize: 12 }}>Host reveals when everyone's in</div>}
+        </>
+      ) : (
+        <>
+          {g.choiceKind === 'tot' && players.length === 2 && (
+            <div style={{ textAlign: 'center', fontSize: 20, fontWeight: 800, color: matched ? C.pink : C.blue }}>{matched ? 'You match! 💞' : 'Opposites attract 😄'}</div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {players.map((pl: LivePlayer) => (
+              <div key={pl.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: '10px 14px' }}>
+                <Avatar p={pl} size={34} />
+                <div style={{ flex: 1, fontWeight: 600 }}>{pl.id === me.id ? 'You' : (nameOf?.(pl.id) || pl.name)}</div>
+                <div style={{ fontWeight: 700, color: votes[pl.id] === 'a' ? C.blue : C.orange }}>{votes[pl.id] ? p[votes[pl.id] as 'a' | 'b'] : '—'}</div>
+              </div>
+            ))}
+          </div>
+          {isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next one →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will bring the next one…</div>}
         </>
       )}
     </div>
