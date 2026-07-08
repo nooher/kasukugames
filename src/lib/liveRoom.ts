@@ -36,6 +36,9 @@ export const LIVE_GAMES: { id: string; name: string; emoji: string }[] = [
   { id: 'nhie', name: 'Never Have I Ever', emoji: '🙈' },
   { id: 'wyr', name: 'Would You Rather', emoji: '🤔' },
   { id: 'tot', name: 'This or That', emoji: '💞' },
+  { id: 'trivia', name: 'Trivia Duel', emoji: '🧠' },
+  { id: 'mlt', name: 'Most Likely To', emoji: '👉' },
+  { id: 'rps', name: 'Rock Paper Scissors', emoji: '✊' },
   { id: 'party', name: 'Surprise — pick together', emoji: '🎉' },
 ]
 

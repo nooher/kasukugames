@@ -13,10 +13,12 @@ const C = {
 }
 const SEAT_COLORS = [C.pink, C.blue, C.green, C.purple, C.orange, C.teal, C.amber, C.red]
 
-type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice'
+type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps'
 interface GState {
   screen: Screen
   turnIdx?: number
+  // shared competitive scoreboard (playerId -> points)
+  scores?: Record<string, number>
   // spin
   spinNonce?: number
   spinAngle?: number
@@ -36,6 +38,21 @@ interface GState {
   choicePrompt?: { a: string; b: string }
   choiceVotes?: Record<string, 'a' | 'b'>
   choiceRevealed?: boolean
+  // trivia duel
+  triviaCat?: string
+  triviaRound?: number
+  triviaQ?: { q: string; options: string[]; answer: number; cat: string }
+  triviaVotes?: Record<string, number>
+  triviaRevealed?: boolean
+  // most likely to
+  mltPrompt?: string
+  mltVotes?: Record<string, string>
+  mltRevealed?: boolean
+  // rock paper scissors
+  rpsPicks?: Record<string, 'r' | 'p' | 's'>
+  rpsRevealed?: boolean
+  rpsWins?: Record<string, number>
+  rpsRound?: number
 }
 
 const TRUTHS = [
@@ -85,6 +102,61 @@ const TOT = [
   { a: 'Sweet', b: 'Savoury' }, { a: 'Call', b: 'Text' }, { a: 'City', b: 'Village' },
   { a: 'Cats', b: 'Dogs' }, { a: 'Movies', b: 'Music' }, { a: 'Summer', b: 'Rainy season' },
   { a: 'Plan ahead', b: 'Go with the flow' }, { a: 'Save', b: 'Spend' }, { a: 'Spicy', b: 'Mild' },
+]
+
+interface TriviaQ { q: string; options: string[]; answer: number; cat: string }
+const TRIVIA: TriviaQ[] = [
+  // Tanzania / Africa
+  { cat: 'Tanzania', q: 'What is the highest mountain in Africa?', options: ['Mt Kenya', 'Mt Kilimanjaro', 'Mt Meru', 'Rwenzori'], answer: 1 },
+  { cat: 'Tanzania', q: 'What is the capital city of Tanzania?', options: ['Dar es Salaam', 'Arusha', 'Dodoma', 'Mwanza'], answer: 2 },
+  { cat: 'Tanzania', q: 'Which lake is the largest in Africa?', options: ['Lake Tanganyika', 'Lake Malawi', 'Lake Victoria', 'Lake Nyasa'], answer: 2 },
+  { cat: 'Tanzania', q: 'Zanzibar is famous for producing which spice?', options: ['Cinnamon', 'Cloves', 'Pepper', 'Ginger'], answer: 1 },
+  { cat: 'Tanzania', q: 'The Serengeti is famous for which annual event?', options: ['The Great Migration', 'The Rift Eruption', 'The Long Rain', 'The Salt Harvest'], answer: 0 },
+  { cat: 'Tanzania', q: 'What is the national language of Tanzania?', options: ['English', 'Swahili', 'Chagga', 'Sukuma'], answer: 1 },
+  { cat: 'Africa', q: 'Which river is the longest in the world?', options: ['Congo', 'Zambezi', 'Nile', 'Niger'], answer: 2 },
+  { cat: 'Africa', q: 'How many countries are in Africa?', options: ['48', '54', '60', '45'], answer: 1 },
+  // General
+  { cat: 'General', q: 'How many continents are there?', options: ['5', '6', '7', '8'], answer: 2 },
+  { cat: 'General', q: 'What is the largest planet in our solar system?', options: ['Saturn', 'Jupiter', 'Neptune', 'Earth'], answer: 1 },
+  { cat: 'General', q: 'How many colours are in a rainbow?', options: ['5', '6', '7', '8'], answer: 2 },
+  { cat: 'General', q: 'What is the smallest prime number?', options: ['0', '1', '2', '3'], answer: 2 },
+  { cat: 'General', q: 'How many sides does a hexagon have?', options: ['5', '6', '7', '8'], answer: 1 },
+  { cat: 'General', q: 'What is the currency of Tanzania?', options: ['Shilling', 'Franc', 'Naira', 'Cedi'], answer: 0 },
+  // Science
+  { cat: 'Science', q: 'What gas do plants absorb from the air?', options: ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Helium'], answer: 2 },
+  { cat: 'Science', q: 'How many bones are in the adult human body?', options: ['206', '201', '212', '198'], answer: 0 },
+  { cat: 'Science', q: 'What is the chemical symbol for gold?', options: ['Go', 'Gd', 'Au', 'Ag'], answer: 2 },
+  { cat: 'Science', q: 'What organ pumps blood through the body?', options: ['Liver', 'Heart', 'Lungs', 'Kidney'], answer: 1 },
+  { cat: 'Science', q: 'What is the speed of light (approx)?', options: ['300,000 km/s', '30,000 km/s', '3,000 km/s', '3 million km/s'], answer: 0 },
+  // Faith
+  { cat: 'Faith', q: 'How many books are in the Christian New Testament?', options: ['27', '39', '66', '24'], answer: 0 },
+  { cat: 'Faith', q: 'How many surahs are in the Quran?', options: ['99', '114', '120', '110'], answer: 1 },
+  { cat: 'Faith', q: 'What is the first month of the Islamic calendar?', options: ['Ramadan', 'Muharram', 'Shawwal', 'Rajab'], answer: 1 },
+  { cat: 'Faith', q: 'In the Bible, who built the ark?', options: ['Moses', 'Abraham', 'Noah', 'David'], answer: 2 },
+  // Sport & Culture
+  { cat: 'Sport', q: 'How many players are on a football (soccer) team on the pitch?', options: ['9', '10', '11', '12'], answer: 2 },
+  { cat: 'Sport', q: 'How often are the Summer Olympics held?', options: ['Every 2 years', 'Every 3 years', 'Every 4 years', 'Every 5 years'], answer: 2 },
+  { cat: 'Sport', q: 'Which country has won the most FIFA World Cups?', options: ['Germany', 'Brazil', 'Argentina', 'Italy'], answer: 1 },
+  { cat: 'Culture', q: '"Hakuna Matata" means what?', options: ['Good morning', 'No worries', 'Thank you', 'Welcome'], answer: 1 },
+  { cat: 'Culture', q: 'What does "Asante" mean in Swahili?', options: ['Hello', 'Please', 'Thank you', 'Goodbye'], answer: 2 },
+]
+const MLT = [
+  'become famous one day',
+  'send a text to the wrong person',
+  'cry during a movie',
+  'forget an anniversary',
+  'become a millionaire',
+  'sleep through an alarm',
+  'start a business',
+  'sing loudly in the shower',
+  'travel the world',
+  'win an argument every time',
+  'eat the last slice of food',
+  'get lost with GPS on',
+  'laugh at the wrong moment',
+  'plan the perfect surprise',
+  'stay calm in a crisis',
+  'adopt ten pets',
 ]
 
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '👏', '💋', '🥰', '😳']
@@ -166,6 +238,15 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     }
     else if (d.a === 'choicereveal') pushState({ ...cur, choiceRevealed: true })
     else if (d.a === 'nextChoice') startChoice(cur.choiceKind || 'wyr')
+    else if (d.a === 'tvote') pushState({ ...cur, triviaVotes: { ...(cur.triviaVotes || {}), [from]: d.choice } })
+    else if (d.a === 'treveal') revealTrivia()
+    else if (d.a === 'tnext') nextTrivia()
+    else if (d.a === 'mvote') pushState({ ...cur, mltVotes: { ...(cur.mltVotes || {}), [from]: d.target } })
+    else if (d.a === 'mreveal') revealMlt()
+    else if (d.a === 'mnext') nextMlt()
+    else if (d.a === 'rpick') pushState({ ...cur, rpsPicks: { ...(cur.rpsPicks || {}), [from]: d.choice } })
+    else if (d.a === 'rreveal') revealRps()
+    else if (d.a === 'rnext') nextRps()
     else if (d.a === 'menu') pushState({ screen: 'menu' })
   }
 
@@ -213,6 +294,55 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
   const startNhie = () => pushState({ screen: 'nhie', nhiePrompt: pick(NHIE), nhieVotes: {}, nhieRevealed: false })
   const startChoice = (kind: 'wyr' | 'tot') => pushState({ screen: 'choice', choiceKind: kind, choicePrompt: pick(kind === 'wyr' ? WYR : TOT), choiceVotes: {}, choiceRevealed: false })
+
+  // ── shared scoreboard ──
+  const keepScores = () => gRef.current.scores || {}
+
+  // ── Trivia Duel ──
+  const pickTrivia = (cat: string, avoid?: string): TriviaQ => {
+    const pool = cat === 'Mixed' ? TRIVIA : TRIVIA.filter(q => q.cat === cat)
+    const base = pool.filter(q => q.q !== avoid)
+    const src = base.length ? base : pool
+    const picked = src[Math.floor(Math.random() * src.length)]
+    const order = picked.options.map((o, i) => ({ o, i })).sort(() => Math.random() - 0.5)
+    return { q: picked.q, options: order.map(x => x.o), answer: order.findIndex(x => x.i === picked.answer), cat: picked.cat }
+  }
+  const startTrivia = (cat: string) => pushState({ screen: 'trivia', triviaCat: cat, triviaRound: 1, triviaQ: pickTrivia(cat), triviaVotes: {}, triviaRevealed: false, scores: keepScores() })
+  const revealTrivia = () => {
+    const cur = gRef.current; const q = cur.triviaQ; if (!q) return
+    const s = { ...(cur.scores || {}) }
+    for (const [pid, choice] of Object.entries(cur.triviaVotes || {})) if (choice === q.answer) s[pid] = (s[pid] || 0) + 10
+    pushState({ ...cur, triviaRevealed: true, scores: s })
+  }
+  const nextTrivia = () => { const cur = gRef.current; pushState({ ...cur, triviaRound: (cur.triviaRound || 1) + 1, triviaQ: pickTrivia(cur.triviaCat || 'Mixed', cur.triviaQ?.q), triviaVotes: {}, triviaRevealed: false }) }
+
+  // ── Most Likely To ──
+  const startMlt = () => pushState({ screen: 'mlt', mltPrompt: pick(MLT), mltVotes: {}, mltRevealed: false, scores: keepScores() })
+  const revealMlt = () => {
+    const cur = gRef.current; const tally: Record<string, number> = {}
+    for (const t of Object.values(cur.mltVotes || {})) tally[t] = (tally[t] || 0) + 1
+    let top = ''; let max = 0
+    for (const [id, n] of Object.entries(tally)) if (n > max) { max = n; top = id }
+    const s = { ...(cur.scores || {}) }; if (top) s[top] = (s[top] || 0) + 5
+    pushState({ ...cur, mltRevealed: true, scores: s })
+  }
+  const nextMlt = () => pushState({ ...gRef.current, mltPrompt: pick(MLT), mltVotes: {}, mltRevealed: false })
+
+  // ── Rock Paper Scissors ──
+  const RPS_BEATS: Record<string, string> = { r: 's', p: 'r', s: 'p' }
+  const startRps = () => pushState({ screen: 'rps', rpsPicks: {}, rpsRevealed: false, rpsWins: {}, rpsRound: 1, scores: keepScores() })
+  const revealRps = () => {
+    const cur = gRef.current; const order = ids(); const picks = cur.rpsPicks || {}
+    const wins: Record<string, number> = {}
+    for (const a of order) for (const b of order) if (a !== b && picks[a] && picks[b] && RPS_BEATS[picks[a]] === picks[b]) wins[a] = (wins[a] || 0) + 1
+    let max = -1; for (const id of order) max = Math.max(max, wins[id] || 0)
+    const winners = order.filter(id => (wins[id] || 0) === max && max > 0)
+    const rw = { ...(cur.rpsWins || {}) }; const s = { ...(cur.scores || {}) }
+    if (winners.length === 1) { rw[winners[0]] = (rw[winners[0]] || 0) + 1; s[winners[0]] = (s[winners[0]] || 0) + 5 }
+    pushState({ ...cur, rpsRevealed: true, rpsWins: rw, scores: s })
+  }
+  const nextRps = () => pushState({ ...gRef.current, rpsPicks: {}, rpsRevealed: false, rpsRound: (gRef.current.rpsRound || 1) + 1 })
+
   // Host taps Start — go straight into the challenged game, or the picker.
   const launchInitial = () => {
     if (initialGame === 'spin') pushState({ screen: 'spin', spinAngle: 0, spinning: false })
@@ -220,6 +350,9 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (initialGame === 'nhie') startNhie()
     else if (initialGame === 'wyr') startChoice('wyr')
     else if (initialGame === 'tot') startChoice('tot')
+    else if (initialGame === 'trivia') startTrivia('Mixed')
+    else if (initialGame === 'mlt') startMlt()
+    else if (initialGame === 'rps') startRps()
     else startMenu()
   }
 
@@ -245,6 +378,15 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
   const onChoiceReveal = () => { sfxReveal(); act({ a: 'choicereveal' }, () => pushState({ ...gRef.current, choiceRevealed: true })) }
   const onChoiceNext = () => act({ a: 'nextChoice' }, () => startChoice(gRef.current.choiceKind || 'wyr'))
+  const onTriviaVote = (choice: number) => { sfxTap(); if (isHost) pushState({ ...gRef.current, triviaVotes: { ...(gRef.current.triviaVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'tvote', choice }) }
+  const onTriviaReveal = () => { sfxReveal(); act({ a: 'treveal' }, revealTrivia) }
+  const onTriviaNext = () => act({ a: 'tnext' }, nextTrivia)
+  const onMltVote = (target: string) => { sfxTap(); if (isHost) pushState({ ...gRef.current, mltVotes: { ...(gRef.current.mltVotes || {}), [me.id]: target } }); else roomRef.current?.send('act', { a: 'mvote', target }) }
+  const onMltReveal = () => { sfxReveal(); act({ a: 'mreveal' }, revealMlt) }
+  const onMltNext = () => act({ a: 'mnext' }, nextMlt)
+  const onRpsPick = (choice: 'r' | 'p' | 's') => { sfxTap(); if (isHost) pushState({ ...gRef.current, rpsPicks: { ...(gRef.current.rpsPicks || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'rpick', choice }) }
+  const onRpsReveal = () => { sfxReveal(); act({ a: 'rreveal' }, revealRps) }
+  const onRpsNext = () => act({ a: 'rnext' }, nextRps)
   const onBackMenu = () => act({ a: 'menu' }, startMenu)
 
   // ── reactions + chat (peer broadcast) ──
@@ -300,13 +442,26 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
         </div>
       </div>
 
+      {/* scoreboard strip (shown once anyone has points) */}
+      {g.scores && Object.keys(g.scores).length > 0 && g.screen !== 'lobby' && g.screen !== 'menu' && (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '8px 14px', borderBottom: `1px solid ${C.border}`, background: C.card }}>
+          {[...players].map(p => ({ p, sc: g.scores![p.id] || 0 })).sort((a, b) => b.sc - a.sc).map(({ p, sc }, i) => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, padding: '3px 10px', borderRadius: 999, background: i === 0 && sc > 0 ? C.amber + '22' : C.bg, border: `1px solid ${i === 0 && sc > 0 ? C.amber : C.border}` }}>
+              {i === 0 && sc > 0 && <span style={{ fontSize: 12 }}>👑</span>}
+              <span style={{ fontSize: 12, fontWeight: 600 }}>{p.id === me.id ? 'You' : p.name.split(' ')[0]}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: C.amber }}>{sc}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column' }}>
         {g.screen === 'lobby' && (
           <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
-          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} />
+          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} />
         )}
         {g.screen === 'spin' && (
           <SpinView g={g} players={players} me={me} isHost={isHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
@@ -319,6 +474,15 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
         )}
         {g.screen === 'choice' && (
           <ChoiceView g={g} me={me} players={players} isHost={isHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+        )}
+        {g.screen === 'trivia' && (
+          <TriviaView g={g} me={me} players={players} isHost={isHost} onVote={onTriviaVote} onReveal={onTriviaReveal} onNext={onTriviaNext} onBack={onBackMenu} />
+        )}
+        {g.screen === 'mlt' && (
+          <MltView g={g} me={me} players={players} isHost={isHost} onVote={onMltVote} onReveal={onMltReveal} onNext={onMltNext} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
+        )}
+        {g.screen === 'rps' && (
+          <RpsView g={g} me={me} players={players} isHost={isHost} onPick={onRpsPick} onReveal={onRpsReveal} onNext={onRpsNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
       </div>
 
@@ -387,13 +551,16 @@ function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avat
   )
 }
 
-function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot }: any) {
+function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps }: any) {
   const items = [
+    { key: 'trivia', label: 'Trivia Duel', emoji: '🧠', color: C.green, fn: onTrivia },
     { key: 'spin', label: 'Spin the Bottle', emoji: '🍾', color: C.pink, fn: onSpinStart },
     { key: 'tod', label: 'Truth or Dare', emoji: '🎯', color: C.purple, fn: onTod },
     { key: 'nhie', label: 'Never Have I Ever', emoji: '🙈', color: C.teal, fn: onNhie },
     { key: 'wyr', label: 'Would You Rather', emoji: '🤔', color: C.blue, fn: onWyr },
     { key: 'tot', label: 'This or That — do you match?', emoji: '💞', color: C.orange, fn: onTot },
+    { key: 'mlt', label: 'Most Likely To', emoji: '👉', color: C.amber, fn: onMlt },
+    { key: 'rps', label: 'Rock Paper Scissors', emoji: '✊', color: C.red, fn: onRps },
   ]
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
@@ -576,6 +743,124 @@ function ChoiceView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, 
             ))}
           </div>
           {isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next one →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will bring the next one…</div>}
+        </>
+      )}
+    </div>
+  )
+}
+
+function TriviaView({ g, me, players, isHost, onVote, onReveal, onNext, onBack }: any) {
+  const q = g.triviaQ || { q: '', options: [], answer: -1, cat: '' }
+  const votes = g.triviaVotes || {}
+  const myVote = votes[me.id]
+  const answered = Object.keys(votes).length
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>🧠 Trivia · {q.cat}</span>
+        <span style={{ fontSize: 11, color: C.muted }}>Round {g.triviaRound || 1}</span>
+      </div>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, padding: 20, fontSize: 18, fontWeight: 600, textAlign: 'center', lineHeight: 1.4 }}>{q.q}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {q.options.map((opt: string, i: number) => {
+          const chosen = myVote === i
+          const correct = g.triviaRevealed && i === q.answer
+          const wrongPick = g.triviaRevealed && chosen && i !== q.answer
+          const bg = correct ? C.green : wrongPick ? C.red : chosen ? C.blue : C.card2
+          return (
+            <button key={i} disabled={g.triviaRevealed || myVote !== undefined} onClick={() => onVote(i)} style={{
+              background: bg, border: `1px solid ${correct ? C.green : wrongPick ? C.red : chosen ? C.blue : C.border}`, borderRadius: RADIUS.md, padding: '14px 16px', color: C.text, fontSize: 15, fontWeight: 600, textAlign: 'left',
+              cursor: (g.triviaRevealed || myVote !== undefined) ? 'default' : 'pointer', opacity: (g.triviaRevealed && !correct && !chosen) ? 0.55 : 1,
+            }}>{String.fromCharCode(65 + i)}. {opt}{correct ? '  ✓' : ''}</button>
+          )
+        })}
+      </div>
+      {!g.triviaRevealed ? (
+        <>
+          <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{answered}/{players.length} answered{myVote !== undefined ? ' · locked in ✓' : ''}</div>
+          {isHost && <button onClick={onReveal} disabled={!answered} style={{ ...solidBtn(answered ? C.amber : C.dim), opacity: answered ? 1 : 0.5 }}>Reveal answer 👀</button>}
+        </>
+      ) : (
+        isHost ? <button onClick={onNext} style={solidBtn(C.green)}>Next question →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will bring the next question…</div>
+      )}
+    </div>
+  )
+}
+
+function MltView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, Avatar, nameOf }: any) {
+  const votes = g.mltVotes || {}
+  const myVote = votes[me.id]
+  const tally: Record<string, number> = {}
+  for (const t of Object.values(votes)) tally[t as string] = (tally[t as string] || 0) + 1
+  const maxV = Math.max(0, ...Object.values(tally))
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>👉 Most likely to</div>
+        <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.3 }}>{g.mltPrompt}?</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {players.map((p: LivePlayer) => {
+          const chosen = myVote === p.id
+          const count = tally[p.id] || 0
+          const isTop = g.mltRevealed && count > 0 && count === maxV
+          return (
+            <button key={p.id} disabled={g.mltRevealed || myVote !== undefined} onClick={() => onVote(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isTop ? C.amber + '22' : chosen ? C.blue + '22' : C.card, border: `1px solid ${isTop ? C.amber : chosen ? C.blue : C.border}`, borderRadius: RADIUS.md, padding: '10px 14px', cursor: (g.mltRevealed || myVote !== undefined) ? 'default' : 'pointer', color: C.text }}>
+              <Avatar p={p} size={34} />
+              <div style={{ flex: 1, textAlign: 'left', fontWeight: 600 }}>{p.id === me.id ? 'You' : (nameOf?.(p.id) || p.name)}</div>
+              {g.mltRevealed && <span style={{ fontWeight: 800, color: isTop ? C.amber : C.muted }}>{count} {count === 1 ? 'vote' : 'votes'}{isTop ? ' 👑' : ''}</span>}
+            </button>
+          )
+        })}
+      </div>
+      {!g.mltRevealed ? (
+        <>
+          <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{Object.keys(votes).length}/{players.length} voted</div>
+          {isHost && <button onClick={onReveal} disabled={!Object.keys(votes).length} style={{ ...solidBtn(Object.keys(votes).length ? C.amber : C.dim), opacity: Object.keys(votes).length ? 1 : 0.5 }}>Reveal 👀</button>}
+        </>
+      ) : (isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next one →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will bring the next one…</div>)}
+    </div>
+  )
+}
+
+function RpsView({ g, me, players, isHost, onPick, onReveal, onNext, onBack, Avatar, nameOf }: any) {
+  const picks = g.rpsPicks || {}
+  const myPick = picks[me.id]
+  const allPicked = players.length > 0 && players.every((p: LivePlayer) => picks[p.id])
+  const ICON: Record<string, string> = { r: '✊', p: '✋', s: '✌️' }
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>✊ Rock · Paper · Scissors — Round {g.rpsRound || 1}</div>
+      {!g.rpsRevealed ? (
+        <>
+          <div style={{ textAlign: 'center', fontSize: 16, color: C.text }}>{myPick ? 'Locked in — waiting for others…' : 'Make your move'}</div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            {(['r', 'p', 's'] as const).map(k => (
+              <button key={k} disabled={!!myPick} onClick={() => onPick(k)} style={{ width: 90, height: 90, borderRadius: RADIUS.lg, fontSize: 38, background: myPick === k ? C.blue : C.card, border: `2px solid ${myPick === k ? C.blue : C.border}`, cursor: myPick ? 'default' : 'pointer', opacity: myPick && myPick !== k ? 0.5 : 1 }}>{ICON[k]}</button>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', color: C.muted, fontSize: 13 }}>{Object.keys(picks).length}/{players.length} ready</div>
+          {isHost && <button onClick={onReveal} disabled={!Object.keys(picks).length} style={{ ...solidBtn(allPicked ? C.amber : C.dim), opacity: Object.keys(picks).length ? 1 : 0.5 }}>Reveal 👊</button>}
+        </>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {players.map((p: LivePlayer) => {
+              const wins = (g.rpsWins || {})[p.id] || 0
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: '10px 14px' }}>
+                  <Avatar p={p} size={34} />
+                  <div style={{ flex: 1, fontWeight: 600 }}>{p.id === me.id ? 'You' : (nameOf?.(p.id) || p.name)}</div>
+                  <span style={{ fontSize: 24 }}>{ICON[picks[p.id]] || '—'}</span>
+                  <span style={{ fontSize: 12, color: C.amber, fontWeight: 700, width: 54, textAlign: 'right' }}>{wins} {wins === 1 ? 'win' : 'wins'}</span>
+                </div>
+              )
+            })}
+          </div>
+          {isHost ? <button onClick={onNext} style={solidBtn(C.teal)}>Next round →</button> : <div style={{ textAlign: 'center', color: C.muted }}>Host will start the next round…</div>}
         </>
       )}
     </div>
