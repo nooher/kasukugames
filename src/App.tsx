@@ -43,6 +43,7 @@ import {
 } from './lib/connections'
 import { listenForInvites, sendLiveInvite, makeRoomCode, LIVE_GAMES, type LivePlayer, type LiveInvite, type NotifStyle } from './lib/liveRoom'
 import { fetchLeaderboard, pushMyStats } from './lib/leaderboard'
+import { fetchKasukuPeople, followOnKasuku, type KasukuPerson } from './lib/friends'
 import { sfxLevelUp } from './lib/sfx'
 // GameCard import removed — HomeSection no longer uses the full game grid
 import Logo from './components/Logo'
@@ -1146,6 +1147,13 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, P, isDark, mo,
   const [challengeConn, setChallengeConn] = useState<Connection | null>(null)
   const [challengeNotif, setChallengeNotif] = useState<NotifStyle>('flash')
   const [connections, setConnections] = useState<Connection[]>(loadConnections)
+  const [kasukuPeople, setKasukuPeople] = useState<KasukuPerson[]>([])
+  useEffect(() => { if (profile) fetchKasukuPeople().then(setKasukuPeople) }, [profile?.username])
+  const personToConn = (p: KasukuPerson): Connection => ({
+    id: 'k_' + p.handle, displayName: p.name, username: p.handle, avatar: '🎮',
+    relation: 'friend', contactMethod: 'username', contactValue: p.handle,
+    addedAt: 0, lastPlayed: null, gamesPlayed: 0, wins: 0, losses: 0, shareProfilePic: true,
+  })
   const [showAdd, setShowAdd] = useState(false)
   const [addName, setAddName] = useState('')
   const [addRelation, setAddRelation] = useState<RelationType>('friend')
@@ -1158,6 +1166,9 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, P, isDark, mo,
     if (!addName.trim() || !addContact.trim()) return
     const conn = addConnection({ displayName: addName.trim(), username: addName.trim().toLowerCase().replace(/\s+/g, '_'), avatar: AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)], relation: addRelation, contactMethod: addMethod, contactValue: addContact.trim(), shareProfilePic: addSharePic })
     setConnections([...connections, conn])
+    // If they're a Kasuku user, follow them so it can become mutual → you both
+    // see each other in People automatically.
+    if (addMethod === 'username') followOnKasuku(addContact.trim()).then(ok => { if (ok) fetchKasukuPeople().then(setKasukuPeople) })
     setShowAdd(false); setAddName(''); setAddContact('')
   }
 
@@ -1207,6 +1218,29 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, P, isDark, mo,
         </div>
         <span style={{ fontSize: 20, color: P.rose }}>→</span>
       </button>
+
+      {/* On Kasuku — people from your follow graph (auto, bidirectional) */}
+      {profile && kasukuPeople.length > 0 && (
+        <div style={{ ...gct(), padding: '20px 24px', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: P.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Users size={18} color={P.sapphire} /> On Kasuku
+          </div>
+          <div style={{ fontSize: 11, color: P.textMuted, margin: '3px 0 8px' }}>People you follow each other with on Kasuku — challenge them live.</div>
+          {kasukuPeople.map(p => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: `1px solid ${P.border}` }}>
+              {p.photoUrl
+                ? <img src={p.photoUrl} alt={p.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                : <span style={{ width: 40, height: 40, borderRadius: '50%', background: P.sapphire + '20', display: 'grid', placeItems: 'center', fontSize: 18 }}>🎮</span>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: P.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: P.textDim }}>@{p.handle} · {p.mutual ? 'you follow each other' : 'follows you'}</div>
+              </div>
+              <button onClick={() => setInviteConn(personToConn(p))} title="Send an invite" style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Send size={14} color={P.sapphire} /></button>
+              <button onClick={() => setChallengeConn(personToConn(p))} title="Challenge to a live game" style={{ background: P.rose, border: 'none', borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${P.rose}30`, fontSize: 15 }}>🔴</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: P.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
