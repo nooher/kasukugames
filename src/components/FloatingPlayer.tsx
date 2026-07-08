@@ -57,6 +57,23 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
     if (rawRef.current) rawRef.current.playbackRate = rate
   }, [rate, state.track?.id])
 
+  // An audiobook chosen in Kasuku and handed back (?book=…) → play it here.
+  useEffect(() => {
+    if (!visible) return
+    try {
+      const raw = localStorage.getItem('kg_pending_book')
+      if (!raw) return
+      localStorage.removeItem('kg_pending_book')
+      const b = JSON.parse(raw)
+      if (b?.url) {
+        const track: AudioTrack = { id: 'book-' + Date.now(), title: b.title || 'Audiobook', artist: 'Audiobook · Kasuku', category: 'audiobook', src: b.url, cors: /archive\.org|supabase/.test(b.url) }
+        addLocalTrack(track)
+        playTrack(track)
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+
   const allTracks = [...BUILT_IN_TRACKS, ...getLocalTracks()]
 
   const isGenerative = (track: AudioTrack) => !track.src
@@ -460,8 +477,8 @@ export default function FloatingPlayer({ visible, onToggle, theme = 'dark' }: Pr
                     <input type="file" accept="audio/*" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
                   </label>
                   {cat === 'audiobook' && (
-                    <a href="https://kasuku.tz" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', color: P.gold, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-                      <ExternalLink size={13} /> {t('browse_kasuku')}
+                    <a href={`https://kasuku.tz/?pick=audiobook&return=${encodeURIComponent('https://games.kasuku.tz/')}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', color: P.gold, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                      <ExternalLink size={14} /> {t('browse_kasuku')}
                     </a>
                   )}
                   {shownTracks.length === 0 && (

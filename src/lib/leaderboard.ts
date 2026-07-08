@@ -14,6 +14,15 @@ export interface LiveEntry {
   xp: number
   level: number
   totalGames: number
+  muhuri?: string
+}
+
+function muhuriOf(verified?: boolean, kind?: string | null): string | undefined {
+  if (!verified) return undefined
+  if (kind === 'founder') return 'founder'
+  if (kind === 'admin' || kind === 'moderator') return 'admin'
+  if (kind === 'creator') return 'creator'
+  return 'verified'
 }
 
 export interface MyStats {
@@ -61,6 +70,15 @@ export async function fetchLeaderboard(limit = 100): Promise<LiveEntry[] | null>
       .order('xp', { ascending: false })
       .limit(limit)
     if (error || !Array.isArray(data)) return null
+    // Pull verification badges from profiles so they show on the board.
+    const badge: Record<string, string | undefined> = {}
+    try {
+      const ids = data.map(r => r.id).filter(Boolean)
+      if (ids.length) {
+        const { data: profs } = await supabase.from('profiles').select('id, verified, verified_kind').in('id', ids)
+        for (const p of profs || []) badge[p.id] = muhuriOf(p.verified, p.verified_kind)
+      }
+    } catch { /* badges optional */ }
     return data.map(r => ({
       id: r.id,
       handle: r.handle,
@@ -70,6 +88,7 @@ export async function fetchLeaderboard(limit = 100): Promise<LiveEntry[] | null>
       xp: r.xp || 0,
       level: r.level || 1,
       totalGames: r.total_games || 0,
+      muhuri: badge[r.id],
     }))
   } catch {
     return null

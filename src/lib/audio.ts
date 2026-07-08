@@ -52,13 +52,6 @@ export const BUILT_IN_TRACKS: AudioTrack[] = [
   { id: 'sb_bowls', title: 'Singing Bowls (Live)', artist: 'Sound Bath · Public Domain', category: 'soundbath', cors: true, src: IA('SingingBowlImprovisation', 'bowls_64kb.mp3') },
   // ── Real recording — Study / focus (CC0) ──
   { id: 'st_white', title: 'White Noise', artist: 'Study · Public Domain', category: 'study', src: IA('WhiteNoise_296', 'whitestatic_64kb.mp3'), cors: true },
-  // ── Audiobooks — real, from the Kasuku library (founder preview + public domain) ──
-  { id: 'ab_silt', title: 'SILT · Chapter 1', artist: 'Audiobook · Ally A. Nooher (preview)', category: 'audiobook', cors: true, src: IA('ksk-zfhj9ut-s1', 'ch-01.mp3') },
-  { id: 'ab_equiano1', title: 'Equiano · Chapter 1', artist: 'Audiobook · Olaudah Equiano (PD)', category: 'audiobook', cors: true, src: IA('interestingnarrative_librivox', 'interestingnarrative_01_equiano.mp3') },
-  { id: 'ab_equiano2', title: 'Equiano · Chapter 2', artist: 'Audiobook · Olaudah Equiano (PD)', category: 'audiobook', cors: true, src: IA('interestingnarrative_librivox', 'interestingnarrative_02_equiano.mp3') },
-  { id: 'ab_12years', title: 'Twelve Years a Slave · Ch 1', artist: 'Audiobook · Solomon Northup (PD)', category: 'audiobook', cors: true, src: IA('12yearsaslave_1303_librivox', 'twelveyearsaslave_01_northup.mp3') },
-  { id: 'ab_slavegirl', title: 'Life of a Slave Girl · Ch 1', artist: 'Audiobook · Harriet Jacobs (PD)', category: 'audiobook', cors: true, src: IA('incidents_life_slave_girl_0806_librivox', 'incidentsslavegirl_01_jacobs.mp3') },
-  { id: 'ab_negrolit', title: 'The Negro in Literature · Ch 1', artist: 'Audiobook · Benjamin Brawley (PD)', category: 'audiobook', cors: true, src: IA('negroinliterature_2102_librivox', 'negroinliterature_01_brawley.mp3') },
   // ── Real recordings — bundled & self-hosted (offline, mp3, EQ-ready) ──
   { id: 'nat_ocean', title: 'Ocean Waves', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/ocean.mp3', cors: true },
   { id: 'nat_river', title: 'River', artist: 'Nature · Field Recording', category: 'ambient', src: '/sounds/river.mp3', cors: true },
