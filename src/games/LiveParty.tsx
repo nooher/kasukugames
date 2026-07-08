@@ -30,6 +30,7 @@ interface GState {
   kind?: 'truth' | 'dare' | null
   prompt?: string | null
   // never have i ever
+  nhieCat?: string
   nhiePrompt?: string
   nhieVotes?: Record<string, 'have' | 'never'>
   nhieRevealed?: boolean
@@ -128,24 +129,39 @@ const DARES_BY_CAT: Record<string, string[]> = {
     'Send me a flirty text right now.',
   ],
 }
-const NHIE = [
-  'Never have I ever stalked someone on social media before meeting them.',
-  'Never have I ever fallen asleep on a call.',
-  'Never have I ever re-read old messages from someone.',
-  'Never have I ever been jealous over something small.',
-  'Never have I ever pretended to like something just to impress someone.',
-  'Never have I ever planned a whole future in my head after one date.',
-  'Never have I ever saved a photo of someone as my favourite.',
-  'Never have I ever missed someone within an hour of saying bye.',
-  'Never have I ever sent a text to the wrong person.',
-  'Never have I ever laughed at completely the wrong moment.',
-  'Never have I ever pretended to be busy to avoid plans.',
-  'Never have I ever eaten the last snack and blamed someone else.',
-  'Never have I ever stayed up all night watching one more episode.',
-  'Never have I ever practised a conversation in the mirror.',
-  'Never have I ever googled myself.',
-  'Never have I ever kept a gift I secretly disliked.',
-]
+const NHIE_CATS = ['Party', 'Spicy', 'Deep'] as const
+const NHIE_BY_CAT: Record<string, string[]> = {
+  Party: [
+    'Never have I ever sent a text to the wrong person.',
+    'Never have I ever laughed at completely the wrong moment.',
+    'Never have I ever pretended to be busy to avoid plans.',
+    'Never have I ever eaten the last snack and blamed someone else.',
+    'Never have I ever stayed up all night watching one more episode.',
+    'Never have I ever practised a conversation in the mirror.',
+    'Never have I ever googled myself.',
+    'Never have I ever kept a gift I secretly disliked.',
+    'Never have I ever tripped in public and pretended it was on purpose.',
+    'Never have I ever forgotten someone’s name right after meeting them.',
+  ],
+  Spicy: [
+    'Never have I ever stalked a crush on social media.',
+    'Never have I ever re-read old messages from someone I liked.',
+    'Never have I ever planned a whole future in my head after one date.',
+    'Never have I ever saved a photo of someone as my favourite.',
+    'Never have I ever texted an ex late at night.',
+    'Never have I ever pretended to like something just to impress a crush.',
+    'Never have I ever had a crush on someone in this room.',
+    'Never have I ever kissed someone on a first date.',
+  ],
+  Deep: [
+    'Never have I ever cried and told no one why.',
+    'Never have I ever kept a big dream secret out of fear.',
+    'Never have I ever forgiven someone but never forgotten.',
+    'Never have I ever pretended to be okay when I really was not.',
+    'Never have I ever changed a big plan to make someone else happy.',
+    'Never have I ever doubted a choice long after making it.',
+  ],
+}
 const WYR = [
   { a: 'Travel the world together', b: 'Build a dream home together' },
   { a: 'A quiet night in', b: 'A wild night out' },
@@ -331,7 +347,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
       pushState({ ...cur, nhieVotes: votes })
     }
     else if (d.a === 'reveal') pushState({ ...cur, nhieRevealed: true })
-    else if (d.a === 'nextNhie') startNhie()
+    else if (d.a === 'nextNhie') startNhie(cur.nhieCat || 'Party')
+    else if (d.a === 'nhieCat') startNhie(d.cat)
     else if (d.a === 'choicevote') {
       const votes = { ...(cur.choiceVotes || {}), [from]: d.choice }
       pushState({ ...cur, choiceVotes: votes })
@@ -341,6 +358,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (d.a === 'tvote') pushState({ ...cur, triviaVotes: { ...(cur.triviaVotes || {}), [from]: d.choice } })
     else if (d.a === 'treveal') revealTrivia()
     else if (d.a === 'tnext') nextTrivia()
+    else if (d.a === 'tcat') startTrivia(d.cat)
     else if (d.a === 'mvote') pushState({ ...cur, mltVotes: { ...(cur.mltVotes || {}), [from]: d.target } })
     else if (d.a === 'mreveal') revealMlt()
     else if (d.a === 'mnext') nextMlt()
@@ -409,7 +427,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     const targetIdx = n > 1 ? (askerIdx + 1) % n : askerIdx
     pushState({ screen: 'tod', askerId: order[askerIdx], targetId: order[targetIdx], kind: null, prompt: null })
   }
-  const startNhie = () => pushState({ screen: 'nhie', nhiePrompt: pick(NHIE), nhieVotes: {}, nhieRevealed: false })
+  const startNhie = (cat = 'Party') => pushState({ screen: 'nhie', nhieCat: cat, nhiePrompt: pick(NHIE_BY_CAT[cat] || NHIE_BY_CAT.Party), nhieVotes: {}, nhieRevealed: false, scores: keepScores() })
   const startChoice = (kind: 'wyr' | 'tot') => pushState({ screen: 'choice', choiceKind: kind, choicePrompt: pick(kind === 'wyr' ? WYR : TOT), choiceVotes: {}, choiceRevealed: false })
 
   // ── shared scoreboard ──
@@ -551,7 +569,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else roomRef.current?.send('act', { a: 'vote', choice })
   }
   const onReveal = () => { sfxReveal(); act({ a: 'reveal' }, () => pushState({ ...gRef.current, nhieRevealed: true })) }
-  const onNextNhie = () => act({ a: 'nextNhie' }, startNhie)
+  const onNextNhie = () => act({ a: 'nextNhie' }, () => startNhie(gRef.current.nhieCat || 'Party'))
+  const onNhieCat = (cat: string) => act({ a: 'nhieCat', cat }, () => startNhie(cat))
   const onChoiceVote = (choice: 'a' | 'b') => {
     sfxTap()
     if (isHost) { const votes = { ...(gRef.current.choiceVotes || {}), [me.id]: choice }; pushState({ ...gRef.current, choiceVotes: votes }) }
@@ -562,6 +581,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const onTriviaVote = (choice: number) => { sfxTap(); if (isHost) pushState({ ...gRef.current, triviaVotes: { ...(gRef.current.triviaVotes || {}), [me.id]: choice } }); else roomRef.current?.send('act', { a: 'tvote', choice }) }
   const onTriviaReveal = () => { sfxReveal(); act({ a: 'treveal' }, revealTrivia) }
   const onTriviaNext = () => act({ a: 'tnext' }, nextTrivia)
+  const onTriviaCat = (cat: string) => act({ a: 'tcat', cat }, () => startTrivia(cat))
   const onMltVote = (target: string) => { sfxTap(); if (isHost) pushState({ ...gRef.current, mltVotes: { ...(gRef.current.mltVotes || {}), [me.id]: target } }); else roomRef.current?.send('act', { a: 'mvote', target }) }
   const onMltReveal = () => { sfxReveal(); act({ a: 'mreveal' }, revealMlt) }
   const onMltNext = () => act({ a: 'mnext' }, nextMlt)
@@ -668,13 +688,13 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
           <TodView g={g} me={me} isHost={isHost} nameOf={nameOf} onPickKind={onPickKind} onSendPrompt={onSendPrompt} onDone={onDoneTurn} onBack={onBackMenu} />
         )}
         {g.screen === 'nhie' && (
-          <NhieView g={g} me={me} players={players} isHost={isHost} onVote={onVote} onReveal={onReveal} onNext={onNextNhie} onBack={onBackMenu} Avatar={Avatar} />
+          <NhieView g={g} me={me} players={players} isHost={isHost} onVote={onVote} onReveal={onReveal} onNext={onNextNhie} onCat={onNhieCat} onBack={onBackMenu} Avatar={Avatar} />
         )}
         {g.screen === 'choice' && (
           <ChoiceView g={g} me={me} players={players} isHost={isHost} onVote={onChoiceVote} onReveal={onChoiceReveal} onNext={onChoiceNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
         )}
         {g.screen === 'trivia' && (
-          <TriviaView g={g} me={me} players={players} isHost={isHost} onVote={onTriviaVote} onReveal={onTriviaReveal} onNext={onTriviaNext} onBack={onBackMenu} />
+          <TriviaView g={g} me={me} players={players} isHost={isHost} onVote={onTriviaVote} onReveal={onTriviaReveal} onNext={onTriviaNext} onCat={onTriviaCat} onBack={onBackMenu} />
         )}
         {g.screen === 'mlt' && (
           <MltView g={g} me={me} players={players} isHost={isHost} onVote={onMltVote} onReveal={onMltReveal} onNext={onMltNext} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
@@ -896,13 +916,20 @@ function TodView({ g, me, isHost, nameOf, onPickKind, onSendPrompt, onDone, onBa
   )
 }
 
-function NhieView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, Avatar }: any) {
+function NhieView({ g, me, players, isHost, onVote, onReveal, onNext, onCat, onBack, Avatar }: any) {
   const votes = g.nhieVotes || {}
   const myVote = votes[me.id]
   const allVoted = players.length > 0 && players.every((p: LivePlayer) => votes[p.id])
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      {isHost && (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+          {NHIE_CATS.map(c => (
+            <button key={c} onClick={() => onCat(c)} style={{ padding: '4px 14px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: (g.nhieCat || 'Party') === c ? (c === 'Spicy' ? C.red : C.teal) : 'transparent', color: (g.nhieCat || 'Party') === c ? '#fff' : C.muted, border: `1px solid ${(g.nhieCat || 'Party') === c ? (c === 'Spicy' ? C.red : C.teal) : C.border}` }}>{c === 'Spicy' ? '🌶️ ' : ''}{c}</button>
+          ))}
+        </div>
+      )}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, padding: 22, fontSize: 20, fontWeight: 600, textAlign: 'center', lineHeight: 1.4 }}>{g.nhiePrompt}</div>
 
       {!g.nhieRevealed ? (
@@ -981,7 +1008,8 @@ function ChoiceView({ g, me, players, isHost, onVote, onReveal, onNext, onBack, 
   )
 }
 
-function TriviaView({ g, me, players, isHost, onVote, onReveal, onNext, onBack }: any) {
+const TRIVIA_PICK_CATS = ['Mixed', 'Tanzania', 'General', 'Science', 'Faith', 'Sport']
+function TriviaView({ g, me, players, isHost, onVote, onReveal, onNext, onCat, onBack }: any) {
   const q = g.triviaQ || { q: '', options: [], answer: -1, cat: '' }
   const votes = g.triviaVotes || {}
   const myVote = votes[me.id]
@@ -989,6 +1017,13 @@ function TriviaView({ g, me, players, isHost, onVote, onReveal, onNext, onBack }
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
       <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      {isHost && (
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+          {TRIVIA_PICK_CATS.map(c => (
+            <button key={c} onClick={() => onCat(c)} style={{ flexShrink: 0, padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: (g.triviaCat || 'Mixed') === c ? C.green : 'transparent', color: (g.triviaCat || 'Mixed') === c ? '#fff' : C.muted, border: `1px solid ${(g.triviaCat || 'Mixed') === c ? C.green : C.border}` }}>{c}</button>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>🧠 Trivia · {q.cat}</span>
         <span style={{ fontSize: 11, color: C.muted }}>Round {g.triviaRound || 1}</span>
@@ -1331,8 +1366,12 @@ function ResultsView({ g, me, players, isHost, onPlayOn, onReset, Avatar, nameOf
   const winner = ranked[0]
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-      <style>{`@keyframes kgpop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}`}</style>
-      <div style={{ fontSize: 14, color: C.muted, textTransform: 'uppercase', letterSpacing: 2 }}>🏁 Final results</div>
+      <style>{`@keyframes kgpop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+        @keyframes kgrain{0%{transform:translateY(-12vh) rotate(0);opacity:1}100%{transform:translateY(112vh) rotate(360deg);opacity:.85}}`}</style>
+      {winner && winner.sc > 0 && Array.from({ length: 26 }).map((_, i) => (
+        <div key={i} style={{ position: 'fixed', top: 0, left: `${(i * 3.9) % 100}%`, fontSize: 18 + (i % 3) * 10, pointerEvents: 'none', zIndex: 5, animation: `kgrain ${2.6 + (i % 5) * 0.5}s linear ${(i % 8) * 0.28}s infinite` }}>{['🎉', '🏆', '✨', '👑', '⭐', '💫'][i % 6]}</div>
+      ))}
+      <div style={{ fontSize: 14, color: C.muted, textTransform: 'uppercase', letterSpacing: 2, zIndex: 10 }}>🏁 Final results</div>
       {winner && winner.sc > 0 && (
         <div style={{ animation: 'kgpop .6s ease-out' }}>
           <div style={{ fontSize: 56 }}>👑</div>
