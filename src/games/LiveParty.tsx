@@ -80,35 +80,71 @@ interface GState {
   erRevealed?: boolean
 }
 
-const TRUTHS = [
-  'What first made you fall for your partner?',
-  'What is one thing you have never told me but always wanted to?',
-  'What is your favourite memory of us?',
-  'What is something small I do that you secretly love?',
-  'If we could relive one day together, which would you pick?',
-  'What is one dream you have for us in five years?',
-  'What is the most attractive thing about me right now?',
-  'When did you last think about me and smile?',
-]
-const DARES = [
-  'Send a voice note saying what you love most about me.',
-  'Do your best impression of me right now.',
-  'Blow a kiss to the camera and hold eye contact for 10 seconds.',
-  'Text me three emojis that describe how you feel about me.',
-  'Sing one line of “our” song.',
-  'Give the screen your most charming smile for 5 seconds.',
-  'Describe our next date in one sentence — make it romantic.',
-  'Say “I love you” in the most dramatic way you can.',
-]
+const TOD_CATS = ['Mild', 'Deep', 'Couple', 'Spicy'] as const
+const TRUTHS_BY_CAT: Record<string, string[]> = {
+  Mild: [
+    'What is your most-used emoji?', 'What small thing instantly makes your day?',
+    'What is your go-to comfort food?', 'What song have you had on repeat lately?',
+    'What is a talent you wish you had?', 'What is your dream travel destination?',
+    'What is the last thing that made you laugh out loud?', 'What is your useless superpower?',
+  ],
+  Deep: [
+    'What are you most proud of this year?', 'What is a fear you rarely admit?',
+    'What does your ideal life look like in five years?', 'What would you tell your younger self?',
+    'When did you last feel truly at peace?', 'What are you still learning to forgive yourself for?',
+    'What is something you want people to understand about you?',
+  ],
+  Couple: [
+    'What first made you fall for me?', 'What is your favourite memory of us?',
+    'What small thing I do do you secretly love?', 'If we could relive one day together, which?',
+    'What is the most attractive thing about me right now?', 'What is one dream you have for us?',
+    'When did you last think about me and smile?', 'What is something new you want us to try together?',
+  ],
+  Spicy: [
+    'What is your biggest turn-on?', 'What is a fantasy you have not told me?',
+    'Where is the most adventurous place you would want to kiss me?', 'Which outfit of mine do you love most?',
+    'What is the most romantic thing you have imagined us doing?', 'What is something bold you wish you would ask for?',
+  ],
+}
+const DARES_BY_CAT: Record<string, string[]> = {
+  Mild: [
+    'Do your best impression of the person on your right.', 'Talk in an accent for the next two rounds.',
+    'Show the last photo in your camera roll.', 'Do ten jumping jacks right now.',
+    'Sing one line of your favourite song.', 'Give a ten-second motivational speech.',
+    'Do your happy dance for five seconds.',
+  ],
+  Deep: [
+    'Say one genuine thing you appreciate about each person here.', 'Share a goal you have never said out loud.',
+    'Give a heartfelt compliment to the person on your left.', 'Describe your happiest memory in detail.',
+  ],
+  Couple: [
+    'Send a voice note saying what you love most about me.', 'Blow a kiss and hold eye contact for ten seconds.',
+    'Text me three emojis that describe how you feel about me.', 'Give the screen your most charming smile.',
+    'Describe our next date in one romantic sentence.', 'Say “I love you” in the most dramatic way you can.',
+  ],
+  Spicy: [
+    'Whisper something flirty to the camera.', 'Do your most confident walk.',
+    'Give your best flirty wink and say my name.', 'Describe your ideal romantic evening in detail.',
+    'Send me a flirty text right now.',
+  ],
+}
 const NHIE = [
-  'Never have I ever stalked your social media before we got together.',
-  'Never have I ever fallen asleep on a call with you.',
-  'Never have I ever re-read our old messages.',
+  'Never have I ever stalked someone on social media before meeting them.',
+  'Never have I ever fallen asleep on a call.',
+  'Never have I ever re-read old messages from someone.',
   'Never have I ever been jealous over something small.',
-  'Never have I ever pretended to like something just because you did.',
-  'Never have I ever planned our future in my head.',
-  'Never have I ever saved a photo of you as my favourite.',
-  'Never have I ever missed you within an hour of saying bye.',
+  'Never have I ever pretended to like something just to impress someone.',
+  'Never have I ever planned a whole future in my head after one date.',
+  'Never have I ever saved a photo of someone as my favourite.',
+  'Never have I ever missed someone within an hour of saying bye.',
+  'Never have I ever sent a text to the wrong person.',
+  'Never have I ever laughed at completely the wrong moment.',
+  'Never have I ever pretended to be busy to avoid plans.',
+  'Never have I ever eaten the last snack and blamed someone else.',
+  'Never have I ever stayed up all night watching one more episode.',
+  'Never have I ever practised a conversation in the mirror.',
+  'Never have I ever googled myself.',
+  'Never have I ever kept a gift I secretly disliked.',
 ]
 const WYR = [
   { a: 'Travel the world together', b: 'Build a dream home together' },
@@ -802,9 +838,11 @@ function SpinView({ g, players, me, isHost, onSpin, onToTod, onBack, seatColor, 
 
 function TodView({ g, me, isHost, nameOf, onPickKind, onSendPrompt, onDone, onBack }: any) {
   const [custom, setCustom] = useState('')
+  const [tcat, setTcat] = useState<string>('Couple')
   const iAmAsker = g.askerId === me.id
   const iAmTarget = g.targetId === me.id
-  const presets = g.kind === 'truth' ? TRUTHS : g.kind === 'dare' ? DARES : []
+  const bank = g.kind === 'truth' ? TRUTHS_BY_CAT : g.kind === 'dare' ? DARES_BY_CAT : {}
+  const presets = bank[tcat] || bank.Mild || []
   useEffect(() => { setCustom('') }, [g.kind, g.askerId])
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -825,8 +863,13 @@ function TodView({ g, me, isHost, nameOf, onPickKind, onSendPrompt, onDone, onBa
 
       {!g.prompt && g.kind && iAmAsker && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+            {TOD_CATS.map(c => (
+              <button key={c} onClick={() => setTcat(c)} style={{ flexShrink: 0, padding: '5px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: tcat === c ? (c === 'Spicy' ? C.red : C.purple) : 'transparent', color: tcat === c ? '#fff' : C.muted, border: `1px solid ${tcat === c ? (c === 'Spicy' ? C.red : C.purple) : C.border}` }}>{c === 'Spicy' ? '🌶️ ' : ''}{c}</button>
+            ))}
+          </div>
           <div style={{ fontSize: 13, color: C.muted }}>Pick one for {nameOf(g.targetId)}, or write your own:</div>
-          {presets.slice(0, 5).map((p: string, i: number) => (
+          {presets.slice(0, 6).map((p: string, i: number) => (
             <button key={i} onClick={() => onSendPrompt(p)} style={{ textAlign: 'left', background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: '12px 14px', color: C.text, fontSize: 14, cursor: 'pointer' }}>{p}</button>
           ))}
           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
