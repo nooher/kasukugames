@@ -42,6 +42,7 @@ export const LIVE_GAMES: { id: string; name: string; emoji: string }[] = [
   { id: 'hot', name: 'Hot Takes', emoji: '🌶️' },
   { id: 'er', name: 'Emoji Riddle', emoji: '🧩' },
   { id: 'wc', name: 'Word Chain', emoji: '🔗' },
+  { id: 'story', name: 'Story Builder', emoji: '📖' },
   { id: 'mlt', name: 'Most Likely To', emoji: '👉' },
   { id: 'rps', name: 'Rock Paper Scissors', emoji: '✊' },
   { id: 'party', name: 'Surprise — pick together', emoji: '🎉' },

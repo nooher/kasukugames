@@ -13,7 +13,7 @@ const C = {
 }
 const SEAT_COLORS = [C.pink, C.blue, C.green, C.purple, C.orange, C.teal, C.amber, C.red]
 
-type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps' | 'hot' | 'gma' | 'ttl' | 'wc' | 'er' | 'results'
+type Screen = 'lobby' | 'menu' | 'spin' | 'tod' | 'nhie' | 'choice' | 'trivia' | 'mlt' | 'rps' | 'hot' | 'gma' | 'ttl' | 'wc' | 'er' | 'story' | 'results'
 interface GState {
   screen: Screen
   turnIdx?: number
@@ -75,6 +75,10 @@ interface GState {
   // word chain
   wcTurnId?: string
   wcWords?: string[]
+  // story builder
+  storyTurnId?: string
+  storyLines?: string[]
+  storyDone?: boolean
   // emoji riddle
   erRiddle?: { emoji: string; answer: string }
   erSolved?: Record<string, boolean>
@@ -275,6 +279,19 @@ const EMOJI_RIDDLES: { emoji: string; answer: string }[] = [
   { emoji: '🔥🦊', answer: 'firefox' },
 ]
 
+const STORY_OPENERS = [
+  'Once upon a time in Bukoba, a very confused chicken decided to…',
+  'It was a dark and stormy night when the pot of ugali suddenly…',
+  'Nobody in the village expected the goat to…',
+  'On the shores of Lake Victoria, a fisherman pulled up his net and found…',
+  'The wedding was going perfectly until the DJ announced…',
+  'Deep in the Serengeti, a lion woke up one morning and realised…',
+  'She opened the mysterious box her grandmother left, and inside was…',
+  'The bus to Dodoma broke down, so the passengers decided to…',
+  'Everyone laughed at the boy who claimed his mango tree could…',
+  'The power went out across the whole city, and that is when…',
+]
+
 const REACTIONS = ['❤️', '😂', '🔥', '😮', '👏', '💋', '🥰', '😳']
 
 const rid = () => Math.random().toString(36).slice(2)
@@ -380,6 +397,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (d.a === 'erguess') erSubmit(from, d.text)
     else if (d.a === 'ereveal') revealEr()
     else if (d.a === 'ernext') nextEr()
+    else if (d.a === 'storyline') storyApply(from, d.line)
+    else if (d.a === 'storyend') endStory()
     else if (d.a === 'results') pushState({ screen: 'results' })
     else if (d.a === 'resetscores') pushState({ screen: 'menu', scores: {} })
     else if (d.a === 'menu') pushState({ screen: 'menu' })
@@ -533,6 +552,19 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const revealEr = () => pushState({ ...gRef.current, erRevealed: true })
   const nextEr = () => pushState({ ...gRef.current, erRiddle: pick(EMOJI_RIDDLES), erSolved: {}, erRevealed: false })
 
+  // ── Story Builder ──
+  const startStory = () => pushState({ screen: 'story', storyTurnId: ids()[0] || me.id, storyLines: [pick(STORY_OPENERS)], storyDone: false, scores: keepScores() })
+  const storyApply = (from: string, line: string) => {
+    const cur = gRef.current
+    if (from !== cur.storyTurnId || cur.storyDone) return
+    const t = line.trim()
+    if (t.length < 2) return
+    const order = ids(); const i = order.indexOf(from)
+    const s = { ...(cur.scores || {}) }; s[from] = (s[from] || 0) + 2
+    pushState({ ...cur, storyLines: [...(cur.storyLines || []), t], storyTurnId: order[(i + 1) % Math.max(1, order.length)], scores: s })
+  }
+  const endStory = () => pushState({ ...gRef.current, storyDone: true })
+
   // ── Finish / winner celebration ──
   const goResults = () => pushState({ screen: 'results', scores: keepScores() })
   const resetScores = () => pushState({ screen: 'menu', scores: {} })
@@ -552,6 +584,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
     else if (initialGame === 'ttl') startTtl()
     else if (initialGame === 'wc') startWc()
     else if (initialGame === 'er') startEr()
+    else if (initialGame === 'story') startStory()
     else startMenu()
   }
 
@@ -603,6 +636,8 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   const onErGuess = (text: string) => { if (isHost) erSubmit(me.id, text); else roomRef.current?.send('act', { a: 'erguess', text }) }
   const onErReveal = () => { sfxReveal(); act({ a: 'ereveal' }, revealEr) }
   const onErNext = () => act({ a: 'ernext' }, nextEr)
+  const onStoryLine = (line: string) => { sfxCorrect(); if (isHost) storyApply(me.id, line); else roomRef.current?.send('act', { a: 'storyline', line }) }
+  const onStoryEnd = () => { sfxReveal(); act({ a: 'storyend' }, endStory) }
   const onFinish = () => { sfxLevelUp(); act({ a: 'results' }, goResults) }
   const onResetScores = () => act({ a: 'resetscores' }, resetScores)
   const onBackMenu = () => act({ a: 'menu' }, startMenu)
@@ -679,7 +714,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
           <Lobby players={players} me={me} isHost={isHost} onStart={launchInitial} onShare={share} onWhatsApp={shareWhatsApp} copied={copied} Avatar={Avatar} initialGame={initialGame} />
         )}
         {g.screen === 'menu' && (
-          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} onHot={() => { if (isHost) startHot() }} onGma={() => { if (isHost) startGma() }} onTtl={() => { if (isHost) startTtl() }} onWc={() => { if (isHost) startWc() }} onEr={() => { if (isHost) startEr() }} onFinish={onFinish} scores={g.scores} />
+          <Menu isHost={isHost} onSpinStart={() => { if (isHost) pushState({ screen: 'spin', spinAngle: 0, spinning: false }) }} onTod={() => { if (isHost) beginTod() }} onNhie={() => { if (isHost) startNhie() }} onWyr={() => { if (isHost) startChoice('wyr') }} onTot={() => { if (isHost) startChoice('tot') }} onTrivia={() => { if (isHost) startTrivia('Mixed') }} onMlt={() => { if (isHost) startMlt() }} onRps={() => { if (isHost) startRps() }} onHot={() => { if (isHost) startHot() }} onGma={() => { if (isHost) startGma() }} onTtl={() => { if (isHost) startTtl() }} onWc={() => { if (isHost) startWc() }} onEr={() => { if (isHost) startEr() }} onStory={() => { if (isHost) startStory() }} onFinish={onFinish} scores={g.scores} />
         )}
         {g.screen === 'spin' && (
           <SpinView g={g} players={players} me={me} isHost={isHost} onSpin={onSpin} onToTod={onToTod} onBack={onBackMenu} seatColor={seatColor} Avatar={Avatar} nameOf={nameOf} />
@@ -716,6 +751,9 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
         )}
         {g.screen === 'er' && (
           <ErView g={g} me={me} players={players} isHost={isHost} onGuess={onErGuess} onReveal={onErReveal} onNext={onErNext} onBack={onBackMenu} Avatar={Avatar} nameOf={nameOf} />
+        )}
+        {g.screen === 'story' && (
+          <StoryView g={g} me={me} isHost={isHost} onLine={onStoryLine} onEnd={onStoryEnd} onBack={onBackMenu} nameOf={nameOf} />
         )}
         {g.screen === 'results' && (
           <ResultsView g={g} me={me} players={players} isHost={isHost} onPlayOn={onBackMenu} onReset={onResetScores} Avatar={Avatar} nameOf={nameOf} />
@@ -787,11 +825,12 @@ function Lobby({ players, me, isHost, onStart, onShare, onWhatsApp, copied, Avat
   )
 }
 
-function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps, onHot, onGma, onTtl, onWc, onEr, onFinish, scores }: any) {
+function Menu({ isHost, onSpinStart, onTod, onNhie, onWyr, onTot, onTrivia, onMlt, onRps, onHot, onGma, onTtl, onWc, onEr, onStory, onFinish, scores }: any) {
   const items = [
     { key: 'trivia', label: 'Trivia Duel', emoji: '🧠', color: C.green, fn: onTrivia },
     { key: 'ttl', label: 'Two Truths & a Lie', emoji: '🕵️', color: C.teal, fn: onTtl },
     { key: 'gma', label: 'Guess My Answer', emoji: '💘', color: C.pink, fn: onGma },
+    { key: 'story', label: 'Story Builder', emoji: '📖', color: C.blue, fn: onStory },
     { key: 'er', label: 'Emoji Riddle', emoji: '🧩', color: C.purple, fn: onEr },
     { key: 'wc', label: 'Word Chain', emoji: '🔗', color: C.green, fn: onWc },
     { key: 'spin', label: 'Spin the Bottle', emoji: '🍾', color: C.pink, fn: onSpinStart },
@@ -1396,6 +1435,31 @@ function ResultsView({ g, me, players, isHost, onPlayOn, onReset, Avatar, nameOf
           <button onClick={onReset} style={{ ...solidBtn(C.card2), border: `1px solid ${C.border}` }}>Reset scores</button>
         </div>
       ) : <div style={{ color: C.muted }}>Host decides what's next…</div>}
+    </div>
+  )
+}
+
+function StoryView({ g, me, isHost, onLine, onEnd, onBack, nameOf }: any) {
+  const lines: string[] = g.storyLines || []
+  const myTurn = g.storyTurnId === me.id
+  const [line, setLine] = useState('')
+  useEffect(() => { setLine('') }, [lines.length, g.storyTurnId])
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <button onClick={onBack} style={{ ...ghost, alignSelf: 'flex-start' }}>← Games</button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>📖 Story Builder{g.storyDone ? ' — The End 🎬' : ''}</div>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, padding: 18, maxHeight: 300, overflowY: 'auto', fontSize: 15, lineHeight: 1.6 }}>
+        {lines.map((l, i) => <span key={i} style={{ color: i === 0 ? C.amber : C.text }}>{l} </span>)}
+      </div>
+      {!g.storyDone && (myTurn ? (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input value={line} onChange={e => setLine(e.target.value)} onKeyDown={e => e.key === 'Enter' && line.trim() && onLine(line.trim())} placeholder="Add the next line…" autoFocus style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, color: C.text, padding: '12px 14px', fontSize: 15, outline: 'none' }} />
+          <button onClick={() => line.trim() && onLine(line.trim())} style={solidBtn(C.blue)}>Add</button>
+        </div>
+      ) : <div style={{ textAlign: 'center', color: C.muted, animation: 'kgpulse 1.4s infinite' }}>{nameOf?.(g.storyTurnId) || 'Someone'} is adding a line…</div>)}
+      {!g.storyDone && <div style={{ textAlign: 'center', fontSize: 11, color: C.dim }}>{myTurn ? 'Your turn' : `${nameOf?.(g.storyTurnId) || 'Someone'}'s turn`} · +2 points per line</div>}
+      {isHost && !g.storyDone && <button onClick={onEnd} style={{ ...solidBtn(C.card2), border: `1px solid ${C.border}` }}>The End 🎬</button>}
+      {g.storyDone && isHost && <button onClick={onBack} style={solidBtn(C.teal)}>Back to games →</button>}
     </div>
   )
 }
