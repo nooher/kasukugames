@@ -20,7 +20,7 @@ import {
   type PlayerProfile, type MuhuriType, type ProfileSocials,
 } from './lib/rewards'
 import {
-  LEADERBOARD_CATEGORIES, generateDemoLeaderboard,
+  LEADERBOARD_CATEGORIES, type LeaderboardEntry,
 } from './lib/social'
 import {
   loadWallet, earnTokens, spendTokens, purchaseTokens,
@@ -1019,13 +1019,16 @@ function DailySection({ profile, onPlay, onLogin, onLuckyDraw, P, isDark, gct }:
    ================================================================ */
 function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerProfile | null; P: PaletteType; isDark: boolean; cs: CSSProperties; gct: () => CSSProperties }) {
   const [activeBoard, setActiveBoard] = useState('overall')
-  const [liveEntries, setLiveEntries] = useState<ReturnType<typeof generateDemoLeaderboard> | null>(null)
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([])
+  const [loadedBoard, setLoadedBoard] = useState(false)
 
   useEffect(() => {
     let alive = true
     fetchLeaderboard(100).then(rows => {
-      if (!alive || !rows || rows.length === 0) return
-      setLiveEntries(rows.map(e => ({
+      if (!alive) return
+      setLoadedBoard(true)
+      if (!rows) return
+      setEntries(rows.map(e => ({
         playerId: e.id, username: e.handle, displayName: e.name, avatar: e.avatar,
         muhuri: undefined as unknown as string | undefined, score: e.xp,
         rank: getRankForXP(e.xp), level: e.level, teamTag: undefined as unknown as string | undefined,
@@ -1034,8 +1037,6 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
     return () => { alive = false }
   }, [])
 
-  const isLive = !!(liveEntries && liveEntries.length)
-  const entries = isLive ? liveEntries! : generateDemoLeaderboard(activeBoard)
   const activeMeta = LEADERBOARD_CATEGORIES.find(c => c.id === activeBoard)!
 
   return (
@@ -1058,7 +1059,7 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
         ))}
       </div>
       <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 20px', lineHeight: 1.5 }}>
-        {isLive ? 'Live rankings — real players, updated as everyone plays.' : activeMeta.description}
+        {activeMeta.description} · live rankings from real players.
       </p>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 32, alignItems: 'flex-end' }}>
@@ -1092,6 +1093,14 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
         })}
       </div>
 
+      {loadedBoard && entries.length === 0 && (
+        <div style={{ ...cs, padding: '40px 24px', textAlign: 'center' }}>
+          <Trophy size={30} color={P.textDim} style={{ marginBottom: 12 }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: P.text, margin: '0 0 6px' }}>No rankings yet</p>
+          <p style={{ fontSize: 13, color: P.textMuted, margin: 0, lineHeight: 1.5 }}>Play a game to claim the #1 spot — the board fills up as you and your people play.</p>
+        </div>
+      )}
+
       <div style={cs}>
         {entries.map((e, i) => (
           <div key={e.playerId} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderBottom: i < entries.length - 1 ? `1px solid ${P.border}` : 'none', background: profile && e.username === profile.username ? P.sapphire + '10' : 'transparent' }}>
@@ -1120,7 +1129,7 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
             <span style={{ fontSize: 13, fontWeight: 600, color: P.text }}>{t('you')}</span>
             <div style={{ fontSize: 11, color: P.textMuted, marginTop: 2 }}>{RANK_META[profile.rank].label} · {t('level')} {profile.level}</div>
           </div>
-          <span style={{ fontSize: 16, fontWeight: 600, color: P.sapphire, fontVariantNumeric: 'tabular-nums' }}>{profile.totalScore.toLocaleString()}</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: P.sapphire, fontVariantNumeric: 'tabular-nums' }}>{profile.xp.toLocaleString()} XP</span>
         </div>
       )}
     </div>
@@ -1501,10 +1510,10 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
   const [editSocials, setEditSocials] = useState<ProfileSocials>(profile.socials || {})
 
   const profileUrl = `https://games.kasuku.tz/@${profile.username}`
-  const shareText = `Check out my KasukuGames profile! 🎮 Train. Compete. Transcend. ${profileUrl}`
+  const shareText = 'Check out my KasukuGames profile! 🎮 Train. Compete. Transcend.'
 
   const handleShareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank')
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${shareText}\n${profileUrl}`)}`, '_blank')
   }
   const handleCopyLink = async () => {
     try {
