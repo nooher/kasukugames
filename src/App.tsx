@@ -51,6 +51,7 @@ import { sfxLevelUp } from './lib/sfx'
 import Logo from './components/Logo'
 import FloatingPlayer from './components/FloatingPlayer'
 import LaunchScreen from './components/LaunchScreen'
+import GameErrorBoundary from './components/GameErrorBoundary'
 import MuhuriBadge from './components/MuhuriBadge'
 
 const MatrixForge = lazy(() => import('./games/MatrixForge'))
@@ -525,10 +526,12 @@ export default function App() {
     const GameComponent = GAME_COMPONENTS[activeGame]
     if (GameComponent) {
       return (
-        <Suspense fallback={<LoadingView P={P} />}>
-          <GameComponent onBack={handleGameBack} onGameEnd={handleGameEnd} />
-          <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} theme={theme} />
-        </Suspense>
+        <GameErrorBoundary onBack={handleGameBack}>
+          <Suspense fallback={<LoadingView P={P} />}>
+            <GameComponent onBack={handleGameBack} onGameEnd={handleGameEnd} />
+            <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} theme={theme} />
+          </Suspense>
+        </GameErrorBoundary>
       )
     }
     return (
@@ -887,10 +890,14 @@ function HomeSection({ onPlay, P, isDark, gct }: {
   P: PaletteType; isDark: boolean; gct: () => CSSProperties
 }) {
   const [selectedCat, setSelectedCat] = useState<GameCategory | 'all'>('all')
+  const [query, setQuery] = useState('')
   const categories = Object.entries(CATEGORY_META) as [GameCategory, typeof CATEGORY_META[GameCategory]][]
-  const displayGames = selectedCat === 'all'
-    ? GAMES.slice(0, 4)
-    : GAMES.filter(g => g.category === selectedCat).slice(0, 4)
+  const needle = query.trim().toLowerCase()
+  // Full arcade: every game in the category (no 4-item cap), then a live search
+  // over title + subtitle. Previously the home showed only GAMES.slice(0,4), so
+  // 27 of 31 games were unreachable — this surfaces the whole catalogue.
+  const displayGames = (selectedCat === 'all' ? GAMES : GAMES.filter(g => g.category === selectedCat))
+    .filter(g => !needle || `${g.title} ${g.subtitle}`.toLowerCase().includes(needle))
 
   return (
     <section style={{ padding: '100px 4vw 80px', maxWidth: 600, margin: '0 auto' }}>
@@ -904,6 +911,19 @@ function HomeSection({ onPlay, P, isDark, gct }: {
           {t('what_will_you_play')}
         </h1>
       </div>
+
+      {/* Search over all games */}
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder={t('search_games')}
+        aria-label={t('search_games')}
+        style={{
+          width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
+          color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
+          outline: 'none', marginBottom: 12, boxSizing: 'border-box',
+        } as CSSProperties}
+      />
 
       {/* Category selector */}
       <select
@@ -955,20 +975,22 @@ function HomeSection({ onPlay, P, isDark, gct }: {
             </div>
           </button>
         ))}
+        {displayGames.length === 0 && (
+          <div style={{ textAlign: 'center', color: P.textMuted, padding: '40px 0', fontSize: 14 }}>{t('no_games_found')}</div>
+        )}
       </div>
 
-      {/* Play Now CTA */}
-      <div style={{ textAlign: 'center', marginTop: 48 }}>
-        <button
-          onClick={() => {
-            const game = displayGames[0]
-            if (game) onPlay(game.id)
-          }}
-          style={{ ...premiumBtn(P.sapphire), padding: '16px 48px', fontSize: 16 }}
-        >
-          <Gamepad2 size={18} /> {t('play_now')}
-        </button>
-      </div>
+      {/* Play Now CTA — plays the first game in the current view */}
+      {displayGames.length > 0 && (
+        <div style={{ textAlign: 'center', marginTop: 48 }}>
+          <button
+            onClick={() => { const game = displayGames[0]; if (game) onPlay(game.id) }}
+            style={{ ...premiumBtn(P.sapphire), padding: '16px 48px', fontSize: 16 }}
+          >
+            <Gamepad2 size={18} /> {t('play_now')}
+          </button>
+        </div>
+      )}
     </section>
   )
 }

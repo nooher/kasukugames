@@ -17,13 +17,12 @@ export const MUHURI_META: Record<MuhuriType, Muhuri> = {
   player:   { type: 'player',   label: 'Player',     color: '#4A5568', sealColor: '#4A5568' },
 }
 
-const BUILTIN_MUHURI: Record<string, MuhuriType> = {
-  anaim: 'founder',
-}
+// No hardcoded personal seal — the badge tier system stays (player/verified/
+// creator/admin, DB/admin-assignable), but no single handle is auto-branded
+// "founder" on the public leaderboard. Keeps the arcade author-agnostic.
+const BUILTIN_MUHURI: Record<string, MuhuriType> = {}
 
-const BUILTIN_DISPLAY: Record<string, string> = {
-  anaim: 'NooherMD',
-}
+const BUILTIN_DISPLAY: Record<string, string> = {}
 
 const MUHURI_STORE_KEY = 'kg_muhuri_assignments'
 
