@@ -189,3 +189,15 @@ img { display: block; max-width: 100%; }
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* Respect the OS "reduce motion" setting — this app is animation-heavy
+   (fade/slide/scale/shimmer/pulse/float/breathe + particle VFX). Neutralises
+   CSS animation/transition globally; JS particle bursts are gated in lib/vfx.ts. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -38,11 +38,19 @@ function makeParticle(x: number, y: number, color: string, type: Particle['type'
   }
 }
 
+/** True when the OS "reduce motion" setting is on — bursts then return [] so no
+ *  particle VFX render (respects vestibular sensitivity). */
+export function prefersReducedMotion(): boolean {
+  try { return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
+}
+
 export function burstParticles(x: number, y: number, color: string, count = 12): Particle[] {
+  if (prefersReducedMotion()) return []
   return Array.from({ length: count }, () => makeParticle(x, y, color))
 }
 
 export function correctBurst(x: number, y: number): Particle[] {
+  if (prefersReducedMotion()) return []
   const colors = ['#33623F', '#4a8a54', '#c9a96e', '#8aada8']
   return Array.from({ length: 16 }, () => {
     const c = colors[Math.floor(Math.random() * colors.length)]
@@ -51,6 +59,7 @@ export function correctBurst(x: number, y: number): Particle[] {
 }
 
 export function wrongBurst(x: number, y: number): Particle[] {
+  if (prefersReducedMotion()) return []
   const colors = ['#c8847a', '#a05040', '#d4a017']
   return Array.from({ length: 8 }, () => {
     const c = colors[Math.floor(Math.random() * colors.length)]
@@ -62,6 +71,7 @@ export function wrongBurst(x: number, y: number): Particle[] {
 }
 
 export function confettiBurst(x: number, y: number): Particle[] {
+  if (prefersReducedMotion()) return []
   const colors = ['#c9a96e', '#33623F', '#2F6FB0', '#c8847a', '#8aada8', '#b8a0c8', '#f0ebe3']
   return Array.from({ length: 30 }, () => {
     const c = colors[Math.floor(Math.random() * colors.length)]

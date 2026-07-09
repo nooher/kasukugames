@@ -815,7 +815,7 @@ export default function App() {
             </div>
             <div style={{ fontSize: 12, color: P.gold, fontWeight: 600 }}>+{loginReward.tokens} {t('tokens')}</div>
           </div>
-          <button onClick={() => setLoginReward(null)} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 6 }}><X size={14} /></button>
+          <button onClick={() => setLoginReward(null)} aria-label={t('close')} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 6 }}><X size={14} /></button>
         </div>
       )}
 
@@ -848,7 +848,7 @@ export default function App() {
             <div style={{ fontSize: 12, color: P.textMuted }}>{t('play_offline')}</div>
           </div>
           <button onClick={handleInstall} style={{ ...premiumBtn(P.sapphire), padding: '10px 22px', fontSize: 13 }}>{t('download')}</button>
-          <button onClick={() => setShowInstall(false)} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 6 }}><X size={16} /></button>
+          <button onClick={() => setShowInstall(false)} aria-label={t('close')} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer', padding: 6 }}><X size={16} /></button>
         </div>
       )}
 
@@ -1959,7 +1959,7 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: P.text }}>
                 {sheet === 'edit' ? `${t('edit')} ${t('profile')}` : sheet === 'avatar' ? 'Avatar' : sheet === 'socials' ? t('social_links') : 'Cover'}
               </h3>
-              <button onClick={() => setSheet(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textMuted, padding: 4 }}><X size={20} /></button>
+              <button onClick={() => setSheet(null)} aria-label={t('close')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textMuted, padding: 4 }}><X size={20} /></button>
             </div>
 
             {sheet === 'edit' && (

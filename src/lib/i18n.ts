@@ -161,6 +161,7 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   empty_queue: { en: 'No tracks in queue', sw: 'Hakuna nyimbo kwenye foleni' },
   what_will_you_play: { en: 'What will you play?', sw: 'Utacheza nini?' },
   all_games: { en: 'All Games', sw: 'Michezo Yote' },
+  close: { en: 'Close', sw: 'Funga' },
   search_games: { en: 'Search games…', sw: 'Tafuta mchezo…' },
   no_games_found: { en: 'No games match your search.', sw: 'Hakuna mchezo unaolingana.' },
   game_load_failed: { en: 'This game didn’t load', sw: 'Mchezo huu haukupakia' },
