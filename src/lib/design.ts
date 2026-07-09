@@ -5,8 +5,13 @@ import type { CSSProperties } from 'react'
 // (edge highlight + float shadow), NOT translucent/blur.
 // Ultra-luxury, ultra-elite, advanced engineering.
 
-export const COLOR = {
-  // Warm cream fills
+import { loadTheme } from './theme'
+
+// Warm cream (light) palette. The tanzanite-earth ACCENTS (emerald/teal/
+// sapphire/violet/amber/rose/gold/coral + semantic + cognitive targets) are
+// theme-independent; only the ink/surface/text keys flip between themes.
+const LIGHT_COLOR = {
+  // Ink/text (dark on cream)
   obsidian: '#1a1610',
   ink: '#221e16',
   slate: '#2a2418',
@@ -50,6 +55,26 @@ export const COLOR = {
   border: '#e8e0d4',
   surface: '#faf7f2',
 } as const
+
+type ColorKey = keyof typeof LIGHT_COLOR
+
+// Dark counterpart: same accents, ink→light, surfaces→dark. So games importing
+// COLOR work in the default DARK theme (were previously white-screening).
+const DARK_COLOR: Record<ColorKey, string> = {
+  obsidian: '#ece6dc', ink: '#e2dacd', slate: '#c8bfae', carbon: '#ece6dc',
+  bgDeep: '#0f0d0a', cardActive: '#1c1812',
+  emerald: '#a8b89a', teal: '#8aada8', sapphire: '#c4a882', violet: '#b8a0c8',
+  amber: '#c9a96e', rose: '#c8847a', gold: '#c9a96e', coral: '#d4937a',
+  success: '#a8b89a', warning: '#c9a96e', error: '#c8847a',
+  memory: '#b8a0c8', executive: '#c4a882', pattern: '#a8b89a', speed: '#c9a96e',
+  social: '#c8847a', language: '#8aada8', creativity: '#c89ab8', strategy: '#8ab8c8',
+  white: '#ece6dc', muted: '#8a7e6e', dim: '#5a5044', border: '#2a2418', surface: '#161310',
+}
+
+// Theme-aware: resolves live from the current theme on each access.
+export const COLOR = new Proxy({} as Record<ColorKey, string>, {
+  get: (_t, key: string) => (loadTheme() === 'light' ? LIGHT_COLOR : DARK_COLOR)[key as ColorKey],
+}) as Record<ColorKey, string>
 
 export const RADIUS = {
   sm: 10,

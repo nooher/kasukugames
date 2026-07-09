@@ -2,16 +2,23 @@ export type Theme = 'dark' | 'light'
 
 const THEME_KEY = 'kg_theme'
 
+// Cached so the theme-aware COLOR/PALETTE proxies (design.ts / brand.ts) can
+// resolve on every color access without hitting localStorage each time.
+let cachedTheme: Theme | null = null
+
 export function loadTheme(): Theme {
+  if (cachedTheme) return cachedTheme
   try {
     const stored = localStorage.getItem(THEME_KEY)
-    if (stored === 'dark' || stored === 'light') return stored
+    if (stored === 'dark' || stored === 'light') { cachedTheme = stored; return stored }
   } catch { /* ignore */ }
+  cachedTheme = 'dark'
   return 'dark'
 }
 
 export function saveTheme(theme: Theme) {
-  localStorage.setItem(THEME_KEY, theme)
+  cachedTheme = theme
+  try { localStorage.setItem(THEME_KEY, theme) } catch { /* ignore */ }
 }
 
 export const DARK_PALETTE = {

@@ -6,31 +6,16 @@ export const BRAND = {
   version: '1.0.0',
 } as const
 
-export const PALETTE = {
-  bg: '#f5f0e8',
-  surface: '#faf7f2',
-  card: '#ffffff',
-  cardHover: '#f9f5ee',
-  border: '#e8e0d4',
-  borderLight: '#ede6da',
+// Theme-aware: PALETTE resolves live from the current theme (its keys match
+// theme.ts exactly), so games importing it follow the dark/light toggle.
+// Previously it was fixed-light, which white-screened games in the default
+// DARK theme. The tanzanite-earth accents are identical across both themes;
+// only surfaces/text flip.
+import { getPalette, loadTheme, type Palette } from './theme'
 
-  text: '#2c2418',
-  textMuted: '#8a7e6e',
-  textDim: '#b5a997',
-
-  sapphire: '#c4a882',
-  emerald: '#a8b89a',
-  amber: '#c9a96e',
-  violet: '#b8a0c8',
-  rose: '#c8847a',
-  teal: '#8aada8',
-  coral: '#d4937a',
-  gold: '#c9a96e',
-  fuchsia: '#c89ab8',
-  cyan: '#8ab8c8',
-  orange: '#c8986a',
-  lime: '#a8b882',
-} as const
+export const PALETTE: Palette = new Proxy({} as Palette, {
+  get: (_t, key: string) => (getPalette(loadTheme()) as Record<string, string>)[key],
+}) as Palette
 
 export const RANK_COLORS = {
   bronze: '#b8936e',
