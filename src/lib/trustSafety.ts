@@ -39,6 +39,25 @@ export async function fetchBlocks(): Promise<BlockSet> {
   } catch { return empty }
 }
 
+export interface BlockedUser { id: string; handle: string; name: string }
+
+// The people I've blocked, with names — for an unblock-management list.
+export async function fetchBlockedUsers(): Promise<BlockedUser[]> {
+  try {
+    const uid = await myId()
+    if (!uid) return []
+    const { data } = await supabase.from('kg_blocks').select('blocked_id, blocked_handle').eq('blocker_id', uid)
+    if (!Array.isArray(data) || !data.length) return []
+    const ids = data.map(r => r.blocked_id).filter(Boolean)
+    const names: Record<string, string> = {}
+    try {
+      const { data: profs } = await supabase.from('profiles').select('id, name, handle').in('id', ids)
+      for (const p of profs || []) names[p.id] = p.name || p.handle
+    } catch { /* names optional */ }
+    return data.map(r => ({ id: r.blocked_id, handle: r.blocked_handle || '', name: names[r.blocked_id] || r.blocked_handle || 'User' }))
+  } catch { return [] }
+}
+
 export async function blockUser(blockedId: string | null, blockedHandle?: string): Promise<boolean> {
   try {
     const uid = await myId()

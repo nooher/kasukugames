@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { RADIUS } from '../lib/design'
 import { useLiveRoom } from '../lib/useLiveRoom'
@@ -35,6 +35,7 @@ export interface LiveKnowYouProps {
   onExit: () => void
   title: string
   accent?: string
+  gameId?: string
   categories: QuizCategory[]
   bank: Record<string, QuizItem[]>
 }
@@ -58,7 +59,16 @@ const INITIAL: QState = {
 
 const firstName = (n: string) => (n || 'Partner').split(' ')[0]
 
-export default function LiveKnowYouGame({ me, code, isHost, onExit, title, accent = '#f43f5e', categories, bank }: LiveKnowYouProps) {
+export default function LiveKnowYouGame({ me, code, isHost, onExit, title, accent = '#f43f5e', gameId, categories, bank }: LiveKnowYouProps) {
+  const [copied, setCopied] = useState(false)
+  const inviteUrl = `https://games.kasuku.tz/play?room=${code}&live=1${gameId ? `&g=${gameId}` : ''}`
+  const shareInvite = async () => {
+    const text = `Join me for a live ${title} on KasukuGames! 💞\n${inviteUrl}`
+    try {
+      if (navigator.share) { await navigator.share({ title: `${title} — live`, text, url: inviteUrl }); return }
+    } catch { /* fall through to copy */ }
+    try { await navigator.clipboard.writeText(inviteUrl); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { /* ignore */ }
+  }
   const catKeys = categories.map(c => c.key)
   const labelOf = (key: string) => categories.find(c => c.key === key)?.label || key
 
@@ -168,12 +178,15 @@ export default function LiveKnowYouGame({ me, code, isHost, onExit, title, accen
               </div>
             ))}
           </div>
+          <button onClick={shareInvite} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, color: C.text, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
+            {copied ? '✓ Link copied' : '🔗 Invite your partner (share link)'}
+          </button>
           {amHost ? (
             players.length < 2
-              ? <div style={{ textAlign: 'center', color: C.muted, marginTop: 8 }}>Share the room code and wait for your partner…</div>
-              : <button onClick={() => room.setState({ ...INITIAL, phase: 'category' })} style={{ ...btn(accent), marginTop: 8 }}>Choose a category →</button>
+              ? <div style={{ textAlign: 'center', color: C.muted, marginTop: 4 }}>Waiting for your partner to join…</div>
+              : <button onClick={() => room.setState({ ...INITIAL, phase: 'category' })} style={{ ...btn(accent), marginTop: 4 }}>Choose a category →</button>
           ) : (
-            <div style={{ textAlign: 'center', color: C.muted, marginTop: 8 }}>Waiting for the host to start…</div>
+            <div style={{ textAlign: 'center', color: C.muted, marginTop: 4 }}>Waiting for the host to start…</div>
           )}
         </Card>
       )}

@@ -47,7 +47,7 @@ import { followOnKasuku, fetchKasukuPeople } from './lib/friends'
 import { sendRelationshipRequest, acceptRelationshipFromLink, acceptRelationshipRequest, declineRelationshipRequest, removeRelationship, fetchRelationships, fetchRelationLabels, type RelConnection } from './lib/relationships'
 import { loadSavedRooms, forgetRoom } from './lib/liveRooms'
 import { syncPlayerOnLogin, schedulePlayerPush, flushPlayerPush } from './lib/playerSync'
-import { fetchBlocks, blockUser, submitReport, REPORT_REASONS, type BlockSet } from './lib/trustSafety'
+import { fetchBlocks, blockUser, unblockUser, fetchBlockedUsers, submitReport, REPORT_REASONS, type BlockSet, type BlockedUser } from './lib/trustSafety'
 import { reconcileWalletBalance, serverSpend } from './lib/walletServer'
 import { joinOnline } from './lib/online'
 import { checkLostRecords, pushRecord } from './lib/records'
@@ -133,6 +133,13 @@ const GAME_COMPONENTS: Record<string, GameComp> = {
 
 
 const AVATAR_OPTIONS = ['🧠', '🦁', '🌟', '💎', '🔥', '👑', '🦋', '⚡', '🎯', '🎮']
+
+// Top-level live room types shown in the "Start a live game" picker.
+const LIVE_ROOM_TYPES: { id: string; name: string; emoji: string; desc: string; color: string }[] = [
+  { id: 'party', name: 'Party Room', emoji: '🎉', desc: 'Spin the bottle, truth or dare, trivia & more — 2–10 players', color: '#f43f5e' },
+  { id: 'couples-quiz', name: 'Couples Quiz', emoji: '💞', desc: 'How well do you know each other? Two devices', color: '#f43f5e' },
+  { id: 'guess-what-live', name: 'Guess What', emoji: '🧠', desc: 'Do you really know them? Two devices', color: '#3a86ff' },
+]
 
 type Section = 'home' | 'leaderboard' | 'profile' | 'daily' | 'shop' | 'notifications' | 'connections'
 type PaletteType = ReturnType<typeof getPalette>
@@ -1346,9 +1353,12 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
   const [inviteConn, setInviteConn] = useState<Connection | null>(null)
   const [safetyConn, setSafetyConn] = useState<Connection | null>(null)
   const [reportReason, setReportReason] = useState<string>('')
+  const [showLivePicker, setShowLivePicker] = useState(false)
 
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
   const reloadRels = useCallback(() => { fetchRelationships().then(setRels).catch(() => {}) }, [])
-  useEffect(() => { if (profile) reloadRels() }, [profile, reloadRels])
+  const reloadBlockedUsers = useCallback(() => { fetchBlockedUsers().then(setBlockedUsers).catch(() => {}) }, [])
+  useEffect(() => { if (profile) { reloadRels(); reloadBlockedUsers() } }, [profile, reloadRels, reloadBlockedUsers])
 
   // Accepted server relationships surface as People too — rendered as Connection-
   // shaped rows so the existing card, challenge and invite controls just work.
@@ -1370,9 +1380,10 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
   const handleBlock = async (conn: Connection) => {
     const srvId = rels.find(r => r.otherHandle.toLowerCase() === handleOf(conn))?.otherId || null
     await blockUser(srvId, handleOf(conn) || conn.username)
-    onBlocksChanged()
+    onBlocksChanged(); reloadBlockedUsers()
     setSafetyConn(null)
   }
+  const handleUnblock = async (id: string) => { await unblockUser(id); onBlocksChanged(); reloadBlockedUsers() }
   const handleReport = async (conn: Connection, reason: string, alsoBlock: boolean) => {
     const srvId = rels.find(r => r.otherHandle.toLowerCase() === handleOf(conn))?.otherId || null
     await submitReport({ kind: 'user', reason, targetId: srvId, targetHandle: handleOf(conn) || conn.username })
@@ -1458,14 +1469,34 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
       </div>
 
       {/* Live Room CTA — real-time online play */}
-      <button onClick={() => onGoLive()} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${P.rose}40` }}>
+      <button onClick={() => setShowLivePicker(true)} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${P.rose}40` }}>
         <span style={{ fontSize: 30 }}>🔴</span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>Start a Live Room</div>
-          <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>Play together in real time — spin the bottle, truth or dare, and more, live.</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>Start a Live Game</div>
+          <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>Real-time on two devices — party games, Couples Quiz, Guess What. Share the link to invite.</div>
         </div>
         <span style={{ fontSize: 20, color: P.rose }}>→</span>
       </button>
+
+      {/* Start-a-live-game picker */}
+      {showLivePicker && (
+        <div style={mo} onClick={() => setShowLivePicker(false)}>
+          <div style={{ ...mc, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 6px', ...TYPOGRAPHY.subheading, color: P.text }}>Start a live game</h3>
+            <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 16px', lineHeight: 1.5 }}>You'll get a room to share — your partner joins from their own device by the link.</p>
+            {LIVE_ROOM_TYPES.map(rt => (
+              <button key={rt.id} onClick={() => { setShowLivePicker(false); onGoLive(undefined, rt.id, rt.name) }} style={{ ...gct(), width: '100%', padding: '15px 18px', marginBottom: 10, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${rt.color}30` }}>
+                <span style={{ fontSize: 26 }}>{rt.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{rt.name}</div>
+                  <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{rt.desc}</div>
+                </div>
+                <span style={{ fontSize: 18, color: rt.color }}>→</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Your live rooms — rejoin after an accidental exit while a mate is still in */}
       {savedRooms.length > 0 && (
@@ -1589,6 +1620,23 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
           </div>
         )
       })}
+
+      {/* Blocked users — unblock management */}
+      {blockedUsers.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, marginBottom: 10 }}>Blocked</div>
+          {blockedUsers.map(b => (
+            <div key={b.id} style={{ ...gct(), padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, opacity: 0.85 }}>
+              <span style={{ fontSize: 20 }}>🚫</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{b.name}</div>
+                {b.handle && <div style={{ fontSize: 11, color: P.textDim }}>@{b.handle}</div>}
+              </div>
+              <button onClick={() => handleUnblock(b.id)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.text, borderRadius: RADIUS.full, padding: '7px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Unblock</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Report / block sheet */}
       {safetyConn && (

@@ -15,5 +15,5 @@ const bank: Record<string, QuizItem[]> = Object.fromEntries(
 interface Props { me: LivePlayer; code: string; isHost: boolean; onExit: () => void }
 
 export default function CouplesQuizLive(props: Props) {
-  return <LiveKnowYouGame {...props} title="Couples Quiz" accent={CATEGORY_META.love_language.color} categories={categories} bank={bank} />
+  return <LiveKnowYouGame {...props} title="Couples Quiz" gameId="couples-quiz" accent={CATEGORY_META.love_language.color} categories={categories} bank={bank} />
 }
