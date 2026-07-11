@@ -33,6 +33,8 @@ export default async function handler(
   const invite = pick('invite')
   const from = pick('from') || 'A friend'
   const handle = pick('u').toLowerCase().replace(/[^a-z0-9_]/g, '')
+  const rel = pick('rel').trim().toLowerCase().replace(/[^a-z]/g, '')
+  const liveGame = pick('g').trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
   const room = pick('room').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
   const isLive = !!room || pick('live') === '1'
 
@@ -59,9 +61,12 @@ export default async function handler(
   const desc = isLive
     ? `Tap to join ${name} right now — play together live: spin the bottle, truth or dare & more. Free.`
     : `Tap to play with ${name} — 30 free games: brain training, party games, faith & fitness.`
+  // Forward the sender handle (u), relationship (rel) and live-game id (g) so the app
+  // can render the reciprocal greeting, seal the reciprocal People link, pre-seed the
+  // two players, and route shared room links to the right live game.
   const target = room
-    ? `/?room=${encodeURIComponent(room)}&live=1&from=${encodeURIComponent(from)}`
-    : `/?invite=${encodeURIComponent(invite)}&from=${encodeURIComponent(from)}`
+    ? `/?room=${encodeURIComponent(room)}&live=1&from=${encodeURIComponent(from)}${liveGame ? `&g=${encodeURIComponent(liveGame)}` : ''}`
+    : `/?invite=${encodeURIComponent(invite)}&from=${encodeURIComponent(from)}${handle ? `&u=${encodeURIComponent(handle)}` : ''}${rel ? `&rel=${encodeURIComponent(rel)}` : ''}`
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300')
