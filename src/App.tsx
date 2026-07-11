@@ -5,7 +5,7 @@ import {
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
   Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
-  Edit3, Camera, ChevronRight, Share2, Link, Copy,
+  Edit3, Camera, ChevronRight, Share2, Link, Copy, Flag,
 } from 'lucide-react'
 import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, premiumBtn } from './lib/design'
 import { BRAND } from './lib/brand'
@@ -47,6 +47,7 @@ import { followOnKasuku, fetchKasukuPeople } from './lib/friends'
 import { sendRelationshipRequest, acceptRelationshipFromLink, acceptRelationshipRequest, declineRelationshipRequest, removeRelationship, fetchRelationships, fetchRelationLabels, type RelConnection } from './lib/relationships'
 import { loadSavedRooms, forgetRoom } from './lib/liveRooms'
 import { syncPlayerOnLogin, schedulePlayerPush, flushPlayerPush } from './lib/playerSync'
+import { fetchBlocks, blockUser, submitReport, REPORT_REASONS, type BlockSet } from './lib/trustSafety'
 import { joinOnline } from './lib/online'
 import { checkLostRecords, pushRecord } from './lib/records'
 import { sfxLevelUp } from './lib/sfx'
@@ -293,6 +294,8 @@ export default function App() {
     // Announce me on the live leaderboard.
     pushMyStats({ username: profile.username, displayName: profile.displayName, avatar: profile.avatar, photoUrl: profile.photoUrl, xp: profile.xp, level: profile.level, totalGames: profile.totalGames })
     const off = listenForInvites(profile.username, inv => {
+      // Drop invites from anyone I've blocked.
+      if (inv.fromHandle && blocksRef.current.handles.has(inv.fromHandle.toLowerCase())) return
       setLiveInvite(inv)
       const style = inv.notif || 'flash'
       const vib = style === 'gentle' ? [90] : style === 'buzz' ? [120, 60, 120, 60, 220] : [80, 40, 80, 40, 80, 40, 320]
@@ -351,6 +354,12 @@ export default function App() {
 
   // Global online presence → live green light + "a friend is here" notifications.
   const [online, setOnline] = useState<Set<string>>(new Set())
+  // Blocked users — hidden from People, live invites, and presence pings.
+  const [blocks, setBlocks] = useState<BlockSet>({ ids: new Set(), handles: new Set() })
+  const blocksRef = useRef<BlockSet>(blocks)
+  blocksRef.current = blocks
+  const reloadBlocks = useCallback(() => { fetchBlocks().then(setBlocks) }, [])
+  useEffect(() => { if (profile?.username) reloadBlocks() }, [profile?.username, reloadBlocks])
   const followsRef = useRef<Map<string, { name: string; label?: string }>>(new Map())
   const notifiedOnlineRef = useRef<Set<string>>(new Set())
   const firstOnlineSync = useRef(true)
@@ -374,6 +383,7 @@ export default function App() {
       for (const h of set) {
         if (h === me || notifiedOnlineRef.current.has(h)) continue
         notifiedOnlineRef.current.add(h)
+        if (blocksRef.current.handles.has(h)) continue
         const who = followsRef.current.get(h)
         if (who) {
           const title = who.label ? `Your ${who.label.toLowerCase()} is online` : 'A friend is online'
@@ -877,7 +887,7 @@ export default function App() {
       )}
       {section === 'daily' && <DailySection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
       {section === 'leaderboard' && <LeaderboardSection profile={profile} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
-      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onRejoinRoom={(code) => { if (profile) setLive({ code, isHost: false }); else { setShowLogin(true); setLoginMode('signup') } }} onLogin={() => setShowLogin(true)} online={online} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
+      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onRejoinRoom={(code) => { if (profile) setLive({ code, isHost: false }); else { setShowLogin(true); setLoginMode('signup') } }} onLogin={() => setShowLogin(true)} online={online} blocks={blocks} onBlocksChanged={reloadBlocks} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'notifications' && <NotificationsSection P={P} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} onOpenPeople={() => setSection('connections')} gct={glassCardTheme} />}
@@ -1297,8 +1307,9 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
 /* ================================================================
    CONNECTIONS
    ================================================================ */
-function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, online, P, isDark, mo, mc, is, gct }: {
+function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, online, blocks, onBlocksChanged, P, isDark, mo, mc, is, gct }: {
   profile: PlayerProfile | null; onPlay: (id: string) => void; onGoLive: (conn?: Connection, game?: string, gameName?: string, notif?: NotifStyle) => void; onRejoinRoom: (code: string) => void; onLogin: () => void; online: Set<string>
+  blocks: BlockSet; onBlocksChanged: () => void
   P: PaletteType; isDark: boolean; mo: CSSProperties; mc: CSSProperties; is: CSSProperties; gct: () => CSSProperties
 }) {
   const handleOf = (c: Connection) => (c.contactMethod === 'username' ? c.contactValue : c.username || '').toLowerCase()
@@ -1316,6 +1327,8 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
   const [addBusy, setAddBusy] = useState(false)
   const [addError, setAddError] = useState('')
   const [inviteConn, setInviteConn] = useState<Connection | null>(null)
+  const [safetyConn, setSafetyConn] = useState<Connection | null>(null)
+  const [reportReason, setReportReason] = useState<string>('')
 
   const reloadRels = useCallback(() => { fetchRelationships().then(setRels).catch(() => {}) }, [])
   useEffect(() => { if (profile) reloadRels() }, [profile, reloadRels])
@@ -1335,7 +1348,21 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
   const mergedConnections: Connection[] = [
     ...acceptedConns,
     ...connections.filter(c => !serverHandles.has(handleOf(c))),
-  ]
+  ].filter(c => !blocks.handles.has(handleOf(c)))  // hide anyone I've blocked
+
+  const handleBlock = async (conn: Connection) => {
+    const srvId = rels.find(r => r.otherHandle.toLowerCase() === handleOf(conn))?.otherId || null
+    await blockUser(srvId, handleOf(conn) || conn.username)
+    onBlocksChanged()
+    setSafetyConn(null)
+  }
+  const handleReport = async (conn: Connection, reason: string, alsoBlock: boolean) => {
+    const srvId = rels.find(r => r.otherHandle.toLowerCase() === handleOf(conn))?.otherId || null
+    await submitReport({ kind: 'user', reason, targetId: srvId, targetHandle: handleOf(conn) || conn.username })
+    if (alsoBlock) await handleBlock(conn)
+    else setSafetyConn(null)
+    setReportReason('')
+  }
 
   const handleAdd = async () => {
     if (!addName.trim() || !addContact.trim()) return
@@ -1536,6 +1563,7 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => setChallengeConn(conn)} title="Challenge to a live game" style={{ background: P.rose, border: 'none', borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${P.rose}30`, fontSize: 15 }}>⚡</button>
                     <button onClick={() => setInviteConn(conn)} title="Send invite" style={{ background: meta.color, border: 'none', borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${meta.color}30` }}><Send size={14} color="#fff" /></button>
+                    <button onClick={() => { setSafetyConn(conn); setReportReason('') }} title="Report or block" style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Flag size={13} color={P.textDim} /></button>
                     <button onClick={() => handleRemove(conn.id)} style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 36, height: 36, display: 'grid', placeItems: 'center', cursor: 'pointer' }}><Trash2 size={14} color={P.textDim} /></button>
                   </div>
                 </div>
@@ -1544,6 +1572,28 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
           </div>
         )
       })}
+
+      {/* Report / block sheet */}
+      {safetyConn && (
+        <div style={mo} onClick={() => setSafetyConn(null)}>
+          <div style={{ ...mc, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <Flag size={18} color={P.rose} />
+              <h3 style={{ margin: 0, ...TYPOGRAPHY.subheading, color: P.text }}>Report {safetyConn.displayName}</h3>
+            </div>
+            <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 16px', lineHeight: 1.5 }}>Reports are private and reviewed by moderators. Blocking hides them from your People, invites, and live rooms.</p>
+            <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, marginBottom: 8 }}>Reason</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+              {REPORT_REASONS.map(r => (
+                <button key={r} onClick={() => setReportReason(r)} style={{ padding: '7px 14px', borderRadius: RADIUS.full, fontSize: 12, fontWeight: 600, background: reportReason === r ? P.rose : P.surface, color: reportReason === r ? '#fff' : P.textMuted, border: `1px solid ${reportReason === r ? P.rose : P.border}`, cursor: 'pointer' }}>{r}</button>
+              ))}
+            </div>
+            <button disabled={!reportReason} onClick={() => handleReport(safetyConn, reportReason, true)} style={{ ...premiumBtn(P.rose), width: '100%', justifyContent: 'center', marginBottom: 10, opacity: reportReason ? 1 : 0.5, cursor: reportReason ? 'pointer' : 'default' }}>Report & block</button>
+            <button disabled={!reportReason} onClick={() => handleReport(safetyConn, reportReason, false)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.text, borderRadius: RADIUS.full, padding: '11px', width: '100%', fontSize: 13, fontWeight: 600, cursor: reportReason ? 'pointer' : 'default', opacity: reportReason ? 1 : 0.5, marginBottom: 10 }}>Report only</button>
+            <button onClick={() => handleBlock(safetyConn)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textMuted, borderRadius: RADIUS.full, padding: '11px', width: '100%', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Just block (no report)</button>
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div style={mo} onClick={() => setShowAdd(false)}>

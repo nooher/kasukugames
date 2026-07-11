@@ -4,6 +4,7 @@ import { RADIUS, MOTION } from '../lib/design'
 import { sfxTap, sfxReveal, sfxCorrect, sfxLevelUp } from '../lib/sfx'
 import { LiveRoom, LIVE_GAMES, type LivePlayer, type LiveMsg } from '../lib/liveRoom'
 import { rememberRoom, forgetRoom } from '../lib/liveRooms'
+import { cleanText } from '../lib/trustSafety'
 
 /* dark party palette (no gradients) */
 const C = {
@@ -1685,7 +1686,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
       if (m.t === 'state' && !amHostRef.current) { setG(m.d); gRef.current = m.d }
       else if (m.t === 'act' && amHostRef.current) applyAction(m.from, m.d)
       else if (m.t === 'reaction') spawnFloat(m.d.emoji)
-      else if (m.t === 'chat') setChat(c => [...c.slice(-40), { id: rid(), from: m.from, name: m.d.name, text: m.d.text }])
+      else if (m.t === 'chat') setChat(c => [...c.slice(-40), { id: rid(), from: m.from, name: cleanText(String(m.d.name || '')), text: cleanText(String(m.d.text || '')) }])
     })
     room.connect()
     return () => { offP(); offS(); offM(); room.leave() }
@@ -1996,7 +1997,7 @@ export default function LiveParty({ me, code, isHost, onExit, initialGame }: Pro
   }
   const react = (emoji: string) => { spawnFloat(emoji); roomRef.current?.send('reaction', { emoji }) }
   const sendChat = () => {
-    const text = chatText.trim(); if (!text) return
+    const text = cleanText(chatText.trim()); if (!text) return
     setChat(c => [...c.slice(-40), { id: rid(), from: me.id, name: me.name, text }])
     roomRef.current?.send('chat', { name: me.name, text })
     setChatText('')
