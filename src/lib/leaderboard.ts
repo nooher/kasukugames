@@ -37,8 +37,11 @@ export interface MyStats {
 
 let lastPush = 0
 
-/** Upsert my aggregate stats. Throttled; silently no-ops if unauthenticated or
- *  the table is missing. */
+/** Submit my aggregate stats through the server-authoritative anti-cheat function
+ *  (kg_submit_stats): forces id = auth.uid(), keeps xp/total_games monotonic, and
+ *  rate-limits the increase so a forged mega-jump is clamped. Direct writes to
+ *  kg_scores are revoked, so this RPC is the only write path. Throttled; silently
+ *  no-ops if unauthenticated or the function isn't provisioned. */
 export async function pushMyStats(p: MyStats, force = false): Promise<void> {
   try {
     const now = Date.now()
@@ -47,18 +50,16 @@ export async function pushMyStats(p: MyStats, force = false): Promise<void> {
     const { data } = await supabase.auth.getUser()
     const uid = data?.user?.id
     if (!uid) return
-    await supabase.from('kg_scores').upsert({
-      id: uid,
-      handle: p.username,
-      name: p.displayName,
-      avatar: p.avatar,
-      photo_url: p.photoUrl,
-      xp: Math.round(p.xp) || 0,
-      level: p.level || 1,
-      total_games: p.totalGames || 0,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' })
-  } catch { /* table not provisioned yet — ignore */ }
+    await supabase.rpc('kg_submit_stats', {
+      p_handle: p.username,
+      p_name: p.displayName,
+      p_avatar: p.avatar,
+      p_photo: p.photoUrl,
+      p_xp: Math.round(p.xp) || 0,
+      p_level: p.level || 1,
+      p_total_games: p.totalGames || 0,
+    })
+  } catch { /* function not provisioned yet — ignore */ }
 }
 
 /** Top players by XP. Returns null if the table isn't available. */
