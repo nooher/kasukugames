@@ -46,6 +46,7 @@ import { fetchLeaderboard, pushMyStats } from './lib/leaderboard'
 import { followOnKasuku, fetchKasukuPeople } from './lib/friends'
 import { sendRelationshipRequest, acceptRelationshipFromLink, acceptRelationshipRequest, declineRelationshipRequest, removeRelationship, fetchRelationships, fetchRelationLabels, type RelConnection } from './lib/relationships'
 import { loadSavedRooms, forgetRoom } from './lib/liveRooms'
+import { syncPlayerOnLogin, schedulePlayerPush, flushPlayerPush } from './lib/playerSync'
 import { joinOnline } from './lib/online'
 import { checkLostRecords, pushRecord } from './lib/records'
 import { sfxLevelUp } from './lib/sfx'
@@ -310,6 +311,31 @@ export default function App() {
     })
     return off
   }, [profile?.username])
+
+  // Cloud-sync the whole player (profile, wallet, records, purchases) so progress
+  // follows the account across devices. Runs once per signed-in session: reconciles
+  // local vs cloud (higher XP wins) and hydrates local state with the winner.
+  const playerSyncedRef = useRef(false)
+  useEffect(() => {
+    if (!profile?.username || playerSyncedRef.current) return
+    playerSyncedRef.current = true
+    let cancelled = false
+    syncPlayerOnLogin().then(merged => {
+      if (cancelled || !merged) return
+      if (merged.profile) setProfile(merged.profile)
+      if (merged.wallet) setWallet(merged.wallet)
+    })
+    return () => { cancelled = true }
+  }, [profile?.username])
+
+  // Push local changes up (debounced), and flush when the tab is hidden.
+  useEffect(() => {
+    if (!profile?.username) return
+    schedulePlayerPush()
+    const onHide = () => { if (document.visibilityState === 'hidden') flushPlayerPush() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [profile?.username, profile?.xp, profile?.totalGames, profile?.level, wallet.balance, wallet.totalEarned])
 
   // Keep my leaderboard score in sync: on load, whenever my XP/games change,
   // and every time the app comes back to the foreground. (Fixes rows stuck at 0
