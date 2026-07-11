@@ -48,6 +48,7 @@ import { sendRelationshipRequest, acceptRelationshipFromLink, acceptRelationship
 import { loadSavedRooms, forgetRoom } from './lib/liveRooms'
 import { syncPlayerOnLogin, schedulePlayerPush, flushPlayerPush } from './lib/playerSync'
 import { fetchBlocks, blockUser, submitReport, REPORT_REASONS, type BlockSet } from './lib/trustSafety'
+import { reconcileWalletBalance, serverSpend } from './lib/walletServer'
 import { joinOnline } from './lib/online'
 import { checkLostRecords, pushRecord } from './lib/records'
 import { sfxLevelUp } from './lib/sfx'
@@ -327,6 +328,11 @@ export default function App() {
       if (cancelled || !merged) return
       if (merged.profile) setProfile(merged.profile)
       if (merged.wallet) setWallet(merged.wallet)
+    })
+    // Adopt the server-authoritative token balance (seeds it from local on first use).
+    reconcileWalletBalance().then(bal => {
+      if (cancelled || bal == null) return
+      setWallet(loadWallet())
     })
     return () => { cancelled = true }
   }, [profile?.username])
@@ -1695,12 +1701,29 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
   const [tab, setTab] = useState<'shop' | 'packs' | 'history'>('shop')
   const purchased = JSON.parse(localStorage.getItem('kg_purchases') || '[]') as string[]
 
-  const handleBuy = (item: typeof SHOP[0]) => {
+  const [buying, setBuying] = useState<string | null>(null)
+  const handleBuy = async (item: typeof SHOP[0]) => {
     if (item.oneTime && purchased.includes(item.id)) return
-    const w = spendTokens(item.price, item.name)
-    if (!w) return
-    setWallet(w)
-    if (item.oneTime) { localStorage.setItem('kg_purchases', JSON.stringify([...purchased, item.id])) }
+    if (buying) return
+    setBuying(item.id)
+    try {
+      // Server-authoritative spend: when signed in the server checks funds, so a forged
+      // local balance can't buy. Signed out → fall back to the local wallet.
+      const res = await serverSpend(item.price, item.name)
+      if (res.ok) {
+        spendTokens(item.price, item.name) // mirror the transaction locally
+        setWallet(loadWallet())
+      } else if (res.reason === 'insufficient') {
+        return // server says you can't afford it
+      } else {
+        const w = spendTokens(item.price, item.name) // offline / signed out
+        if (!w) return
+        setWallet(w)
+      }
+      if (item.oneTime) localStorage.setItem('kg_purchases', JSON.stringify([...purchased, item.id]))
+    } finally {
+      setBuying(null)
+    }
   }
 
   return (

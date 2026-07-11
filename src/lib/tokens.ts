@@ -1,4 +1,16 @@
 import { PALETTE } from './brand'
+import { supabase } from './kasuku-bridge'
+
+// Mirror an earn/credit to the server-authoritative wallet (kg_wallet_earn is
+// per-call capped). Fire-and-forget; no-ops when signed out or unprovisioned.
+async function serverCredit(amount: number, reason: string): Promise<void> {
+  try {
+    if (!amount || amount <= 0) return
+    const { data } = await supabase.auth.getUser()
+    if (!data?.user?.id) return
+    await supabase.rpc('kg_wallet_earn', { p_amount: Math.round(amount), p_reason: reason.slice(0, 120) })
+  } catch { /* offline / not provisioned */ }
+}
 
 export interface TokenWallet {
   balance: number
@@ -92,6 +104,7 @@ export function earnTokens(amount: number, reason: string): TokenWallet {
   })
   if (wallet.transactions.length > 200) wallet.transactions = wallet.transactions.slice(0, 200)
   saveWallet(wallet)
+  void serverCredit(amount, reason)
   return wallet
 }
 
@@ -112,6 +125,9 @@ export function spendTokens(amount: number, reason: string): TokenWallet | null 
   return wallet
 }
 
+// (spendTokens above returns null on insufficient funds locally; the shop also
+//  gates on the server via serverSpend so a forged local balance can't buy.)
+
 export function purchaseTokens(amount: number, packLabel: string): TokenWallet {
   const wallet = loadWallet()
   wallet.balance += amount
@@ -125,5 +141,6 @@ export function purchaseTokens(amount: number, packLabel: string): TokenWallet {
   })
   if (wallet.transactions.length > 200) wallet.transactions = wallet.transactions.slice(0, 200)
   saveWallet(wallet)
+  void serverCredit(amount, `Purchased ${packLabel} pack`)
   return wallet
 }
