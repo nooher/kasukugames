@@ -37,13 +37,15 @@ import {
 } from './lib/engagement'
 import {
   loadConnections, addConnection, removeConnection,
-  RELATION_META, PARTY_GAMES,
+  RELATION_META, RECIPROCAL, PARTY_GAMES,
   generateWhatsAppInvite, generateInstagramInvite,
   type Connection, type RelationType,
 } from './lib/connections'
 import { listenForInvites, sendLiveInvite, makeRoomCode, LIVE_GAMES, type LivePlayer, type LiveInvite, type NotifStyle } from './lib/liveRoom'
 import { fetchLeaderboard, pushMyStats } from './lib/leaderboard'
 import { followOnKasuku, fetchKasukuPeople } from './lib/friends'
+import { sendRelationshipRequest, acceptRelationshipFromLink, acceptRelationshipRequest, declineRelationshipRequest, removeRelationship, fetchRelationships, fetchRelationLabels, type RelConnection } from './lib/relationships'
+import { loadSavedRooms, forgetRoom } from './lib/liveRooms'
 import { joinOnline } from './lib/online'
 import { checkLostRecords, pushRecord } from './lib/records'
 import { sfxLevelUp } from './lib/sfx'
@@ -88,7 +90,8 @@ const CouplesQuiz = lazy(() => import('./games/CouplesQuiz'))
 const Tanzanite = lazy(() => import('./games/Tanzanite'))
 
 export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
-type GameComp = React.LazyExoticComponent<React.ComponentType<{ onBack: () => void; onGameEnd?: (r: GameResult) => void }>>
+export interface DuoContext { me: string; them: string }
+type GameComp = React.LazyExoticComponent<React.ComponentType<{ onBack: () => void; onGameEnd?: (r: GameResult) => void; duo?: DuoContext | null }>>
 const GAME_COMPONENTS: Record<string, GameComp> = {
   'matrix-forge': MatrixForge,
   'sequence-collapse': SequenceCollapse,
@@ -148,7 +151,10 @@ export default function App() {
   const [profile, setProfile] = useState<PlayerProfile | null>(loadProfile)
   const [section, setSection] = useState<Section>('home')
   const [activeGame, setActiveGame] = useState<string | null>(null)
-  const [inboundInvite, setInboundInvite] = useState<{ game: string; from: string } | null>(null)
+  const [inboundInvite, setInboundInvite] = useState<{ game: string; from: string; fromHandle?: string; rel?: RelationType } | null>(null)
+  // When a game is opened from an invite, the two players are already known — pass
+  // them to the game so it skips the "add Player 1 / Player 2" setup.
+  const [duo, setDuo] = useState<DuoContext | null>(null)
   const [live, setLive] = useState<{ code: string; isHost: boolean; initialGame?: string } | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [liveInvite, setLiveInvite] = useState<LiveInvite | null>(null)
@@ -211,6 +217,7 @@ export default function App() {
   const modalCard: CSSProperties = {
     background: P.card, border: `1px solid ${P.borderLight}`,
     borderRadius: 32, padding: '48px 44px', maxWidth: 440, width: '100%',
+    maxHeight: '86vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
     boxShadow: isDark ? `${SHADOW.xl}, ${GLASS.highlight}` : '0 16px 48px rgba(0,0,0,0.12)',
   }
 
@@ -261,7 +268,13 @@ export default function App() {
       if (room && /^[A-Za-z0-9]{4,6}$/.test(room)) {
         setPendingRoom(room.toUpperCase())
       } else if (g && GAMES.some(x => x.id === g)) {
-        setInboundInvite({ game: g, from: (params.get('from') || 'A friend').slice(0, 40) })
+        const relParam = (params.get('rel') || '').trim() as RelationType
+        setInboundInvite({
+          game: g,
+          from: (params.get('from') || 'A friend').slice(0, 40),
+          fromHandle: (params.get('u') || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '') || undefined,
+          rel: RELATION_META[relParam] ? relParam : undefined,
+        })
       }
       if (params.get('invite') || room || book || window.location.pathname.startsWith('/@')) {
         window.history.replaceState({}, '', '/')
@@ -312,13 +325,20 @@ export default function App() {
 
   // Global online presence → live green light + "a friend is here" notifications.
   const [online, setOnline] = useState<Set<string>>(new Set())
-  const followsRef = useRef<Map<string, string>>(new Map())
+  const followsRef = useRef<Map<string, { name: string; label?: string }>>(new Map())
   const notifiedOnlineRef = useRef<Set<string>>(new Set())
   const firstOnlineSync = useRef(true)
   useEffect(() => {
     if (!profile?.username) return
     firstOnlineSync.current = true
-    fetchKasukuPeople().then(people => { followsRef.current = new Map(people.map(p => [p.handle.toLowerCase(), p.name])) })
+    // Build the "who's who" map: Kasuku follows give names; accepted relationships
+    // upgrade the entry with a label so we can say "Your wife is online".
+    Promise.all([fetchKasukuPeople(), fetchRelationLabels()]).then(([people, labels]) => {
+      const map = new Map<string, { name: string; label?: string }>()
+      for (const p of people) map.set(p.handle.toLowerCase(), { name: p.name })
+      for (const [h, v] of labels) map.set(h, { name: v.name, label: v.label })
+      followsRef.current = map
+    })
     // Notify me when a game-record I held gets beaten by someone else.
     checkLostRecords((game, by) => addNotification({ type: 'record_broken', title: 'Record broken', message: `${by} beat your record in ${game}!`, icon: 'trophy', color: '#f59e0b' }))
     const me = profile.username.toLowerCase()
@@ -328,8 +348,11 @@ export default function App() {
       for (const h of set) {
         if (h === me || notifiedOnlineRef.current.has(h)) continue
         notifiedOnlineRef.current.add(h)
-        if (followsRef.current.has(h)) {
-          addNotification({ type: 'social', title: 'A friend is online', message: `${followsRef.current.get(h)} is now on KasukuGames — challenge them to a live game!`, icon: 'users', color: '#22c55e' })
+        const who = followsRef.current.get(h)
+        if (who) {
+          const title = who.label ? `Your ${who.label.toLowerCase()} is online` : 'A friend is online'
+          const lead = who.label ? `Your ${who.label.toLowerCase()} ${who.name}` : who.name
+          addNotification({ type: 'social', title, message: `${lead} is now on KasukuGames — challenge them to a live game!`, icon: 'users', color: '#22c55e' })
         }
       }
       for (const h of Array.from(notifiedOnlineRef.current)) if (!set.has(h)) notifiedOnlineRef.current.delete(h)
@@ -342,6 +365,19 @@ export default function App() {
     if (profile && !live) { setLive({ code: pendingRoom, isHost: false }); setPendingRoom(null) }
     else if (!profile) { setShowLogin(true); setLoginMode('signup') }
   }, [profile, pendingRoom, live])
+
+  // A relationship invite opened before sign-in: once they're in, seal it so both
+  // people appear on each other's People.
+  useEffect(() => {
+    if (!profile?.username) return
+    try {
+      const raw = localStorage.getItem('kg_pending_rel')
+      if (!raw) return
+      const { handle, rel } = JSON.parse(raw) as { handle: string; rel: RelationType }
+      if (handle && rel) { acceptRelationshipFromLink(handle, rel); followOnKasuku(handle) }
+    } catch { /* ignore */ }
+    localStorage.removeItem('kg_pending_rel')
+  }, [profile?.username])
 
   const goLive = useCallback((conn?: Connection, game = 'party', gameName = '', notif: NotifStyle = 'flash') => {
     if (!profile) { setShowLogin(true); setLoginMode('signup'); return }
@@ -474,6 +510,7 @@ export default function App() {
     }
     lastGameResult.current = null
     setActiveGame(null)
+    setDuo(null)
   }
 
   const launchGame = useCallback((gameId: string) => {
@@ -528,7 +565,7 @@ export default function App() {
       return (
         <GameErrorBoundary onBack={handleGameBack}>
           <Suspense fallback={<LoadingView P={P} />}>
-            <GameComponent onBack={handleGameBack} onGameEnd={handleGameEnd} />
+            <GameComponent onBack={handleGameBack} onGameEnd={handleGameEnd} duo={duo} />
             <FloatingPlayer visible={playerVisible} onToggle={() => setPlayerVisible(false)} theme={theme} />
           </Suspense>
         </GameErrorBoundary>
@@ -552,12 +589,32 @@ export default function App() {
       {inboundInvite && (
         <div onClick={() => setInboundInvite(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'grid', placeItems: 'center', padding: 20, zIndex: 300 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 20, padding: 26, maxWidth: 360, width: '100%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.45)' }}>
-            <div style={{ fontSize: 44, marginBottom: 6 }}>🎮</div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#e0913f', marginBottom: 8 }}>{t('youre_invited')}</div>
-            <div style={{ fontSize: 16, color: P.textMuted, marginBottom: 2 }}><b style={{ color: P.text }}>{inboundInvite.from}</b> {t('invited_you_to_play')}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: P.text, marginBottom: 20 }}>{GAMES.find(g => g.id === inboundInvite.game)?.title || inboundInvite.game}</div>
-            <button onClick={() => { if (profile) { setActiveGame(inboundInvite.game); setInboundInvite(null) } else { setShowLogin(true); setLoginMode('signup') } }} style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', marginBottom: 10 }}>
-              {profile ? t('play_now') : t('signup_and_play')}
+            {(() => {
+              const relLabel = inboundInvite.rel ? RELATION_META[RECIPROCAL[inboundInvite.rel] ?? inboundInvite.rel]?.label : null
+              return (
+                <>
+                  <div style={{ fontSize: 44, marginBottom: 6 }}>{inboundInvite.rel ? RELATION_META[RECIPROCAL[inboundInvite.rel] ?? inboundInvite.rel]?.emoji : '🎮'}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#e0913f', marginBottom: 8 }}>{t('youre_invited')}</div>
+                  <div style={{ fontSize: 16, color: P.textMuted, marginBottom: 2 }}>
+                    {relLabel && <>Your <b style={{ color: P.text }}>{relLabel.toLowerCase()}</b> </>}
+                    <b style={{ color: P.text }}>{inboundInvite.from}</b> {t('invited_you_to_play')}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: P.text, marginBottom: relLabel ? 8 : 20 }}>{GAMES.find(g => g.id === inboundInvite.game)?.title || inboundInvite.game}</div>
+                  {relLabel && <div style={{ fontSize: 12, color: P.textDim, marginBottom: 18, lineHeight: 1.5 }}>Accepting adds {inboundInvite.from} to your People as your {relLabel.toLowerCase()} — you'll appear on each other's lists.</div>}
+                </>
+              )
+            })()}
+            <button onClick={() => {
+              if (profile) {
+                if (inboundInvite.fromHandle && inboundInvite.rel) { acceptRelationshipFromLink(inboundInvite.fromHandle, inboundInvite.rel); followOnKasuku(inboundInvite.fromHandle) }
+                setDuo({ me: profile.displayName || 'You', them: inboundInvite.from })
+                setActiveGame(inboundInvite.game); setInboundInvite(null)
+              } else {
+                if (inboundInvite.fromHandle && inboundInvite.rel) { try { localStorage.setItem('kg_pending_rel', JSON.stringify({ handle: inboundInvite.fromHandle, rel: inboundInvite.rel })) } catch { /* ignore */ } }
+                setShowLogin(true); setLoginMode('signup')
+              }
+            }} style={{ ...premiumBtn(P.sapphire), width: '100%', justifyContent: 'center', marginBottom: 10 }}>
+              {profile ? (inboundInvite.rel ? 'Accept & play →' : t('play_now')) : t('signup_and_play')}
             </button>
             <button onClick={() => setInboundInvite(null)} style={{ background: 'none', border: `1px solid ${P.border}`, color: P.textMuted, borderRadius: RADIUS.full, padding: '10px 20px', width: '100%', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('maybe_later')}</button>
           </div>
@@ -794,7 +851,7 @@ export default function App() {
       )}
       {section === 'daily' && <DailySection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
       {section === 'leaderboard' && <LeaderboardSection profile={profile} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
-      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onLogin={() => setShowLogin(true)} online={online} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
+      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onRejoinRoom={(code) => { if (profile) setLive({ code, isHost: false }); else { setShowLogin(true); setLoginMode('signup') } }} onLogin={() => setShowLogin(true)} online={online} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'notifications' && <NotificationsSection P={P} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} onOpenPeople={() => setSection('connections')} gct={glassCardTheme} />}
@@ -1214,33 +1271,85 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
 /* ================================================================
    CONNECTIONS
    ================================================================ */
-function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, online, P, isDark, mo, mc, is, gct }: {
-  profile: PlayerProfile | null; onPlay: (id: string) => void; onGoLive: (conn?: Connection, game?: string, gameName?: string, notif?: NotifStyle) => void; onLogin: () => void; online: Set<string>
+function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, online, P, isDark, mo, mc, is, gct }: {
+  profile: PlayerProfile | null; onPlay: (id: string) => void; onGoLive: (conn?: Connection, game?: string, gameName?: string, notif?: NotifStyle) => void; onRejoinRoom: (code: string) => void; onLogin: () => void; online: Set<string>
   P: PaletteType; isDark: boolean; mo: CSSProperties; mc: CSSProperties; is: CSSProperties; gct: () => CSSProperties
 }) {
   const handleOf = (c: Connection) => (c.contactMethod === 'username' ? c.contactValue : c.username || '').toLowerCase()
   const [challengeConn, setChallengeConn] = useState<Connection | null>(null)
   const [challengeNotif, setChallengeNotif] = useState<NotifStyle>('flash')
   const [connections, setConnections] = useState<Connection[]>(loadConnections)
+  const [rels, setRels] = useState<RelConnection[]>([])
+  const [savedRooms, setSavedRooms] = useState(loadSavedRooms)
   const [showAdd, setShowAdd] = useState(false)
   const [addName, setAddName] = useState('')
   const [addRelation, setAddRelation] = useState<RelationType>('friend')
   const [addMethod, setAddMethod] = useState<'whatsapp' | 'instagram' | 'username'>('whatsapp')
   const [addContact, setAddContact] = useState('')
   const [addSharePic, setAddSharePic] = useState(true)
+  const [addBusy, setAddBusy] = useState(false)
+  const [addError, setAddError] = useState('')
   const [inviteConn, setInviteConn] = useState<Connection | null>(null)
 
-  const handleAdd = () => {
+  const reloadRels = useCallback(() => { fetchRelationships().then(setRels).catch(() => {}) }, [])
+  useEffect(() => { if (profile) reloadRels() }, [profile, reloadRels])
+
+  // Accepted server relationships surface as People too — rendered as Connection-
+  // shaped rows so the existing card, challenge and invite controls just work.
+  const relToConn = (r: RelConnection): Connection => ({
+    id: `srv_${r.id}`, displayName: r.otherName, username: r.otherHandle,
+    avatar: '🙂', relation: r.relation, contactMethod: 'username', contactValue: r.otherHandle,
+    addedAt: 0, lastPlayed: null, gamesPlayed: 0, wins: 0, losses: 0, shareProfilePic: true,
+  })
+  const incoming = rels.filter(r => r.incoming)
+  const outgoing = rels.filter(r => r.outgoing)
+  const acceptedConns = rels.filter(r => r.status === 'accepted').map(relToConn)
+  // Merge local + server, de-duplicating by handle (server wins — it's reciprocal).
+  const serverHandles = new Set(acceptedConns.map(c => c.contactValue.toLowerCase()))
+  const mergedConnections: Connection[] = [
+    ...acceptedConns,
+    ...connections.filter(c => !serverHandles.has(handleOf(c))),
+  ]
+
+  const handleAdd = async () => {
     if (!addName.trim() || !addContact.trim()) return
-    const conn = addConnection({ displayName: addName.trim(), username: addName.trim().toLowerCase().replace(/\s+/g, '_'), avatar: AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)], relation: addRelation, contactMethod: addMethod, contactValue: addContact.trim(), shareProfilePic: addSharePic })
-    setConnections([...connections, conn])
-    // If they're a Kasuku user, follow them on Kasuku (harmless, enables the
-    // "they're now on KasukuGames" notification later).
-    if (addMethod === 'username') followOnKasuku(addContact.trim())
-    setShowAdd(false); setAddName(''); setAddContact('')
+    setAddError('')
+    if (addMethod === 'username') {
+      // Real Kasuku user → send a relationship request they can accept, which makes
+      // you appear on each other's People. No local copy (the server row is shared).
+      setAddBusy(true)
+      const res = await sendRelationshipRequest(addContact.trim(), addRelation)
+      followOnKasuku(addContact.trim())
+      setAddBusy(false)
+      if (!res.ok) {
+        if (res.error === 'not-found' || res.error === 'self' || res.error === 'signed-out') {
+          setAddError(res.error === 'not-found' ? "No Kasuku user with that username." : res.error === 'self' ? "That's you 🙂" : 'Sign in first.')
+          return
+        }
+        // Infrastructure hiccup (e.g. table not migrated yet) — still give them a
+        // local People entry so nothing is lost; reciprocity kicks in once it's back.
+        const conn = addConnection({ displayName: addName.trim(), username: addContact.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''), avatar: AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)], relation: addRelation, contactMethod: 'username', contactValue: addContact.trim(), shareProfilePic: addSharePic })
+        setConnections([...connections, conn])
+      } else {
+        reloadRels()
+      }
+    } else {
+      const conn = addConnection({ displayName: addName.trim(), username: addName.trim().toLowerCase().replace(/\s+/g, '_'), avatar: AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)], relation: addRelation, contactMethod: addMethod, contactValue: addContact.trim(), shareProfilePic: addSharePic })
+      setConnections([...connections, conn])
+    }
+    setShowAdd(false); setAddName(''); setAddContact(''); setAddError('')
   }
 
-  const handleRemove = (id: string) => { removeConnection(id); setConnections(connections.filter(c => c.id !== id)) }
+  const handleAccept = async (r: RelConnection) => { await acceptRelationshipRequest(r.id); reloadRels() }
+  const handleDecline = async (r: RelConnection) => { await declineRelationshipRequest(r.id); reloadRels() }
+
+  const handleRemove = (id: string) => {
+    if (id.startsWith('srv_')) { removeRelationship(id.slice(4)).then(reloadRels); return }
+    removeConnection(id); setConnections(connections.filter(c => c.id !== id))
+  }
+
+  const handleRejoin = (code: string) => { onRejoinRoom(code) }
+  const handleForgetRoom = (code: string) => { forgetRoom(code); setSavedRooms(loadSavedRooms()) }
 
   const handleInvite = (conn: Connection, gameType: string, gameName: string) => {
     if (!profile) return
@@ -1288,6 +1397,47 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, online, P, isD
         <span style={{ fontSize: 20, color: P.rose }}>→</span>
       </button>
 
+      {/* Your live rooms — rejoin after an accidental exit while a mate is still in */}
+      {savedRooms.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: P.rose, display: 'inline-block' }} /> Your live rooms
+          </div>
+          {savedRooms.map(r => (
+            <div key={r.code} style={{ ...gct(), padding: '13px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 22 }}>🔴</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: P.text, letterSpacing: 2 }}>{r.code}</div>
+                <div style={{ fontSize: 11, color: P.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.withName ? `with ${r.withName}` : 'Tap rejoin to continue'}{r.gameName ? ` · ${r.gameName}` : ''}</div>
+              </div>
+              <button onClick={() => handleRejoin(r.code)} style={{ ...premiumBtn(P.rose), padding: '8px 16px', fontSize: 12 }}>Rejoin</button>
+              <button onClick={() => handleForgetRoom(r.code)} title="Close room" style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 32, height: 32, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}><Trash2 size={13} color={P.textDim} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Incoming relationship requests — accept to appear on each other's People */}
+      {incoming.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, marginBottom: 8 }}>Requests</div>
+          {incoming.map(r => {
+            const meta = RELATION_META[r.relation]
+            return (
+              <div key={r.id} style={{ ...gct(), padding: '14px 18px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, border: `1px solid ${meta.color}45` }}>
+                {r.otherPhoto ? <img src={r.otherPhoto} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} /> : <span style={{ fontSize: 26 }}>{meta.emoji}</span>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{r.otherName}</div>
+                  <div style={{ fontSize: 12, color: P.textMuted }}>added you as their {meta.label.toLowerCase()} — accept to be their {meta.label.toLowerCase()} too</div>
+                </div>
+                <button onClick={() => handleAccept(r)} style={{ ...premiumBtn(meta.color), padding: '8px 16px', fontSize: 12 }}>Accept</button>
+                <button onClick={() => handleDecline(r)} title="Decline" style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 32, height: 32, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}><X size={14} color={P.textDim} /></button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <div style={{ ...gct(), padding: '24px 26px', marginBottom: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: P.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           <PartyPopper size={18} color={P.fuchsia} /> {t('party_games')}
@@ -1303,7 +1453,27 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, online, P, isD
         </div>
       </div>
 
-      {connections.length === 0 ? (
+      {/* Sent — waiting for them to accept */}
+      {outgoing.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, marginBottom: 8 }}>Sent · waiting to accept</div>
+          {outgoing.map(r => {
+            const meta = RELATION_META[r.relation]
+            return (
+              <div key={r.id} style={{ ...gct(), padding: '12px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, opacity: 0.85 }}>
+                <span style={{ fontSize: 22 }}>{meta.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{r.otherName}</div>
+                  <div style={{ fontSize: 11, color: P.textMuted }}>invited as your {meta.label.toLowerCase()} · pending</div>
+                </div>
+                <button onClick={() => handleRemove(`srv_${r.id}`)} title="Cancel" style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 30, height: 30, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}><X size={13} color={P.textDim} /></button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {mergedConnections.length === 0 ? (
         <div style={{ ...gct(), padding: '56px 28px', textAlign: 'center' }}>
           <Heart size={36} color={P.textDim} style={{ marginBottom: 14 }} />
           <p style={{ fontSize: 15, fontWeight: 600, color: P.text, margin: '0 0 6px' }}>{t('no_people_yet')}</p>
@@ -1311,7 +1481,7 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, online, P, isD
           <button onClick={() => setShowAdd(true)} style={premiumBtn(P.emerald)}><UserPlus size={14} /> {t('add_first_person')}</button>
         </div>
       ) : relationGroups.map(group => {
-        const groupConns = connections.filter(c => group.types.includes(c.relation))
+        const groupConns = mergedConnections.filter(c => group.types.includes(c.relation))
         if (groupConns.length === 0) return null
         return (
           <div key={group.key} style={{ marginBottom: 24 }}>
@@ -1366,12 +1536,17 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onLogin, online, P, isD
                 <button key={m} onClick={() => setAddMethod(m)} style={{ flex: 1, padding: '10px', borderRadius: RADIUS.md, fontSize: 12, fontWeight: 600, background: addMethod === m ? P.sapphire : P.surface, color: addMethod === m ? '#fff' : P.textMuted, border: `1px solid ${addMethod === m ? P.sapphire : P.border}`, cursor: 'pointer', boxShadow: addMethod === m ? 'inset 0 1px 0 rgba(255,255,255,0.15)' : 'none' }}>{label}</button>
               ))}
             </div>
-            <input value={addContact} onChange={e => setAddContact(e.target.value)} placeholder={addMethod === 'whatsapp' ? '+255 7XX XXX XXX' : addMethod === 'instagram' ? '@username' : 'username'} style={is} />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, cursor: 'pointer' }}>
-              <input type="checkbox" checked={addSharePic} onChange={e => setAddSharePic(e.target.checked)} />
-              <span style={{ fontSize: 12, color: P.textMuted }}>{t('share_photo')}</span>
-            </label>
-            <button onClick={handleAdd} style={{ ...premiumBtn(P.emerald), width: '100%', justifyContent: 'center', marginTop: 20 }}><UserPlus size={14} /> {t('add')}</button>
+            <input value={addContact} onChange={e => { setAddContact(e.target.value); setAddError('') }} placeholder={addMethod === 'whatsapp' ? '+255 7XX XXX XXX' : addMethod === 'instagram' ? '@username' : 'their Kasuku username'} style={is} />
+            {addMethod === 'username'
+              ? <p style={{ fontSize: 11, color: P.textDim, margin: '8px 2px 0', lineHeight: 1.5 }}>We'll send {addName.trim() || 'them'} a request. Once they accept, you'll appear on each other's People — as their {RELATION_META[RECIPROCAL[addRelation] ?? addRelation]?.label.toLowerCase()}.</p>
+              : (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={addSharePic} onChange={e => setAddSharePic(e.target.checked)} />
+                  <span style={{ fontSize: 12, color: P.textMuted }}>{t('share_photo')}</span>
+                </label>
+              )}
+            {addError && <p style={{ fontSize: 12, color: P.rose, margin: '10px 2px 0' }}>{addError}</p>}
+            <button onClick={handleAdd} disabled={addBusy} style={{ ...premiumBtn(P.emerald), width: '100%', justifyContent: 'center', marginTop: 20, opacity: addBusy ? 0.6 : 1, cursor: addBusy ? 'default' : 'pointer' }}><UserPlus size={14} /> {addBusy ? 'Sending…' : addMethod === 'username' ? 'Send request' : t('add')}</button>
           </div>
         </div>
       )}

@@ -134,7 +134,7 @@ export function createInvite(
 
 // What the SENDER is to the RECIPIENT — so we address the recipient from their
 // side (invite your wife → she reads "your husband", not "your wifey").
-const RECIPROCAL: Record<RelationType, RelationType> = {
+export const RECIPROCAL: Record<RelationType, RelationType> = {
   husband: 'wife', hubby: 'wife', wife: 'husband', wifey: 'husband',
   partner: 'partner', bae: 'bae',
   friend: 'friend', bestfriend: 'bestfriend', bff: 'bff',
@@ -181,22 +181,24 @@ export function generateInviteMessage(fromName: string, conn: Connection, gameTy
 }
 
 // The invite link carries the sender's handle (u=) so the /play OG endpoint can
-// render the sender's profile photo + name as the WhatsApp/social preview card.
-export function inviteLink(fromName: string, fromHandle: string, gameType: string): string {
+// render the sender's profile photo + name as the WhatsApp/social preview card,
+// and the relationship (rel=) so the recipient is greeted from their own side
+// ("your husband is inviting you…") and can accept it into their People.
+export function inviteLink(fromName: string, fromHandle: string, gameType: string, relation?: RelationType): string {
   const u = (fromHandle || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
-  const q = `invite=${encodeURIComponent(gameType)}&from=${encodeURIComponent(fromName)}${u ? `&u=${u}` : ''}`
+  const q = `invite=${encodeURIComponent(gameType)}&from=${encodeURIComponent(fromName)}${u ? `&u=${u}` : ''}${relation ? `&rel=${relation}` : ''}`
   return `https://games.kasuku.tz/play?${q}`
 }
 
 export function generateWhatsAppInvite(fromName: string, fromHandle: string, conn: Connection, gameType: string, gameName: string): string {
   const msg = generateInviteMessage(fromName, conn, gameType, gameName)
-  const link = inviteLink(fromName, fromHandle, gameType)
+  const link = inviteLink(fromName, fromHandle, gameType, conn.relation)
   return `https://wa.me/${conn.contactValue.replace(/\D/g, '')}?text=${encodeURIComponent(`${msg}\n\n🎮 ${link}`)}`
 }
 
 export function generateInstagramInvite(fromName: string, fromHandle: string, conn: Connection, gameType: string, gameName: string): string {
   const msg = generateInviteMessage(fromName, conn, gameType, gameName)
-  const link = inviteLink(fromName, fromHandle, gameType)
+  const link = inviteLink(fromName, fromHandle, gameType, conn.relation)
   return `https://ig.me/m/${conn.contactValue.replace('@', '')}?text=${encodeURIComponent(`${msg}\n\n🎮 ${link}`)}`
 }
 

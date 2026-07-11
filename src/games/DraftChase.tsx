@@ -69,10 +69,26 @@ const CHALLENGE_INFO: Record<ChallengeType, { name: string; desc: string; icon: 
 const CHALLENGES: ChallengeType[] = ['speed-tap', 'color-match', 'number-memory', 'quick-math', 'speed-type', 'reaction-time', 'pattern-match', 'word-chain'];
 
 const TRASH_TALK = {
-  destroyed: ['DESTROYED!', 'OBLITERATED!', 'NOT EVEN CLOSE!', 'ABSOLUTE CARNAGE!'],
-  solid: ['Solid win!', 'Clean victory!', 'Nicely done!', 'Dominant!'],
-  close: ['By a hair!', 'Photo finish!', 'Squeaked by!', 'Nail-biter!'],
-  tie: ['Dead heat!', 'Perfectly matched!', 'Mirror image!', 'Identical!'],
+  destroyed: [
+    'DESTROYED!', 'OBLITERATED!', 'NOT EVEN CLOSE!', 'ABSOLUTE CARNAGE!',
+    'DEMOLISHED!', 'ANNIHILATED!', 'STEAMROLLED!', 'BLOWN AWAY!',
+    'NO CONTEST!', 'UTTERLY CRUSHED!', 'RUNAWAY ROUT!', 'GAME OVER, MAN!',
+  ],
+  solid: [
+    'Solid win!', 'Clean victory!', 'Nicely done!', 'Dominant!',
+    'Well played!', 'Strong showing!', 'Comfortable win!', 'That is the way!',
+    'Convincing stuff!', 'Textbook execution!', 'In control throughout!', 'A cut above!',
+  ],
+  close: [
+    'By a hair!', 'Photo finish!', 'Squeaked by!', 'Nail-biter!',
+    'Right at the wire!', 'Down to the wire!', 'Too close to call!', 'Barely edged it!',
+    'Heart-stopper!', 'Skin of the teeth!', 'A whisker apart!', 'Clutch finish!',
+  ],
+  tie: [
+    'Dead heat!', 'Perfectly matched!', 'Mirror image!', 'Identical!',
+    'Neck and neck!', 'Even Steven!', 'All square!', 'Dead level!',
+    'Two of a kind!', 'Locked together!', 'No daylight between them!', 'Stalemate!',
+  ],
 };
 
 function getTrashTalk(diff: number): string {
@@ -132,6 +148,18 @@ const SPEED_TYPE_WORDS = [
   'swift', 'coral', 'frost', 'spark', 'drift',
   'lunar', 'solar', 'viper', 'storm', 'blaze',
   'crystal', 'dragon', 'falcon', 'horizon', 'zenith',
+  'thunder', 'comet', 'meteor', 'nebula', 'plasma',
+  'photon', 'neutron', 'proton', 'vortex', 'cosmos',
+  'stellar', 'pulsar', 'quasar', 'aurora', 'eclipse',
+  'gravity', 'magnet', 'circuit', 'binary', 'pixel',
+  'vector', 'kernel', 'syntax', 'cursor', 'packet',
+  'module', 'thread', 'socket', 'buffer', 'cache',
+  'jaguar', 'panther', 'cheetah', 'cobra', 'raven',
+  'osprey', 'marlin', 'badger', 'walrus', 'lizard',
+  'ranger', 'hunter', 'sniper', 'pilot', 'ninja',
+  'samurai', 'ronin', 'katana', 'saber', 'arrow',
+  'canyon', 'summit', 'tundra', 'glacier', 'meadow',
+  'harbor', 'meridian', 'compass', 'beacon', 'anchor',
 ];
 
 /* ------------------------------------------------------------------ */
@@ -930,7 +958,7 @@ function WordChainChallenge({ onComplete }: { onComplete: (score: number) => voi
 /* ------------------------------------------------------------------ */
 /*  Main game component                                                */
 /* ------------------------------------------------------------------ */
-export default function DraftChase({ onBack, onGameEnd }: { onBack: () => void; onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void }) {
+export default function DraftChase({ onBack, onGameEnd, duo }: { onBack: () => void; onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void; duo?: { me: string; them: string } | null }) {
   const [phase, setPhase] = useState<Phase>('setup');
   const [p1Name, setP1Name] = useState('');
   const [p2Name, setP2Name] = useState('');
@@ -1000,14 +1028,25 @@ export default function DraftChase({ onBack, onGameEnd }: { onBack: () => void; 
   const drafterName = isDrafterP1 ? p1Name : p2Name;
   const chaserName = isDrafterP1 ? p2Name : p1Name;
 
-  const startGame = () => {
-    if (!p1Name.trim() || !p2Name.trim()) return;
+  const startGame = (name1?: string, name2?: string) => {
+    const n1 = (name1 ?? p1Name).trim();
+    const n2 = (name2 ?? p2Name).trim();
+    if (!n1 || !n2) return;
     sfxTap();
     setPhase('round-intro');
     const ch = pickChallenge([]);
     setCurrentChallenge(ch);
     setUsedChallenges([ch]);
   };
+
+  /* ---- Invited "duo" flow: pre-fill both names and skip setup ---- */
+  useEffect(() => {
+    if (duo) {
+      setP1Name(duo.me);
+      setP2Name(duo.them);
+      startGame(duo.me, duo.them);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startPlaying = () => {
     setPhase('playing');
@@ -1235,7 +1274,7 @@ export default function DraftChase({ onBack, onGameEnd }: { onBack: () => void; 
         />
       </div>
       <button
-        onClick={startGame}
+        onClick={() => startGame()}
         disabled={!p1Name.trim() || !p2Name.trim()}
         style={{
           ...solidBtn(C.accent),
