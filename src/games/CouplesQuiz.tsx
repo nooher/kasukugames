@@ -33,9 +33,9 @@ const PARTNER_COLORS = [C.rose, C.sapphire] as const;
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-type Category = 'love_language' | 'memories' | 'preferences' | 'dreams' | 'intimacy' | 'hypothetical' | 'deep';
+export type Category = 'love_language' | 'memories' | 'preferences' | 'dreams' | 'intimacy' | 'hypothetical' | 'deep';
 
-interface Question {
+export interface Question {
   q: string;
   options: string[];
 }
@@ -63,7 +63,7 @@ interface RoundData {
 /* ------------------------------------------------------------------ */
 /*  Category metadata                                                  */
 /* ------------------------------------------------------------------ */
-const CATEGORY_META: Record<Category, { label: string; color: string; icon: React.ReactNode; desc: string }> = {
+export const CATEGORY_META: Record<Category, { label: string; color: string; icon: React.ReactNode; desc: string }> = {
   love_language: { label: 'Love Language', color: C.rose, icon: <Heart size={18} />, desc: 'How you show and receive love — words, physical touch, quality time, acts of service, and gifts' },
   memories: { label: 'Memories', color: C.amber, icon: <Map size={18} />, desc: 'First dates, favorite trips, embarrassing moments, milestones' },
   preferences: { label: 'Preferences', color: C.sapphire, icon: <Star size={18} />, desc: 'Food, music, movies, ideal weekends, dream vacations' },
@@ -81,7 +81,7 @@ const emptyCategoryCounts = (): Record<Category, number> => ({
 /* ------------------------------------------------------------------ */
 /*  Question bank (280+ questions)                                     */
 /* ------------------------------------------------------------------ */
-const QUESTIONS: Record<Category, Question[]> = {
+export const QUESTIONS: Record<Category, Question[]> = {
   love_language: [
     { q: "How does your partner prefer to receive love?", options: ["Words of affirmation and compliments", "Physical touch and closeness", "Quality time and undivided attention", "Acts of service and doing things for them"] },
     { q: "What gesture from you makes your partner feel most loved?", options: ["Writing them a heartfelt message", "Holding them close without a word", "Dropping everything to spend the day together", "Handling a chore they hate without being asked"] },

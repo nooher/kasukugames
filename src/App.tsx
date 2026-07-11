@@ -90,6 +90,7 @@ const ScriptureQuest = lazy(() => import('./games/ScriptureQuest'))
 const SpinTheBottle = lazy(() => import('./games/SpinTheBottle'))
 const LiveParty = lazy(() => import('./games/LiveParty'))
 const CouplesQuiz = lazy(() => import('./games/CouplesQuiz'))
+const CouplesQuizLive = lazy(() => import('./games/CouplesQuizLive'))
 const Tanzanite = lazy(() => import('./games/Tanzanite'))
 
 export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
@@ -162,6 +163,7 @@ export default function App() {
   const [flash, setFlash] = useState<string | null>(null)
   const [liveInvite, setLiveInvite] = useState<LiveInvite | null>(null)
   const [pendingRoom, setPendingRoom] = useState<string | null>(null)
+  const [pendingRoomGame, setPendingRoomGame] = useState<string | null>(null)
   const lastGameResult = useRef<GameResult | null>(null)
   const [playerVisible, setPlayerVisible] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
@@ -270,6 +272,8 @@ export default function App() {
       }
       if (room && /^[A-Za-z0-9]{4,6}$/.test(room)) {
         setPendingRoom(room.toUpperCase())
+        const rg = (params.get('g') || '').trim()
+        if (LIVE_GAMES.some(x => x.id === rg)) setPendingRoomGame(rg)
       } else if (g && GAMES.some(x => x.id === g)) {
         const relParam = (params.get('rel') || '').trim() as RelationType
         setInboundInvite({
@@ -404,9 +408,9 @@ export default function App() {
 
   useEffect(() => {
     if (!pendingRoom) return
-    if (profile && !live) { setLive({ code: pendingRoom, isHost: false }); setPendingRoom(null) }
+    if (profile && !live) { setLive({ code: pendingRoom, isHost: false, initialGame: pendingRoomGame || undefined }); setPendingRoom(null); setPendingRoomGame(null) }
     else if (!profile) { setShowLogin(true); setLoginMode('signup') }
-  }, [profile, pendingRoom, live])
+  }, [profile, pendingRoom, pendingRoomGame, live])
 
   // A relationship invite opened before sign-in: once they're in, seal it so both
   // people appear on each other's People.
@@ -594,9 +598,14 @@ export default function App() {
   }
 
   if (live && meLive) {
+    // Dedicated multiplayer games (built on the useLiveRoom SDK) route here; everything
+    // else falls through to the LiveParty room with its inline mini-games.
+    const LiveGame = live.initialGame === 'couples-quiz' ? CouplesQuizLive : null
     return (
       <Suspense fallback={<LoadingView P={P} />}>
-        <LiveParty me={meLive} code={live.code} isHost={live.isHost} initialGame={live.initialGame} onExit={() => setLive(null)} />
+        {LiveGame
+          ? <LiveGame me={meLive} code={live.code} isHost={live.isHost} onExit={() => setLive(null)} />
+          : <LiveParty me={meLive} code={live.code} isHost={live.isHost} initialGame={live.initialGame} onExit={() => setLive(null)} />}
       </Suspense>
     )
   }
