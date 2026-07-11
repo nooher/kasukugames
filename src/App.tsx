@@ -96,6 +96,9 @@ const Tanzanite = lazy(() => import('./games/Tanzanite'))
 
 export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
 export interface DuoContext { me: string; them: string }
+// A player to invite into a live room: an online handle → in-app ping, otherwise reached
+// over WhatsApp/Instagram (or a best-effort ping for a username).
+export interface LiveTarget { handle?: string; method?: 'username' | 'whatsapp' | 'instagram'; contactValue?: string; displayName?: string }
 type GameComp = React.LazyExoticComponent<React.ComponentType<{ onBack: () => void; onGameEnd?: (r: GameResult) => void; duo?: DuoContext | null }>>
 const GAME_COMPONENTS: Record<string, GameComp> = {
   'matrix-forge': MatrixForge,
@@ -134,12 +137,16 @@ const GAME_COMPONENTS: Record<string, GameComp> = {
 
 const AVATAR_OPTIONS = ['🧠', '🦁', '🌟', '💎', '🔥', '👑', '🦋', '⚡', '🎯', '🎮']
 
-// Top-level live room types shown in the "Start a live game" picker.
-const LIVE_ROOM_TYPES: { id: string; name: string; emoji: string; desc: string; color: string }[] = [
-  { id: 'party', name: 'Party Room', emoji: '🎉', desc: 'Spin the bottle, truth or dare, trivia & more — 2–10 players', color: '#f43f5e' },
-  { id: 'couples-quiz', name: 'Couples Quiz', emoji: '💞', desc: 'How well do you know each other? Two devices', color: '#f43f5e' },
-  { id: 'guess-what-live', name: 'Guess What', emoji: '🧠', desc: 'Do you really know them? Two devices', color: '#3a86ff' },
+// "Start a live game": pick an occasion, then a game, then who to invite.
+const LIVE_CATEGORIES: { id: string; name: string; emoji: string; desc: string; multi: boolean; color: string; games: string[] }[] = [
+  { id: 'party', name: 'Party Room', emoji: '🎉', desc: 'Group games for a room full of friends', multi: true, color: '#f43f5e',
+    games: ['party', 'spin', 'tod', 'nhie', 'wyr', 'trivia', 'mlt', 'rps', 'hot', 'ttl', 'er', 'wc', 'story'] },
+  { id: 'friends', name: 'Friends & Family', emoji: '🧑‍🤝‍🧑', desc: 'Clean, fun games for friends and family', multi: true, color: '#22c55e',
+    games: ['guess-what-live', 'trivia', 'wyr', 'tot', 'mlt', 'ttl', 'er', 'wc', 'story', 'rps'] },
+  { id: 'couples', name: 'Couples', emoji: '💞', desc: 'Just the two of you — one partner', multi: false, color: '#ec4899',
+    games: ['couples-quiz', 'guess-what-live', 'tot', 'gma', 'tod', 'nhie', 'hot'] },
 ]
+const LIVE_GAME_META: Record<string, { id: string; name: string; emoji: string }> = Object.fromEntries(LIVE_GAMES.map(g => [g.id, g]))
 
 type Section = 'home' | 'leaderboard' | 'profile' | 'daily' | 'shop' | 'notifications' | 'connections'
 type PaletteType = ReturnType<typeof getPalette>
@@ -373,6 +380,8 @@ export default function App() {
   // Global online presence → live green light + "a friend is here" notifications.
   const [online, setOnline] = useState<Set<string>>(new Set())
   // Blocked users — hidden from People, live invites, and presence pings.
+  const onlineRef = useRef<Set<string>>(online)
+  onlineRef.current = online
   const [blocks, setBlocks] = useState<BlockSet>({ ids: new Set(), handles: new Set() })
   const blocksRef = useRef<BlockSet>(blocks)
   blocksRef.current = blocks
@@ -444,6 +453,31 @@ export default function App() {
         fromHandle: profile.username, fromName: profile.displayName,
         fromAvatar: profile.avatar, fromPhoto: profile.photoUrl,
       })
+    }
+  }, [profile])
+
+  // Start a live room and invite MANY players at once: online people get an in-app
+  // ping (chosen style); offline people are reached over WhatsApp/Instagram with the
+  // shareable room link. The host lands in the room; extra invites are always possible
+  // later from the lobby share button.
+  const startLiveRoom = useCallback((game: string, gameName: string, targets: LiveTarget[], notif: NotifStyle) => {
+    if (!profile) { setShowLogin(true); setLoginMode('signup'); return }
+    const code = makeRoomCode()
+    setLive({ code, isHost: true, initialGame: game })
+    const roomLink = `https://games.kasuku.tz/play?room=${code}&live=1&g=${encodeURIComponent(game)}`
+    const msg = `Join me for a live ${gameName || 'game'} on KasukuGames! 🎮\n${roomLink}`
+    for (const tgt of targets) {
+      const online = tgt.handle && onlineRef.current.has(tgt.handle.toLowerCase())
+      if (online && tgt.handle) {
+        sendLiveInvite(tgt.handle, { code, game, gameName, notif, fromHandle: profile.username, fromName: profile.displayName, fromAvatar: profile.avatar, fromPhoto: profile.photoUrl })
+      } else if (tgt.method === 'whatsapp' && tgt.contactValue) {
+        window.open(`https://wa.me/${tgt.contactValue.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank')
+      } else if (tgt.method === 'instagram' && tgt.contactValue) {
+        window.open(`https://ig.me/m/${tgt.contactValue.replace('@', '')}?text=${encodeURIComponent(msg)}`, '_blank')
+      } else if (tgt.handle) {
+        // username, currently offline → best-effort ping (arrives if they come online).
+        sendLiveInvite(tgt.handle, { code, game, gameName, notif, fromHandle: profile.username, fromName: profile.displayName, fromAvatar: profile.avatar, fromPhoto: profile.photoUrl })
+      }
     }
   }, [profile])
 
@@ -911,7 +945,7 @@ export default function App() {
       )}
       {section === 'daily' && <DailySection profile={profile} onPlay={launchGame} onLogin={() => setShowLogin(true)} onLuckyDraw={handleLuckyDraw} P={P} isDark={isDark} gct={glassCardTheme} />}
       {section === 'leaderboard' && <LeaderboardSection profile={profile} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
-      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onRejoinRoom={(code) => { if (profile) setLive({ code, isHost: false }); else { setShowLogin(true); setLoginMode('signup') } }} onLogin={() => setShowLogin(true)} online={online} blocks={blocks} onBlocksChanged={reloadBlocks} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
+      {section === 'connections' && <ConnectionsSection profile={profile} onPlay={launchGame} onGoLive={goLive} onStartLive={startLiveRoom} onRejoinRoom={(code, game) => { if (profile) setLive({ code, isHost: false, initialGame: game }); else { setShowLogin(true); setLoginMode('signup') } }} onLogin={() => setShowLogin(true)} online={online} blocks={blocks} onBlocksChanged={reloadBlocks} P={P} isDark={isDark} mo={modalOverlay} mc={modalCard} is={inputStyle} gct={glassCardTheme} />}
       {section === 'shop' && <ShopSection wallet={wallet} setWallet={setWallet} P={P} isDark={isDark} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'notifications' && <NotificationsSection P={P} cs={cardStyle} gct={glassCardTheme} />}
       {section === 'profile' && profile && <ProfileSection profile={profile} setProfile={setProfile} wallet={wallet} P={P} isDark={isDark} lang={lang} theme={theme} onLangToggle={handleLangToggle} onThemeToggle={handleThemeToggle} onOpenPeople={() => setSection('connections')} gct={glassCardTheme} />}
@@ -1331,8 +1365,9 @@ function LeaderboardSection({ profile, P, isDark, cs, gct }: { profile: PlayerPr
 /* ================================================================
    CONNECTIONS
    ================================================================ */
-function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, online, blocks, onBlocksChanged, P, isDark, mo, mc, is, gct }: {
-  profile: PlayerProfile | null; onPlay: (id: string) => void; onGoLive: (conn?: Connection, game?: string, gameName?: string, notif?: NotifStyle) => void; onRejoinRoom: (code: string) => void; onLogin: () => void; online: Set<string>
+function ConnectionsSection({ profile, onPlay, onGoLive, onStartLive, onRejoinRoom, onLogin, online, blocks, onBlocksChanged, P, isDark, mo, mc, is, gct }: {
+  profile: PlayerProfile | null; onPlay: (id: string) => void; onGoLive: (conn?: Connection, game?: string, gameName?: string, notif?: NotifStyle) => void
+  onStartLive: (game: string, gameName: string, targets: LiveTarget[], notif: NotifStyle) => void; onRejoinRoom: (code: string, game?: string) => void; onLogin: () => void; online: Set<string>
   blocks: BlockSet; onBlocksChanged: () => void
   P: PaletteType; isDark: boolean; mo: CSSProperties; mc: CSSProperties; is: CSSProperties; gct: () => CSSProperties
 }) {
@@ -1354,6 +1389,14 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
   const [safetyConn, setSafetyConn] = useState<Connection | null>(null)
   const [reportReason, setReportReason] = useState<string>('')
   const [showLivePicker, setShowLivePicker] = useState(false)
+  const [liveCat, setLiveCat] = useState<typeof LIVE_CATEGORIES[number] | null>(null)
+  const [liveGame, setLiveGame] = useState<{ id: string; name: string; emoji: string } | null>(null)
+  const [liveSelected, setLiveSelected] = useState<Set<string>>(new Set())
+  const [liveExtMethod, setLiveExtMethod] = useState<'whatsapp' | 'instagram' | 'username'>('username')
+  const [liveExtValue, setLiveExtValue] = useState('')
+  const [liveExtList, setLiveExtList] = useState<LiveTarget[]>([])
+  const [liveNotif, setLiveNotif] = useState<NotifStyle>('flash')
+  const closeLive = () => { setShowLivePicker(false); setLiveCat(null); setLiveGame(null); setLiveSelected(new Set()); setLiveExtList([]); setLiveExtValue('') }
 
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
   const reloadRels = useCallback(() => { fetchRelationships().then(setRels).catch(() => {}) }, [])
@@ -1429,7 +1472,7 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
     removeConnection(id); setConnections(connections.filter(c => c.id !== id))
   }
 
-  const handleRejoin = (code: string) => { onRejoinRoom(code) }
+  const handleRejoin = (code: string, game?: string) => { onRejoinRoom(code, game) }
   const handleForgetRoom = (code: string) => { forgetRoom(code); setSavedRooms(loadSavedRooms()) }
 
   const handleInvite = (conn: Connection, gameType: string, gameName: string) => {
@@ -1478,25 +1521,114 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
         <span style={{ fontSize: 20, color: P.rose }}>→</span>
       </button>
 
-      {/* Start-a-live-game picker */}
-      {showLivePicker && (
-        <div style={mo} onClick={() => setShowLivePicker(false)}>
-          <div style={{ ...mc, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 6px', ...TYPOGRAPHY.subheading, color: P.text }}>Start a live game</h3>
-            <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 16px', lineHeight: 1.5 }}>You'll get a room to share — your partner joins from their own device by the link.</p>
-            {LIVE_ROOM_TYPES.map(rt => (
-              <button key={rt.id} onClick={() => { setShowLivePicker(false); onGoLive(undefined, rt.id, rt.name) }} style={{ ...gct(), width: '100%', padding: '15px 18px', marginBottom: 10, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${rt.color}30` }}>
-                <span style={{ fontSize: 26 }}>{rt.emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{rt.name}</div>
-                  <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{rt.desc}</div>
+      {/* Start-a-live-game flow: category → game → invite */}
+      {showLivePicker && (() => {
+        const toggleSel = (id: string) => setLiveSelected(prev => {
+          if (liveCat?.multi) { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n }
+          return prev.has(id) ? new Set() : new Set([id])
+        })
+        const addExternal = () => {
+          const v = liveExtValue.trim(); if (!v) return
+          const handle = liveExtMethod === 'username' ? v.toLowerCase().replace(/[^a-z0-9_]/g, '') : undefined
+          const entry: LiveTarget = { method: liveExtMethod, contactValue: v, handle, displayName: liveExtMethod === 'username' ? `@${handle}` : v }
+          setLiveExtList(liveCat?.multi ? [...liveExtList, entry] : [entry])
+          if (!liveCat?.multi) setLiveSelected(new Set())
+          setLiveExtValue('')
+        }
+        const targetCount = liveSelected.size + liveExtList.length
+        const startFlow = () => {
+          if (!liveGame) return
+          const targets: LiveTarget[] = mergedConnections.filter(c => liveSelected.has(c.id)).map(c => ({ handle: handleOf(c), method: c.contactMethod, contactValue: c.contactValue, displayName: c.displayName }))
+          targets.push(...liveExtList)
+          onStartLive(liveGame.id, liveGame.name, liveCat?.multi ? targets : targets.slice(0, 1), liveNotif)
+          closeLive()
+        }
+        return (
+          <div style={mo} onClick={closeLive}>
+            <div style={{ ...mc, maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+              {/* Step 1 — category */}
+              {!liveCat && (<>
+                <h3 style={{ margin: '0 0 6px', ...TYPOGRAPHY.subheading, color: P.text }}>Start a live game</h3>
+                <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 16px', lineHeight: 1.5 }}>Pick the occasion, choose a game, then invite your people.</p>
+                {LIVE_CATEGORIES.map(cat => (
+                  <button key={cat.id} onClick={() => { setLiveCat(cat); setLiveGame(null) }} style={{ ...gct(), width: '100%', padding: '15px 18px', marginBottom: 10, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${cat.color}30` }}>
+                    <span style={{ fontSize: 26 }}>{cat.emoji}</span>
+                    <div style={{ flex: 1 }}><div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>{cat.name}</div><div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>{cat.desc}</div></div>
+                    <span style={{ fontSize: 18, color: cat.color }}>→</span>
+                  </button>
+                ))}
+              </>)}
+
+              {/* Step 2 — game */}
+              {liveCat && !liveGame && (<>
+                <button onClick={() => setLiveCat(null)} style={{ background: 'none', border: 'none', color: P.textMuted, fontSize: 13, cursor: 'pointer', padding: 0, marginBottom: 10 }}>← {liveCat.name}</button>
+                <h3 style={{ margin: '0 0 12px', ...TYPOGRAPHY.subheading, color: P.text }}>Choose a game</h3>
+                <div style={{ maxHeight: '52vh', overflowY: 'auto', marginRight: -6, paddingRight: 6 }}>
+                  {liveCat.games.map(id => LIVE_GAME_META[id]).filter(Boolean).map(g => (
+                    <button key={g.id} onClick={() => { setLiveGame(g); setLiveSelected(new Set()); setLiveExtList([]) }} style={{ ...gct(), width: '100%', padding: '13px 16px', marginBottom: 8, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 22 }}>{g.emoji}</span>
+                      <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: P.text }}>{g.name}</div>
+                      <span style={{ fontSize: 16, color: P.textDim }}>→</span>
+                    </button>
+                  ))}
                 </div>
-                <span style={{ fontSize: 18, color: rt.color }}>→</span>
-              </button>
-            ))}
+              </>)}
+
+              {/* Step 3 — invite */}
+              {liveCat && liveGame && (<>
+                <button onClick={() => setLiveGame(null)} style={{ background: 'none', border: 'none', color: P.textMuted, fontSize: 13, cursor: 'pointer', padding: 0, marginBottom: 8 }}>← {liveGame.name}</button>
+                <h3 style={{ margin: '0 0 2px', ...TYPOGRAPHY.subheading, color: P.text }}>Invite {liveCat.multi ? 'players' : 'your partner'}</h3>
+                <p style={{ fontSize: 12, color: P.textMuted, margin: '0 0 12px' }}>Online people get an instant ping; others get a WhatsApp/Instagram link. {liveCat.multi ? 'Pick one or more.' : 'Pick one.'}</p>
+
+                <div style={{ maxHeight: '34vh', overflowY: 'auto', marginRight: -6, paddingRight: 6, marginBottom: 12 }}>
+                  {mergedConnections.length === 0 && liveExtList.length === 0 && <div style={{ fontSize: 13, color: P.textDim, textAlign: 'center', padding: '14px 0' }}>No people yet — invite someone below.</div>}
+                  {mergedConnections.map(conn => {
+                    const isOnline = online.has(handleOf(conn)); const sel = liveSelected.has(conn.id)
+                    return (
+                      <button key={conn.id} onClick={() => toggleSel(conn.id)} style={{ width: '100%', padding: '11px 14px', marginBottom: 7, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, borderRadius: RADIUS.md, background: sel ? P.rose + '18' : P.surface, border: `1px solid ${sel ? P.rose : P.border}` }}>
+                        <span style={{ position: 'relative', fontSize: 22 }}>{conn.avatar}{isOnline && <span style={{ position: 'absolute', right: -2, bottom: 0, width: 9, height: 9, borderRadius: '50%', background: '#22c55e', border: `2px solid ${P.card}` }} />}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{conn.displayName}</div><div style={{ fontSize: 11, color: isOnline ? '#22c55e' : P.textDim }}>{isOnline ? 'Online now — instant ping' : RELATION_META[conn.relation].label + (conn.contactMethod !== 'username' ? ` · ${conn.contactMethod}` : '')}</div></div>
+                        <span style={{ width: 20, height: 20, borderRadius: liveCat.multi ? 5 : '50%', border: `2px solid ${sel ? P.rose : P.border}`, background: sel ? P.rose : 'transparent', display: 'grid', placeItems: 'center' }}>{sel && <Check size={12} color="#fff" />}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* invite someone not in your people */}
+                <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, marginBottom: 8 }}>Invite someone new</div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  {([['username', t('username')], ['whatsapp', 'WhatsApp'], ['instagram', 'Instagram']] as const).map(([m, label]) => (
+                    <button key={m} onClick={() => setLiveExtMethod(m)} style={{ flex: 1, padding: '8px', borderRadius: RADIUS.md, fontSize: 11, fontWeight: 600, background: liveExtMethod === m ? P.sapphire : P.surface, color: liveExtMethod === m ? '#fff' : P.textMuted, border: `1px solid ${liveExtMethod === m ? P.sapphire : P.border}`, cursor: 'pointer' }}>{label}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: liveExtList.length ? 10 : 14 }}>
+                  <input value={liveExtValue} onChange={e => setLiveExtValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && addExternal()} placeholder={liveExtMethod === 'whatsapp' ? '+255 7XX XXX XXX' : liveExtMethod === 'instagram' ? '@username' : 'username'} style={{ ...is, marginBottom: 0 }} />
+                  <button onClick={addExternal} style={{ ...premiumBtn(P.emerald), padding: '0 16px', fontSize: 13, whiteSpace: 'nowrap' }}>Add</button>
+                </div>
+                {liveExtList.map((x, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 12, color: P.textMuted }}>
+                    <span style={{ flex: 1 }}>📨 {x.displayName} · {x.method}</span>
+                    <button onClick={() => setLiveExtList(liveExtList.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: P.textDim, cursor: 'pointer' }}><X size={13} /></button>
+                  </div>
+                ))}
+
+                {/* ping style */}
+                <div style={{ ...TYPOGRAPHY.caption, color: P.textMuted, margin: '10px 0 8px' }}>Ping style (for online people)</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  {([['gentle', 'Gentle', '🌙'], ['buzz', 'Buzz', '📳'], ['flash', 'Flash', '🌈']] as const).map(([key, label, emoji]) => (
+                    <button key={key} onClick={() => setLiveNotif(key)} style={{ flex: 1, padding: '9px 6px', borderRadius: RADIUS.md, fontSize: 11, fontWeight: 600, background: liveNotif === key ? P.rose : P.surface, color: liveNotif === key ? '#fff' : P.textMuted, border: `1px solid ${liveNotif === key ? P.rose : P.border}`, cursor: 'pointer' }}>{emoji}<br />{label}</button>
+                  ))}
+                </div>
+
+                <button onClick={startFlow} style={{ ...premiumBtn(P.rose), width: '100%', justifyContent: 'center' }}>
+                  {targetCount > 0 ? `Start & invite ${targetCount}` : 'Start room (invite later)'}
+                </button>
+                <p style={{ fontSize: 11, color: P.textDim, margin: '8px 0 0', textAlign: 'center', lineHeight: 1.5 }}>You can always share the room link from the lobby too.</p>
+              </>)}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Your live rooms — rejoin after an accidental exit while a mate is still in */}
       {savedRooms.length > 0 && (
@@ -1511,7 +1643,7 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onRejoinRoom, onLogin, 
                 <div style={{ fontSize: 14, fontWeight: 700, color: P.text, letterSpacing: 2 }}>{r.code}</div>
                 <div style={{ fontSize: 11, color: P.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.withName ? `with ${r.withName}` : 'Tap rejoin to continue'}{r.gameName ? ` · ${r.gameName}` : ''}</div>
               </div>
-              <button onClick={() => handleRejoin(r.code)} style={{ ...premiumBtn(P.rose), padding: '8px 16px', fontSize: 12 }}>Rejoin</button>
+              <button onClick={() => handleRejoin(r.code, r.game)} style={{ ...premiumBtn(P.rose), padding: '8px 16px', fontSize: 12 }}>Rejoin</button>
               <button onClick={() => handleForgetRoom(r.code)} title="Close room" style={{ background: 'none', border: `1px solid ${P.border}`, borderRadius: RADIUS.full, width: 32, height: 32, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}><Trash2 size={13} color={P.textDim} /></button>
             </div>
           ))}

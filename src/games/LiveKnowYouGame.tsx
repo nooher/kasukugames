@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { RADIUS } from '../lib/design'
+import { useEffect } from 'react'
 import { useLiveRoom } from '../lib/useLiveRoom'
+import { rememberRoom } from '../lib/liveRooms'
 import type { LivePlayer } from '../lib/liveRoom'
 
 // ── Generic "how well do you know each other" LIVE game ──────────────────────
@@ -103,6 +105,13 @@ export default function LiveKnowYouGame({ me, code, isHost, onExit, title, accen
   const pair = players.slice(0, 2)
   const other = pair.find(p => p.id !== me.id) || null
   const nameOf = (id: string | null) => players.find(p => p.id === id)?.name || 'Partner'
+
+  // Remember this room so an accidental exit / refresh can be recovered from
+  // "Your live rooms" while a partner is still in.
+  useEffect(() => {
+    rememberRoom({ code, isHost: amHost, game: gameId, gameName: title, withName: other?.name })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, players.length])
 
   const beginRound = (roundIdx: number, cat: string | 'mix', prevUsed: string[], prevScores: Record<string, number>) => {
     const subjectId = pair.length === 2 ? pair[roundIdx % 2].id : me.id
