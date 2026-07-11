@@ -11,14 +11,13 @@ export async function pushRecord(gameId: string, gameName: string, score: number
   try {
     if (!score) return
     const { data: u } = await supabase.auth.getUser()
-    const uid = u?.user?.id
-    if (!uid) return
-    const { data: cur } = await supabase.from('kg_game_records').select('score').eq('game_id', gameId).maybeSingle()
-    if (cur && score <= (cur.score || 0)) return
-    await supabase.from('kg_game_records').upsert({
-      game_id: gameId, game_name: gameName, holder_id: uid, score: Math.round(score), updated_at: new Date().toISOString(),
-    }, { onConflict: 'game_id' })
-  } catch { /* table not provisioned yet */ }
+    if (!u?.user?.id) return
+    // Server-authoritative: kg_submit_record forces holder = auth.uid() and only
+    // accepts a score that strictly beats the current record (direct writes revoked).
+    await supabase.rpc('kg_submit_record', {
+      p_game_id: gameId, p_game_name: gameName, p_score: Math.round(score),
+    })
+  } catch { /* function not provisioned yet */ }
 }
 
 /** On load: notify me about any record I held that someone else has since taken. */

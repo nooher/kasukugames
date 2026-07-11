@@ -21,14 +21,14 @@ export async function pushHouse(s: PushHouse, force = false): Promise<void> {
   last = now
   try {
     const { data: u } = await supabase.auth.getUser()
-    const uid = u?.user?.id
-    if (!uid) return
-    await supabase.from('kg_tanzanite').upsert({
-      id: uid, handle: s.handle, name: s.name, avatar: s.avatar, photo_url: s.photoUrl,
-      net_worth: Math.round(s.netWorth), best_stone: Math.round(s.bestStone),
-      stones_sold: s.stonesSold, deepest: s.deepest, rank_title: s.rankTitle,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' })
+    if (!u?.user?.id) return
+    // Server-authoritative: kg_submit_house forces id = auth.uid(), caps absurd values
+    // and rate-limits net-worth rises (direct writes revoked).
+    await supabase.rpc('kg_submit_house', {
+      p_handle: s.handle, p_name: s.name, p_avatar: s.avatar, p_photo: s.photoUrl,
+      p_net_worth: Math.round(s.netWorth), p_best_stone: Math.round(s.bestStone),
+      p_stones_sold: s.stonesSold, p_deepest: s.deepest, p_rank_title: s.rankTitle,
+    })
   } catch { /* table not provisioned / offline */ }
 }
 
