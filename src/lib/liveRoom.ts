@@ -32,6 +32,7 @@ export interface LiveInvite {
 // Games that can be launched directly inside a live room.
 export const LIVE_GAMES: { id: string; name: string; emoji: string }[] = [
   { id: 'couples-quiz', name: 'Couples Quiz — how well do you know each other?', emoji: '💞' },
+  { id: 'guess-what-live', name: 'Guess What — do you really know them?', emoji: '🧠' },
   { id: 'spin', name: 'Spin the Bottle', emoji: '🍾' },
   { id: 'tod', name: 'Truth or Dare', emoji: '🎯' },
   { id: 'nhie', name: 'Never Have I Ever', emoji: '🙈' },

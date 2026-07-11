@@ -91,6 +91,7 @@ const SpinTheBottle = lazy(() => import('./games/SpinTheBottle'))
 const LiveParty = lazy(() => import('./games/LiveParty'))
 const CouplesQuiz = lazy(() => import('./games/CouplesQuiz'))
 const CouplesQuizLive = lazy(() => import('./games/CouplesQuizLive'))
+const GuessWhatLive = lazy(() => import('./games/GuessWhatLive'))
 const Tanzanite = lazy(() => import('./games/Tanzanite'))
 
 export interface GameResult { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }
@@ -600,7 +601,8 @@ export default function App() {
   if (live && meLive) {
     // Dedicated multiplayer games (built on the useLiveRoom SDK) route here; everything
     // else falls through to the LiveParty room with its inline mini-games.
-    const LiveGame = live.initialGame === 'couples-quiz' ? CouplesQuizLive : null
+    const LiveGame = live.initialGame === 'couples-quiz' ? CouplesQuizLive
+      : live.initialGame === 'guess-what-live' ? GuessWhatLive : null
     return (
       <Suspense fallback={<LoadingView P={P} />}>
         {LiveGame

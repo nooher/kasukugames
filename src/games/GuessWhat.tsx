@@ -32,14 +32,14 @@ const PLAYER_COLORS = [C.accent, C.sapphire, C.emerald, C.violet];
 /* ------------------------------------------------------------------ */
 /*  Question bank                                                      */
 /* ------------------------------------------------------------------ */
-interface Question {
+export interface Question {
   template: string;
   options: string[];
 }
 
-type Category = 'relationships' | 'secrets' | 'preferences' | 'hypothetical' | 'spicy';
+export type Category = 'relationships' | 'secrets' | 'preferences' | 'hypothetical' | 'spicy';
 
-const CATEGORY_META: Record<Category, { label: string; color: string; icon: React.ReactNode; desc: string }> = {
+export const CATEGORY_META: Record<Category, { label: string; color: string; icon: React.ReactNode; desc: string }> = {
   relationships: { label: 'Relationships', color: C.accent, icon: <Heart size={18} />, desc: 'Love lives, dating habits, relationship patterns' },
   secrets: { label: 'Secrets', color: C.violet, icon: <Lock size={18} />, desc: 'Hidden talents, guilty pleasures, things they hide' },
   preferences: { label: 'Preferences', color: C.sapphire, icon: <Star size={18} />, desc: 'Tastes, favorites, dream scenarios, lifestyle' },
@@ -47,7 +47,7 @@ const CATEGORY_META: Record<Category, { label: string; color: string; icon: Reac
   spicy: { label: 'Spicy', color: C.amber, icon: <Flame size={18} />, desc: 'Genuinely personal and revealing deep cuts' },
 };
 
-const QUESTIONS: Record<Category, Question[]> = {
+export const QUESTIONS: Record<Category, Question[]> = {
   relationships: [
     { template: "What's [name]'s biggest dealbreaker in a relationship?", options: ["Bad hygiene or laziness", "Dishonesty or secretiveness", "No ambition or drive", "Being rude to other people"] },
     { template: "How many people has [name] seriously dated?", options: ["0-1, they're very selective", "2-3, a handful of real ones", "4-6, they've been around", "7+, they've had a full roster"] },
