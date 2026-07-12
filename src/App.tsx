@@ -546,10 +546,13 @@ export default function App() {
         ? await signUpWithKasuku(handle, loginPassword, loginDisplay.trim())
         : await signInWithKasuku(handle, loginPassword)
       if (result.error) { setLoginError(result.error); return }
-      const p = createProfile(handle, result.profile?.name || loginDisplay.trim() || loginName.trim())
+      const existing = loadProfile()
+      const p = (existing && existing.username === handle)
+        ? existing
+        : createProfile(handle, result.profile?.name || loginDisplay.trim() || loginName.trim())
       if (loginMode === 'signup') p.avatar = loginAvatar
       if (result.profile?.avatar_url) p.photoUrl = result.profile.avatar_url
-      localStorage.setItem('kg_profile', JSON.stringify(p))
+      saveProfile(p)
       if (result.profile) syncKasukuToLocal(result.profile)
       const synced = loadProfile()
       setProfile(synced || p)
@@ -570,9 +573,10 @@ export default function App() {
 
   const handleGameBack = () => {
     const r = lastGameResult.current
-    const score = r?.score ?? Math.floor(Math.random() * 500 + 100)
-    const accuracy = r?.accuracy ?? (Math.random() * 0.5 + 0.5)
-    const level = r?.level ?? Math.floor(Math.random() * 5 + 1)
+    if (!r) { lastGameResult.current = null; setActiveGame(null); setDuo(null); return }
+    const score = r.score
+    const accuracy = r.accuracy
+    const level = r.level
     const p = updateProfileAfterGame(score, accuracy, level)
     if (p) {
       setProfile(p)
