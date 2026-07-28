@@ -14,6 +14,7 @@ import {
   scorePopStyle,
   screenShakeStyle,
 } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 interface Props {
   onBack: () => void;
@@ -1117,20 +1118,18 @@ export default function Snake({ onBack, onGameEnd }: Props) {
         {/* Game over overlay */}
         {gameState === 'over' && (
           <div style={styles.overlay}>
-            <p style={{ ...styles.overlayText, fontSize: 13, letterSpacing: '0.1em' }}>
-              GAME OVER
-            </p>
-            <p style={styles.finalScore}>{displayScore}</p>
-            <div style={{ display: 'flex', gap: 16, color: COLORS.muted, fontSize: 13 }}>
-              <span>Level {displayLevel}</span>
-              <span>Length {displayLength}</span>
-            </div>
-            <p style={{ ...styles.overlayText, fontSize: 13 }}>
-              {displayScore >= highScore && displayScore > 0 ? 'New high score!' : `Best: ${highScore}`}
-            </p>
-            <button style={styles.playBtn} onClick={startGame}>
-              Play Again
-            </button>
+            <GameOverCard
+              score={displayScore}
+              accent={COLORS.snakeHead}
+              stats={[
+                { label: 'Level', value: displayLevel },
+                { label: 'Length', value: displayLength, color: COLORS.food },
+              ]}
+              best={highScore}
+              isNewBest={displayScore >= highScore && displayScore > 0}
+              onReplay={startGame}
+              onHome={onBack}
+            />
           </div>
         )}
 
