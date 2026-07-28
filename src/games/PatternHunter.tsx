@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Search, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Heart, Clock, Trophy, Zap, Search, ChevronRight } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxTimer } from '../lib/sfx'
 import type { Particle, ScorePop } from '../lib/vfx'
 import {
@@ -9,6 +9,7 @@ import {
   createScorePop, tickScorePops, scorePopStyle,
   screenShakeStyle, comboGlowStyle, streakGlow,
 } from '../lib/vfx'
+import GameOverCard from '../components/GameOverCard'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -1162,35 +1163,15 @@ export default function PatternHunter({ onBack, onGameEnd }: Props) {
 
         {/* GAME OVER */}
         {phase === 'gameover' && (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
-            padding: 32, background: C.card, borderRadius: RADIUS, border: `1px solid ${C.border}`,
-            width: '100%', maxWidth: 420, marginTop: 40, ...GLASS,
-          }}>
-            <Trophy size={48} color={C.accent} />
-            <p style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Game Over</p>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <p style={{ fontSize: 16, color: C.muted, margin: 0 }}>
-                Final Score: <span style={{ color: C.accent, fontWeight: 700 }}>{score}</span>
-              </p>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-                Level Reached: <span style={{ color: C.text, fontWeight: 600 }}>{level}</span>
-              </p>
-              <p style={{ fontSize: 14, color: C.muted, margin: 0 }}>
-                Best Score: <span style={{ color: C.amber, fontWeight: 600 }}>{Math.max(highScore, score)}</span>
-              </p>
-            </div>
-            <button
-              onClick={restart}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: C.accent, color: C.obsidian, border: 'none', borderRadius: PILL,
-                padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                ...GLASS,
-              }}
-            >
-              <RotateCcw size={16} /> Play Again
-            </button>
+          <div style={{ marginTop: 40 }}>
+            <GameOverCard
+              score={score}
+              accent={C.accent}
+              stats={[{ label: 'Level', value: level }]}
+              best={Math.max(highScore, score)}
+              onReplay={restart}
+              onHome={onBack}
+            />
           </div>
         )}
       </div>

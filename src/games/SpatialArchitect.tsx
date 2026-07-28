@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Eye, Scissors, Layers, Puzzle } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxCombo } from '../lib/sfx'
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx'
+import GameOverCard from '../components/GameOverCard'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -1133,25 +1134,15 @@ export default function SpatialArchitect({ onBack, onGameEnd }: { onBack: () => 
           <button style={S.backBtn} onClick={onBack}><ArrowLeft size={18} /></button>
         </div>
 
-        <div style={S.card}>
-          <Trophy size={48} color={isNewHigh ? C.amber : C.muted} style={{ marginBottom: 16 }} />
-          <div style={S.menuTitle}>{isNewHigh ? 'New High Score!' : 'Game Over'}</div>
-          <div style={{ fontSize: 48, fontWeight: 600, color: C.violet, margin: '16px 0' }}>{score}</div>
-          <div style={{ fontSize: 14, color: C.muted, marginBottom: 8 }}>Level {level} reached</div>
-          {highScore > 0 && (
-            <div style={S.badge}><Trophy size={12} color={C.amber} /> Best: {highScore}</div>
-          )}
-          <div style={{ marginTop: 24 }}>
-            <button style={S.startBtn} onClick={startGame}>
-              <RotateCcw size={16} style={{ marginRight: 8 }} /> Play Again
-            </button>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <button style={{ ...S.startBtn, background: C.surface, border: `1px solid ${C.border}` }} onClick={onBack}>
-              Back to Menu
-            </button>
-          </div>
-        </div>
+        <GameOverCard
+          score={score}
+          accent={C.violet}
+          stats={[{ label: 'Level', value: level, color: C.emerald }]}
+          best={highScore > 0 ? highScore : undefined}
+          isNewBest={isNewHigh}
+          onReplay={startGame}
+          onHome={onBack}
+        />
       </div>
     )
   }

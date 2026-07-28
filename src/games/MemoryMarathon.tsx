@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Brain, Trophy, Clock, Zap, RotateCcw, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Brain, Trophy, Clock, Zap, ChevronRight } from 'lucide-react';
 import { sfxReveal, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxTap, sfxScore } from '../lib/sfx';
 import {
   type Particle, type ScorePop,
@@ -8,6 +8,7 @@ import {
   createScorePop, tickScorePops, scorePopStyle,
   screenShakeStyle, comboGlowStyle,
 } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -747,67 +748,36 @@ export default function MemoryMarathon({ onBack, onGameEnd }: Props) {
       {/* --- Victory Overlay --- */}
       {phase === 'victory' && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <Trophy size={56} color="#f5c542" style={{ marginBottom: 12 }} />
-            <h2 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 600 }}>Memory Marathon Complete</h2>
-            {isNewBest && (
-              <p style={{ color: '#f5c542', fontWeight: 600, fontSize: 14, margin: '6px 0 0' }}>
-                New Best!
-              </p>
-            )}
-            <p style={{ color: T.success, fontWeight: 700, fontSize: 28, margin: '8px 0' }}>
-              {score} pts
-            </p>
-            <div style={{ color: T.muted, fontSize: 14, lineHeight: 1.8, marginBottom: 20 }}>
-              <div>Time: {fmt(elapsed)}</div>
-              <div>Total Moves: {moves}</div>
-              <div>All {LEVELS.length} levels cleared</div>
-              {bestScore > 0 && !isNewBest && <div>Personal Best: {bestScore}</div>}
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button style={s.btn(T.surface)} onClick={onBack}>
-                <ArrowLeft size={14} /> Exit
-              </button>
-              <button style={s.btn(T.accent)} onClick={restart}>
-                <RotateCcw size={14} /> Play Again
-              </button>
-            </div>
-          </div>
+          <GameOverCard
+            title="Complete"
+            score={score}
+            accent={T.accent}
+            stats={[
+              { label: 'Time', value: fmt(elapsed) },
+              { label: 'Moves', value: moves, color: T.success },
+            ]}
+            best={bestScore > 0 ? bestScore : undefined}
+            isNewBest={isNewBest}
+            onReplay={restart}
+            onHome={onBack}
+          />
         </div>
       )}
 
       {/* --- Time Up Overlay --- */}
       {phase === 'timeUp' && (
         <div style={s.overlay}>
-          <div style={s.modal}>
-            <Clock size={48} color={T.error} style={{ marginBottom: 12 }} />
-            <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 600 }}>Time's Up</h2>
-            {isNewBest && (
-              <p style={{ color: '#f5c542', fontWeight: 600, fontSize: 14, margin: '0 0 6px' }}>
-                New Best!
-              </p>
-            )}
-            <p style={{ color: T.muted, margin: '0 0 6px', fontSize: 14 }}>
-              Reached Level {level + 1} &middot; Score: {score}
-            </p>
-            <p style={{ color: T.muted, margin: '0 0 6px', fontSize: 13 }}>
-              Complete all levels within 4 minutes to win
-            </p>
-            {bestScore > 0 && !isNewBest && (
-              <p style={{ color: T.muted, margin: '0 0 20px', fontSize: 13 }}>
-                Personal Best: {bestScore}
-              </p>
-            )}
-            {(isNewBest || bestScore === 0) && <div style={{ marginBottom: 20 }} />}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button style={s.btn(T.surface)} onClick={onBack}>
-                <ArrowLeft size={14} /> Exit
-              </button>
-              <button style={s.btn(T.accent)} onClick={restart}>
-                <RotateCcw size={14} /> Try Again
-              </button>
-            </div>
-          </div>
+          <GameOverCard
+            title="Time's Up"
+            score={score}
+            accent={T.accent}
+            stats={[{ label: 'Level', value: level + 1 }]}
+            best={bestScore > 0 ? bestScore : undefined}
+            isNewBest={isNewBest}
+            onReplay={restart}
+            replayLabel="Try Again"
+            onHome={onBack}
+          />
         </div>
       )}
 
