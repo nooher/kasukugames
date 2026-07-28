@@ -6,7 +6,7 @@ import {
   Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
   Edit3, Camera, ChevronRight, Share2, Link, Copy, Flag,
-  Clock, Search, Play,
+  Clock, Search, Play, Radio,
 } from 'lucide-react'
 import { getGameArt, categoryGradient } from './lib/gameArt'
 import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, premiumBtn } from './lib/design'
@@ -1596,13 +1596,17 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onStartLive, onRejoinRo
       </div>
 
       {/* Live Room CTA — real-time online play */}
-      <button onClick={() => setShowLivePicker(true)} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${P.rose}40` }}>
-        <span style={{ fontSize: 30 }}>🔴</span>
+      <button onClick={() => setShowLivePicker(true)} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 15, border: `1px solid ${P.rose}40` }}>
+        <span style={{ position: 'relative', width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: `linear-gradient(135deg, ${P.rose}, ${P.coral})`, display: 'grid', placeItems: 'center', boxShadow: `0 4px 16px ${P.rose}55, inset 0 1px 0 rgba(255,255,255,0.28)` }}>
+          <Radio size={22} color="#fff" strokeWidth={2.2} />
+          <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#fff', boxShadow: '0 0 6px #fff', animation: 'breathe 1.4s ease-in-out infinite' }} />
+        </span>
         <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.rose, marginBottom: 2 }}>● Live</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>Start a Live Game</div>
           <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>Real-time on two devices — party games, Couples Quiz, Guess What. Share the link to invite.</div>
         </div>
-        <span style={{ fontSize: 20, color: P.rose }}>→</span>
+        <ChevronRight size={20} color={P.rose} />
       </button>
 
       {/* Start-a-live-game flow: category → game → invite */}
