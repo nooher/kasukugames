@@ -1,12 +1,14 @@
 import { useState, useRef, lazy, Suspense, useEffect, useCallback, type CSSProperties } from 'react'
 import {
   Brain, Heart,
-  Gamepad2, Trophy, ArrowLeft, Users, PartyPopper,
+  Trophy, ArrowLeft, Users, PartyPopper,
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
   Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
   Edit3, Camera, ChevronRight, Share2, Link, Copy, Flag,
+  Clock, Search, Play,
 } from 'lucide-react'
+import { getGameArt, categoryGradient } from './lib/gameArt'
 import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, premiumBtn } from './lib/design'
 import { BRAND } from './lib/brand'
 import { t, loadLang, saveLang, type Lang } from './lib/i18n'
@@ -1040,7 +1042,7 @@ export default function App() {
 /* ================================================================
    HOME SECTION
    ================================================================ */
-function HomeSection({ onPlay, P, isDark, gct }: {
+function HomeSection({ onPlay, P, isDark }: {
   onPlay: (id: string) => void
   P: PaletteType; isDark: boolean; gct: () => CSSProperties
 }) {
@@ -1054,97 +1056,175 @@ function HomeSection({ onPlay, P, isDark, gct }: {
   const displayGames = (selectedCat === 'all' ? GAMES : GAMES.filter(g => g.category === selectedCat))
     .filter(g => !needle || `${g.title} ${g.subtitle}`.toLowerCase().includes(needle))
 
+  const DIFF: Record<string, string> = {
+    beginner: P.emerald, intermediate: P.teal, advanced: P.amber, expert: P.rose,
+  }
+  const chips: { id: GameCategory | 'all'; label: string; count: number; grad: [string, string] }[] = [
+    { id: 'all', label: t('all_games'), count: GAMES.length, grad: ['#c9a96e', '#a88a5e'] },
+    ...categories.map(([key, meta]) => ({
+      id: key, label: meta.label,
+      count: GAMES.filter(g => g.category === key).length,
+      grad: categoryGradient(key),
+    })),
+  ]
+  // The flagship is spotlighted above the grid (default view only) — then pulled
+  // out of the grid so it isn't shown twice.
+  const spotlight = (selectedCat === 'all' && !needle) ? GAMES.find(g => g.id === 'tanzanite') ?? null : null
+  const gridGames = displayGames.filter(g => !spotlight || g.id !== spotlight.id)
+  const flag = spotlight ? getGameArt(spotlight) : null
+
   return (
-    <section style={{ padding: '100px 4vw 80px', maxWidth: 600, margin: '0 auto' }}>
+    <section style={{ padding: '86px 4vw 100px', maxWidth: 820, margin: '0 auto' }}>
       {/* Hero */}
-      <div className="fade-in" style={{ textAlign: 'center', marginBottom: 64 }}>
-        <Logo size={48} style={{ marginBottom: 32 }} textColor={P.text} mutedColor={P.textMuted} />
+      <div className="fade-in" style={{ textAlign: 'center', marginBottom: 30 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: P.textMuted, marginBottom: 14 }}>
+          Olympics of the Mind
+        </div>
         <h1 style={{
-          margin: 0, fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 600,
-          color: P.text, letterSpacing: '-0.02em', lineHeight: 1.1,
+          margin: 0, fontSize: 'clamp(30px, 6vw, 46px)', fontWeight: 700,
+          color: P.text, letterSpacing: '-0.03em', lineHeight: 1.04,
         }}>
           {t('what_will_you_play')}
         </h1>
+        <p style={{ margin: '13px auto 0', maxWidth: 440, fontSize: 14, color: P.textMuted, lineHeight: 1.6 }}>
+          {GAMES.length} premium games — train your mind, climb the ranks, and play live with the people you love.
+        </p>
       </div>
+
+      {/* Flagship spotlight */}
+      {spotlight && flag && (
+        <button
+          className="kg-flagship fade-in"
+          onClick={() => onPlay(spotlight.id)}
+          style={{
+            width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
+            borderRadius: 26, padding: '22px 22px', display: 'flex', alignItems: 'center', gap: 18,
+            background: `linear-gradient(135deg, ${flag.from}, ${flag.to})`,
+            boxShadow: `0 14px 40px ${flag.to}44, inset 0 1px 0 rgba(255,255,255,0.22)`,
+            color: '#fff', marginBottom: 24,
+          }}
+        >
+          <div style={{
+            width: 62, height: 62, borderRadius: 18, flexShrink: 0,
+            background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3)',
+          }}>
+            <flag.Icon size={30} color="#fff" strokeWidth={2} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.92, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Sparkles size={11} /> Flagship
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{spotlight.title}</div>
+            <div style={{ fontSize: 12.5, opacity: 0.9, lineHeight: 1.45, marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {spotlight.description}
+            </div>
+          </div>
+          <div style={{
+            width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
+            background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)',
+          }}>
+            <Play size={20} color="#fff" fill="#fff" />
+          </div>
+        </button>
+      )}
 
       {/* Search over all games */}
-      <input
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        placeholder={t('search_games')}
-        aria-label={t('search_games')}
-        style={{
-          width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
-          color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
-          outline: 'none', marginBottom: 12, boxSizing: 'border-box',
-        } as CSSProperties}
-      />
-
-      {/* Category selector */}
-      <select
-        value={selectedCat}
-        onChange={e => setSelectedCat(e.target.value as GameCategory | 'all')}
-        style={{
-          width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
-          color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
-          outline: 'none', cursor: 'pointer', appearance: 'none',
-          WebkitAppearance: 'none', MozAppearance: 'none',
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='${encodeURIComponent(isDark ? '#999' : '#666')}' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center',
-          boxSizing: 'border-box',
-        } as CSSProperties}
-      >
-        <option value="all">{t('all_games')}</option>
-        {categories.map(([key, meta]) => (
-          <option key={key} value={key}>{meta.label}</option>
-        ))}
-      </select>
-
-      {/* Game list */}
-      <div style={{ display: 'grid', gap: 14, marginTop: 24 }}>
-        {displayGames.map(game => (
-          <button
-            key={game.id}
-            onClick={() => onPlay(game.id)}
-            style={{
-              ...gct(), padding: '24px 28px', cursor: 'pointer',
-              textAlign: 'left', display: 'flex', alignItems: 'center', gap: 18,
-              border: `1px solid ${P.border}`,
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: P.text, marginBottom: 4 }}>
-                {game.title}
-              </div>
-              <div style={{ fontSize: 13, color: P.textMuted, lineHeight: 1.4 }}>
-                {game.subtitle}
-              </div>
-            </div>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: P.sapphire, display: 'grid', placeItems: 'center',
-              flexShrink: 0,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${P.sapphire}30`,
-            }}>
-              <Gamepad2 size={18} color="#fff" />
-            </div>
-          </button>
-        ))}
-        {displayGames.length === 0 && (
-          <div style={{ textAlign: 'center', color: P.textMuted, padding: '40px 0', fontSize: 14 }}>{t('no_games_found')}</div>
-        )}
+      <div style={{ position: 'relative' }}>
+        <Search size={17} color={P.textDim} style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={t('search_games')}
+          aria-label={t('search_games')}
+          style={{
+            width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
+            color: P.text, borderRadius: 16, padding: '14px 20px 14px 46px', fontSize: 15,
+            outline: 'none', boxSizing: 'border-box',
+            boxShadow: isDark ? 'inset 0 1px 3px rgba(0,0,0,0.25)' : 'inset 0 1px 2px rgba(0,0,0,0.04)',
+          } as CSSProperties}
+        />
       </div>
 
-      {/* Play Now CTA — plays the first game in the current view */}
-      {displayGames.length > 0 && (
-        <div style={{ textAlign: 'center', marginTop: 48 }}>
-          <button
-            onClick={() => { const game = displayGames[0]; if (game) onPlay(game.id) }}
-            style={{ ...premiumBtn(P.sapphire), padding: '16px 48px', fontSize: 16 }}
-          >
-            <Gamepad2 size={18} /> {t('play_now')}
-          </button>
-        </div>
+      {/* Category pills */}
+      <div className="kg-chip-row" style={{ marginTop: 12 }}>
+        {chips.map(c => {
+          const active = selectedCat === c.id
+          return (
+            <button
+              key={c.id}
+              className="kg-chip"
+              onClick={() => setSelectedCat(c.id)}
+              style={{
+                padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${active ? 'transparent' : P.border}`,
+                background: active ? `linear-gradient(135deg, ${c.grad[0]}, ${c.grad[1]})` : P.card,
+                color: active ? '#fff' : P.textMuted,
+                boxShadow: active ? `0 4px 14px ${c.grad[1]}55` : 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                transition: `all ${MOTION.fast}`,
+              }}
+            >
+              {c.label}
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                background: active ? 'rgba(255,255,255,0.24)' : P.surface,
+                color: active ? '#fff' : P.textDim,
+                padding: '1px 6px', borderRadius: 999,
+              }}>{c.count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Game grid */}
+      <div className="kg-arcade-grid">
+        {gridGames.map((game, i) => {
+          const { Icon, from, to } = getGameArt(game)
+          return (
+            <button
+              key={game.id}
+              className="kg-game-card fade-in"
+              onClick={() => onPlay(game.id)}
+              style={{
+                background: P.card, border: `1px solid ${P.border}`,
+                boxShadow: isDark
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.28)'
+                  : '0 1px 3px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.05)',
+                animationDelay: `${Math.min(i, 11) * 32}ms`,
+                ['--accent' as string]: to,
+              } as CSSProperties}
+            >
+              <div className="kg-game-icon" style={{
+                width: 46, height: 46, borderRadius: 14, marginBottom: 13,
+                background: `linear-gradient(135deg, ${from}, ${to})`,
+                display: 'grid', placeItems: 'center',
+                boxShadow: `0 4px 14px ${to}55, inset 0 1px 0 rgba(255,255,255,0.28)`,
+              }}>
+                <Icon size={22} color="#fff" strokeWidth={2.2} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: P.text, letterSpacing: '-0.01em', lineHeight: 1.2, marginBottom: 4 }}>
+                {game.title}
+              </div>
+              <div style={{
+                fontSize: 12, color: P.textMuted, lineHeight: 1.4, marginBottom: 14,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                overflow: 'hidden', minHeight: 34,
+              }}>
+                {game.subtitle}
+              </div>
+              <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, color: P.textDim, fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={11} /> {game.duration}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Users size={11} /> {game.players}</span>
+                <span title={game.difficulty} style={{ marginLeft: 'auto', width: 8, height: 8, borderRadius: '50%', background: DIFF[game.difficulty], boxShadow: `0 0 8px ${DIFF[game.difficulty]}80` }} />
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      {displayGames.length === 0 && (
+        <div style={{ textAlign: 'center', color: P.textMuted, padding: '48px 0', fontSize: 14 }}>{t('no_games_found')}</div>
       )}
     </section>
   )
