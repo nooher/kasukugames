@@ -2003,14 +2003,24 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
 
   return (
     <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <ShoppingBag size={24} color={P.violet} />
         <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('shop')}</h2>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
-        <Coins size={18} color={P.gold} />
-        <span style={{ fontSize: 22, fontWeight: 600, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance.toLocaleString()}</span>
-        <span style={{ fontSize: 13, color: P.textMuted }}>{t('tokens')}</span>
+      <div className="kg-flagship" style={{
+        display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24,
+        padding: '20px 24px', borderRadius: 22,
+        background: 'linear-gradient(135deg, #d9bd7e, #b8894e)',
+        boxShadow: `0 12px 34px ${P.gold}44, inset 0 1px 0 rgba(255,255,255,0.28)`,
+        color: '#fff',
+      }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)', flexShrink: 0 }}>
+          <Coins size={26} color="#fff" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.85 }}>{t('tokens')}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{wallet.balance.toLocaleString()}</div>
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {([['shop', t('items')], ['packs', t('buy_tokens')], ['history', t('history')]] as const).map(([tabKey, label]) => (
@@ -2024,9 +2034,9 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
             const owned = item.oneTime && purchased.includes(item.id)
             const canAfford = wallet.balance >= item.price
             return (
-              <div key={item.id} style={{ ...gct(), padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 44, height: 44, borderRadius: RADIUS.lg, background: item.color + '18', display: 'grid', placeItems: 'center' }}>
-                  <span style={{ fontSize: 20 }}>{item.icon === 'shield' ? '🛡️' : item.icon === 'zap' ? '⚡' : item.icon === 'heart' ? '❤️' : item.icon === 'clock' ? '⏱️' : item.icon === 'lightbulb' ? '💡' : item.icon === 'flame' ? '🔥' : item.icon === 'gem' ? '💎' : item.icon === 'crown' ? '👑' : item.icon === 'sparkles' ? '✨' : '🏳️'}</span>
+              <div key={item.id} style={{ ...gct(), padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${item.color}` }}>
+                <div style={{ width: 46, height: 46, borderRadius: RADIUS.lg, background: `linear-gradient(135deg, ${item.color}33, ${item.color}14)`, border: `1px solid ${item.color}30`, display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12)` }}>
+                  <span style={{ fontSize: 21 }}>{item.icon === 'shield' ? '🛡️' : item.icon === 'zap' ? '⚡' : item.icon === 'heart' ? '❤️' : item.icon === 'clock' ? '⏱️' : item.icon === 'lightbulb' ? '💡' : item.icon === 'flame' ? '🔥' : item.icon === 'gem' ? '💎' : item.icon === 'crown' ? '👑' : item.icon === 'sparkles' ? '✨' : '🏳️'}</span>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{item.name}</div>
@@ -2044,12 +2054,14 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
       {tab === 'packs' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
           {TOKEN_PACKS.map(pack => (
-            <button key={pack.id} onClick={() => { const w = purchaseTokens(pack.tokens, pack.label); setWallet(w) }} style={{ ...gct(), padding: '24px 20px', textAlign: 'center', cursor: 'pointer', border: pack.label === 'Best Value' ? `2px solid ${P.gold}50` : `1px solid ${P.border}`, boxShadow: pack.label === 'Best Value' ? (isDark ? `${GLASS.highlight}, ${SHADOW.glow(P.gold)}` : `0 2px 12px rgba(0,0,0,0.06), ${SHADOW.glow(P.gold)}`) : (isDark ? `${GLASS.highlight}, ${SHADOW.md}` : '0 1px 6px rgba(0,0,0,0.06)') }}>
-              {pack.label === 'Best Value' && <div style={{ ...TYPOGRAPHY.caption, color: P.gold, marginBottom: 10 }}>{t('best_value')}</div>}
-              <Coins size={28} color={P.gold} style={{ marginBottom: 10 }} />
-              <div style={{ fontSize: 26, fontWeight: 600, color: P.text }}>{pack.tokens.toLocaleString()}</div>
+            <button key={pack.id} onClick={() => { const w = purchaseTokens(pack.tokens, pack.label); setWallet(w) }} className="kg-game-card" style={{ ...gct(), padding: '24px 20px', textAlign: 'center', cursor: 'pointer', alignItems: 'center', ['--accent' as string]: P.gold, border: pack.label === 'Best Value' ? `2px solid ${P.gold}70` : `1px solid ${P.border}`, boxShadow: pack.label === 'Best Value' ? (isDark ? `${GLASS.highlight}, ${SHADOW.glow(P.gold)}` : `0 2px 12px rgba(0,0,0,0.06), ${SHADOW.glow(P.gold)}`) : (isDark ? `${GLASS.highlight}, ${SHADOW.md}` : '0 1px 6px rgba(0,0,0,0.06)') } as CSSProperties}>
+              {pack.label === 'Best Value' && <div style={{ ...TYPOGRAPHY.caption, color: P.gold, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}><Crown size={12} /> {t('best_value')}</div>}
+              <div style={{ width: 50, height: 50, borderRadius: '50%', margin: '0 auto 12px', background: 'linear-gradient(135deg, #d9bd7e, #b8894e)', display: 'grid', placeItems: 'center', boxShadow: `0 5px 16px ${P.gold}55, inset 0 1px 0 rgba(255,255,255,0.35)` }}>
+                <Coins size={23} color="#fff" />
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{pack.tokens.toLocaleString()}</div>
               {pack.bonus > 0 && <div style={{ fontSize: 11, color: P.emerald, fontWeight: 600, marginTop: 2 }}>+{pack.bonus} bonus</div>}
-              <div style={{ fontSize: 14, fontWeight: 600, color: P.gold, marginTop: 10 }}>TSh {pack.price.toLocaleString()}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: P.gold, marginTop: 10 }}>TSh {pack.price.toLocaleString()}</div>
             </button>
           ))}
         </div>
@@ -2194,10 +2206,13 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
   return (
     <div style={{ padding: '0 0 40px', maxWidth: 640 }}>
       {/* Cover header */}
-      <div style={{
-        background: coverColor, padding: '48px 24px 0', position: 'relative',
+      <div className="kg-flagship" style={{
+        background: coverColor,
+        backgroundImage: `radial-gradient(120% 160% at 82% -30%, ${rankColor}55 0%, transparent 46%), linear-gradient(155deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 34%, rgba(0,0,0,0.32) 100%)`,
+        padding: '48px 24px 0', position: 'relative',
         borderRadius: `0 0 ${RADIUS.xl}px ${RADIUS.xl}px`,
         marginBottom: 60,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.16), 0 12px 34px ${coverColor}44`,
       }}>
         <button
           onClick={() => setSheet('cover')}
@@ -2273,8 +2288,9 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
             { v: `${profile.streakDays}`, l: t('streak'), c: P.amber },
             { v: earnedBadges.length.toString(), l: t('badges'), c: P.violet },
           ].map((s, i) => (
-            <div key={i} style={{ ...gct(), padding: '16px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 21, fontWeight: 700, color: P.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{s.v}</div>
+            <div key={i} style={{ ...gct(), padding: '16px 8px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 30, height: 3, borderRadius: 3, background: s.c, boxShadow: `0 0 10px ${s.c}88` }} />
+              <div style={{ fontSize: 21, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{s.v}</div>
               <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.04em', color: P.textMuted, marginTop: 4, textTransform: 'uppercase' }}>{s.l}</div>
             </div>
           ))}
@@ -2655,7 +2671,7 @@ function XPBar({ xp, large, P }: { xp: number; large?: boolean; P: PaletteType }
   return (
     <div>
       <div style={{ height: h, background: P.border, borderRadius: h, overflow: 'hidden', marginTop: large ? 10 : 4, boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)' }}>
-        <div style={{ height: '100%', width: `${progress * 100}%`, background: P.sapphire, borderRadius: h, transition: `width ${MOTION.med}`, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.2), 0 0 8px ${P.sapphire}40` }} />
+        <div className={large ? 'kg-flagship' : undefined} style={{ position: 'relative', height: '100%', width: `${Math.max(progress * 100, 4)}%`, background: `linear-gradient(90deg, ${P.amber}, ${P.sapphire})`, borderRadius: h, transition: `width ${MOTION.slow}`, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), 0 0 10px ${P.sapphire}55` }} />
       </div>
       {large && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: P.textDim }}>
@@ -2696,9 +2712,11 @@ function MobileTab({ icon, label, active, onClick, P }: { icon: React.ReactNode;
 
 function LoadingView({ P }: { P: PaletteType }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 12, background: P.bg }}>
-      <Brain size={32} color={P.sapphire} style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
-      <span style={{ color: P.textMuted, fontSize: 14, fontWeight: 600 }}>{t('loading')}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 16, background: P.bg }}>
+      <div style={{ width: 68, height: 68, borderRadius: 20, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${P.sapphire}, ${P.amber})`, boxShadow: `0 8px 28px ${P.sapphire}55, inset 0 1px 0 rgba(255,255,255,0.3)`, animation: 'pulse 1.6s ease-in-out infinite' }}>
+        <Brain size={32} color="#fff" />
+      </div>
+      <span style={{ color: P.textMuted, fontSize: 13, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{t('loading')}</span>
     </div>
   )
 }
