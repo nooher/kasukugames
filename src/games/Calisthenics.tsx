@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ArrowLeft, Trophy, Clock, Zap, Dumbbell, Flame, ChevronRight, Check, Play, Pause, SkipForward, Star, TrendingUp, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Trophy, Zap, Dumbbell, Flame, ChevronRight, Check, Play, Pause, SkipForward, Star } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxLevelUp, sfxGameOver, sfxCountdown, sfxCountdownGo, sfxScore } from '../lib/sfx'
 import { type Particle, type ScorePop, confettiBurst, burstParticles, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
+import GameOverCard from '../components/GameOverCard'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -1217,58 +1218,23 @@ export default function Calisthenics({ onBack, onGameEnd }: Props) {
         {/* ---- SUMMARY ---- */}
         {phase === 'summary' && (
           <div style={{ padding: 20, maxWidth: 480, margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', padding: '24px 0 20px' }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: PILL,
-                background: C.success, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px', ...GLASS,
-              }}>
-                <Trophy size={28} color={C.text} />
-              </div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Workout Complete</h2>
-              <p style={{ color: C.muted, margin: 0, fontSize: 13 }}>
-                {MODE_CONFIGS[mode as keyof typeof MODE_CONFIGS]?.label ?? 'Workout'} / Level {level}
-              </p>
-            </div>
-
-            {/* Score */}
-            <div style={{
-              background: C.card, borderRadius: RADIUS, padding: 20,
-              border: `1px solid ${C.border}`, marginBottom: 16, textAlign: 'center', ...GLASS,
-            }}>
-              <div style={{ fontSize: 42, fontWeight: 700, color: C.accent }}>
-                {finalScore.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 13, color: C.muted }}>Total Score</div>
-              {finalScore > pb.totalScore && (
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  background: C.warmGold + '22', border: `1px solid ${C.warmGold}44`,
-                  borderRadius: PILL, padding: '3px 10px', fontSize: 11, fontWeight: 600,
-                  color: C.warmGold, marginTop: 8,
-                }}>
-                  <TrendingUp size={12} /> New Personal Best
-                </div>
-              )}
-            </div>
-
-            {/* Stats grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-              {[
-                { label: 'Total Reps', value: totalReps.toString(), color: C.emerald, icon: Dumbbell },
-                { label: 'Total Time', value: formatTime(totalTime), color: C.sapphire, icon: Clock },
-                { label: 'Exercises Done', value: `${completedExercises}/${workout.length}`, color: C.accent, icon: Check },
-                { label: 'Est. Calories', value: `${caloriesEstimate} kcal`, color: C.coral, icon: Flame },
-              ].map(stat => (
-                <div key={stat.label} style={{
-                  background: C.card, borderRadius: RADIUS, padding: 14,
-                  border: `1px solid ${C.border}`, textAlign: 'center',
-                }}>
-                  <stat.icon size={16} color={stat.color} style={{ marginBottom: 6 }} />
-                  <div style={{ fontSize: 18, fontWeight: 700, color: stat.color }}>{stat.value}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{stat.label}</div>
-                </div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <GameOverCard
+                score={finalScore}
+                scoreLabel="Total Score"
+                title="Workout Complete"
+                accent={C.accent}
+                stats={[
+                  { label: 'Total Reps', value: totalReps, color: C.emerald },
+                  { label: 'Total Time', value: formatTime(totalTime), color: C.sapphire },
+                  { label: 'Est. Calories', value: `${caloriesEstimate} kcal`, color: C.coral },
+                ]}
+                best={pb.totalScore}
+                isNewBest={finalScore > pb.totalScore}
+                onReplay={() => { sfxTap(); setPhase('menu') }}
+                replayLabel="New Workout"
+                onHome={() => { sfxTap(); onBack() }}
+              />
             </div>
 
             {/* Exercises completed list */}
@@ -1302,37 +1268,6 @@ export default function Calisthenics({ onBack, onGameEnd }: Props) {
                   <DifficultyStars rating={we.exercise.difficulty} size={10} />
                 </div>
               ))}
-            </div>
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => {
-                  sfxTap()
-                  setPhase('menu')
-                }}
-                style={{
-                  flex: 1, padding: '14px 0',
-                  background: 'transparent', border: `1px solid ${C.border}`,
-                  borderRadius: PILL, color: C.muted, fontSize: 14, fontWeight: 600,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}
-              >
-                <RotateCcw size={16} />
-                New Workout
-              </button>
-              <button
-                onClick={() => { sfxTap(); onBack() }}
-                style={{
-                  flex: 1, padding: '14px 0',
-                  background: C.accent, border: 'none',
-                  borderRadius: PILL, color: C.text, fontSize: 14, fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: `0 0 20px ${C.accent}44`,
-                }}
-              >
-                Done
-              </button>
             </div>
           </div>
         )}
