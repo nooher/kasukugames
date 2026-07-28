@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { sfxTap, sfxScore, sfxLevelUp, sfxGameOver, sfxWrong, sfxClick } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, burstParticles, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 interface Props {
   onBack: () => void;
@@ -256,7 +257,7 @@ export default function BrickBreaker({ onBack, onGameEnd }: Props) {
   const [uiCombo, setUiCombo] = useState(0);
   const [uiActivePU, setUiActivePU] = useState<string | null>(null);
   const [uiActivePUColor, setUiActivePUColor] = useState<string | null>(null);
-  const [, setUiPhase] = useState<'idle' | 'playing' | 'over' | 'won'>('idle');
+  const [uiPhase, setUiPhase] = useState<'idle' | 'playing' | 'over' | 'won'>('idle');
   const [particles, setParticles] = useState<Particle[]>([]);
   const [scorePops, setScorePops] = useState<ScorePop[]>([]);
   const [shakeIntensity, setShakeIntensity] = useState(0);
@@ -858,12 +859,7 @@ export default function BrickBreaker({ onBack, onGameEnd }: Props) {
       ctx.fillText(PUP_LABELS[p.type], p.x, p.y + 1);
     }
 
-    /* overlays */
-    if (gs.phase === 'over') {
-      drawOverlay(ctx, cw, ch, 'GAME OVER', `Score: ${gs.score}  |  Level ${gs.level}  |  Max Combo: ${gs.maxCombo}`, 'Click to restart');
-    } else if (gs.phase === 'won') {
-      drawOverlay(ctx, cw, ch, 'ALL LEVELS CLEARED', `Final Score: ${gs.score}  |  Max Combo: ${gs.maxCombo}`, 'Click to play again');
-    }
+    /* game-over / win end screen is rendered as a JSX <GameOverCard/> overlay */
   }
 
   function drawIdle(ctx: CanvasRenderingContext2D, cw: number, ch: number) {
@@ -1015,23 +1011,50 @@ export default function BrickBreaker({ onBack, onGameEnd }: Props) {
         </div>
 
         {/* canvas */}
-        <canvas
-          ref={canvasRef}
-          width={dims.w}
-          height={dims.h}
-          style={{ display: 'block', cursor: 'none', touchAction: 'none' }}
-          onClick={handleClick}
-          onMouseMove={(e) => movePaddle(e.clientX)}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) movePaddle(e.touches[0].clientX);
-            handleClick();
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault();
-            if (e.touches.length > 0) movePaddle(e.touches[0].clientX);
-          }}
-        />
+        <div style={{ position: 'relative' }}>
+          <canvas
+            ref={canvasRef}
+            width={dims.w}
+            height={dims.h}
+            style={{ display: 'block', cursor: 'none', touchAction: 'none' }}
+            onClick={handleClick}
+            onMouseMove={(e) => movePaddle(e.clientX)}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              if (e.touches.length > 0) movePaddle(e.touches[0].clientX);
+              handleClick();
+            }}
+            onTouchMove={(e) => {
+              e.preventDefault();
+              if (e.touches.length > 0) movePaddle(e.touches[0].clientX);
+            }}
+          />
+
+          {/* game over / win end screen */}
+          {(uiPhase === 'over' || uiPhase === 'won') && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(17,24,32,0.84)',
+              cursor: 'default',
+            }}>
+              <GameOverCard
+                score={uiScore}
+                title={uiPhase === 'won' ? 'You Win!' : 'Game Over'}
+                accent={AMBER}
+                stats={[
+                  { label: 'Level', value: uiLevel },
+                  { label: 'Max Combo', value: stateRef.current?.maxCombo ?? 0, color: AMBER },
+                ]}
+                onReplay={() => { sfxTap(); initGame(); }}
+                onHome={onBack}
+              />
+            </div>
+          )}
+        </div>
       </div>
       {particles.map(p => (
         <div key={p.id} style={renderParticleStyle(p)} />
