@@ -1,8 +1,9 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap } from 'lucide-react'
+import { ArrowLeft, Heart, Clock, Trophy, Zap } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxScore, sfxTimer } from '../lib/sfx'
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
+import GameOverCard from '../components/GameOverCard'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -739,23 +740,13 @@ export default function MatrixForge({ onBack, onGameEnd }: Props) {
       {/* Game over overlay */}
       {phase === 'gameover' && (
         <div style={s.overlay}>
-          <div style={s.gameOverCard}>
-            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Game Over</div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginBottom: 8 }}>
-              <div>
-                <div style={s.label}>Score</div>
-                <div style={{ ...s.bigNum, color: C.accent }}>{score}</div>
-              </div>
-              <div>
-                <div style={s.label}>Best Level</div>
-                <div style={{ ...s.bigNum, color: C.success }}>{highestLevel}</div>
-              </div>
-            </div>
-            <button style={s.playAgainBtn} onClick={resetGame}>
-              <RotateCcw size={16} />
-              Play Again
-            </button>
-          </div>
+          <GameOverCard
+            score={score}
+            accent={C.accent}
+            stats={[{ label: 'Best Level', value: highestLevel, color: C.success }]}
+            onReplay={resetGame}
+            onHome={onBack}
+          />
         </div>
       )}
 

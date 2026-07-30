@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ArrowLeft, Trophy, RotateCcw, Heart, Zap, Clock,
+  ArrowLeft, Heart, Zap, Clock,
   Flame, Stethoscope, Shield, Truck, CloudLightning,
   Zap as Power, Droplets, Radio, AlertTriangle,
   Monitor, AlertOctagon, Plane, Anchor,
 } from 'lucide-react';
 import { sfxTap, sfxCorrect, sfxWrong, sfxCombo, sfxLevelUp, sfxGameOver } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -647,6 +648,9 @@ export default function CognitiveOverload({ onBack, onGameEnd }: Props) {
   /*  GAME OVER                                                          */
   /* ================================================================== */
   if (phase === 'gameover') {
+    const total = triaged + expired;
+    const efficiency = total > 0 ? Math.round((triaged / total) * 100) : 0;
+    const rankColor = efficiency >= 90 ? T.emerald : efficiency >= 70 ? T.sapphire : efficiency >= 50 ? T.amber : T.rose;
     return (
       <div style={{ minHeight: '100vh', background: T.obsidian, color: T.white, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: `1px solid ${T.border}` }}>
@@ -658,61 +662,20 @@ export default function CognitiveOverload({ onBack, onGameEnd }: Props) {
         </div>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: 32 }}>
-          <Trophy size={56} color={T.rose} />
-          <h2 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Shift Over</h2>
-          {(() => {
-            const total = triaged + expired;
-            const efficiency = total > 0 ? Math.round((triaged / total) * 100) : 0;
-            const rank = efficiency >= 90 ? 'Elite' : efficiency >= 70 ? 'Proficient' : efficiency >= 50 ? 'Adequate' : 'Needs Training';
-            const rankColor = efficiency >= 90 ? T.emerald : efficiency >= 70 ? T.sapphire : efficiency >= 50 ? T.amber : T.rose;
-            return (
-              <div style={{
-                background: T.surface, borderRadius: T.radius.md, padding: 24, width: '100%', maxWidth: 300,
-                display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'center', ...GLASS,
-              }}>
-                <div>
-                  <div style={{ fontSize: 40, fontWeight: 600, color: T.rose }}>{score}</div>
-                  <div style={{ fontSize: 13, color: T.muted, fontWeight: 600 }}>TOTAL SCORE</div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 700 }}>{triaged}</div>
-                    <div style={{ fontSize: 11, color: T.muted }}>Triaged</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 700 }}>{expired}</div>
-                    <div style={{ fontSize: 11, color: T.muted }}>Expired</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 22, fontWeight: 700 }}>{LEVELS[level].name.split(' ')[0]}</div>
-                    <div style={{ fontSize: 11, color: T.muted }}>Rank</div>
-                  </div>
-                </div>
-                {/* Efficiency bar */}
-                <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, color: T.muted, fontWeight: 600 }}>TRIAGE EFFICIENCY</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: rankColor }}>{efficiency}%</span>
-                  </div>
-                  <div style={{ height: 6, background: T.border, borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ width: `${efficiency}%`, height: '100%', background: rankColor, borderRadius: 3 }} />
-                  </div>
-                  <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: rankColor }}>{rank}</div>
-                </div>
-              </div>
-            );
-          })()}
-
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={startGame} style={btnStyle(T.rose)}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <RotateCcw size={16} /> Try Again
-              </span>
-            </button>
-            <button onClick={onBack} style={btnStyle(T.dim)}>
-              Leave
-            </button>
-          </div>
+          <GameOverCard
+            score={score}
+            scoreLabel="Total Score"
+            title="Shift Over"
+            accent={T.rose}
+            stats={[
+              { label: 'Triaged', value: triaged, color: T.emerald },
+              { label: 'Expired', value: expired, color: T.rose },
+              { label: 'Efficiency', value: `${efficiency}%`, color: rankColor },
+            ]}
+            onReplay={startGame}
+            onHome={onBack}
+            replayLabel="Try Again"
+          />
         </div>
       </div>
     );

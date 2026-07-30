@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { ArrowLeft, BookOpen, Check, X, Sparkles, RotateCcw, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, BookOpen, Check, X, Sparkles, ChevronRight } from 'lucide-react';
 import { sfxClick, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver } from '../lib/sfx';
+import GameOverCard from '../components/GameOverCard';
 
 /* ═══════════════════════════════════════════════════════════════════════
    Scripture Quest — respectful, educational knowledge challenges across the
@@ -113,8 +114,6 @@ export default function ScriptureQuest({ onBack, onGameEnd }: Props) {
     } else { setIdx(i => i + 1); setPicked(null); }
   };
 
-  const meta = useMemo(() => (faith && faith !== 'all' ? FAITHS.find(f => f.key === faith) : null), [faith]);
-
   /* ── select ── */
   if (!faith) {
     return (
@@ -152,18 +151,20 @@ export default function ScriptureQuest({ onBack, onGameEnd }: Props) {
     return (
       <div style={wrap}>
         <Header onBack={onBack} />
-        <div style={{ maxWidth: 420, margin: '0 auto', padding: 24, textAlign: 'center' }}>
-          <div style={{ fontSize: 46, margin: '10px 0' }}>{meta?.glyph || '📜'}</div>
-          <h2 style={{ color: C.white, fontSize: 26, margin: '0 0 4px' }}>Quest complete</h2>
-          <p style={{ color: C.muted, marginBottom: 18 }}>{meta ? meta.label : 'All faiths'}</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 26, flexWrap: 'wrap' }}>
-            <Stat label="Score" value={score} color={C.gold} />
-            <Stat label="Correct" value={`${correct}/${quiz.length}`} color={C.emerald} />
-            <Stat label="Accuracy" value={`${acc}%`} color={C.teal} />
-            <Stat label="Best streak" value={best} color={C.rose} />
-          </div>
-          <button onClick={() => setFaith(null)} style={{ ...cta, width: '100%', marginBottom: 10 }}><RotateCcw size={18} /> Another quest</button>
-          <button onClick={onBack} style={{ ...ghost, width: '100%' }}>Back to games</button>
+        <div style={{ maxWidth: 420, margin: '0 auto', padding: 24, display: 'flex', justifyContent: 'center' }}>
+          <GameOverCard
+            score={score}
+            title="Quest Complete"
+            accent={C.gold}
+            stats={[
+              { label: 'Correct', value: `${correct}/${quiz.length}`, color: C.emerald },
+              { label: 'Accuracy', value: `${acc}%`, color: C.teal },
+              { label: 'Best Streak', value: best, color: C.rose },
+            ]}
+            onReplay={() => setFaith(null)}
+            replayLabel="Another Quest"
+            onHome={onBack}
+          />
         </div>
       </div>
     );
@@ -220,15 +221,6 @@ export default function ScriptureQuest({ onBack, onGameEnd }: Props) {
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: React.ReactNode; color: string }) {
-  return (
-    <div style={{ background: C.ink, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px', minWidth: 70 }}>
-      <div style={{ color, fontSize: 20, fontWeight: 800 }}>{value}</div>
-      <div style={{ color: C.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-    </div>
-  );
-}
-
 function Header({ onBack }: { onBack: () => void }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.obsidian, zIndex: 5 }}>
@@ -240,5 +232,4 @@ function Header({ onBack }: { onBack: () => void }) {
 
 const wrap: React.CSSProperties = { minHeight: '100%', background: C.obsidian, color: C.white, fontFamily: 'Inter, system-ui, sans-serif' };
 const cta: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, background: C.gold, color: C.obsidian, border: 'none', borderRadius: 12, padding: '11px 20px', fontSize: 14, fontWeight: 800, cursor: 'pointer' };
-const ghost: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: C.surface, color: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
 const row: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12, background: C.ink, border: '1px solid', borderRadius: 14, padding: '14px 16px', cursor: 'pointer' };

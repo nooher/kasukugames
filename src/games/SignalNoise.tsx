@@ -7,12 +7,12 @@ import {
   Trophy,
   Zap,
   Target,
-  RotateCcw,
   ChevronRight,
   Eye,
 } from 'lucide-react';
 import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxCombo, sfxScore, sfxTimer } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 /* ------------------------------------------------------------------ */
 /*  DESIGN TOKENS                                                      */
@@ -663,37 +663,18 @@ export default function SignalNoise({ onBack, onGameEnd }: Props) {
     const isNew = score >= highScore && score > 0;
     return (
       <div style={{ minHeight: '100vh', background: C.obsidian, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Inter','SF Pro Display',system-ui,sans-serif" }}>
-        <div style={{ background: C.surface, borderRadius: R.lg, padding: 32, ...GLASS, maxWidth: 400, width: '100%', textAlign: 'center' }}>
-          <Trophy size={48} color={isNew ? C.amber : C.muted} style={{ marginBottom: 16 }} />
-          <h2 style={{ color: C.white, fontSize: 28, fontWeight: 700, margin: '0 0 4px' }}>Game Over</h2>
-          <p style={{ color: C.muted, fontSize: 14, margin: '0 0 24px' }}>Round {round}</p>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 24 }}>
-            <div>
-              <div style={{ color: C.amber, fontSize: 32, fontWeight: 700 }}>{score}</div>
-              <div style={{ color: C.muted, fontSize: 12, textTransform: 'uppercase' }}>Score</div>
-            </div>
-            <div>
-              <div style={{ color: C.teal, fontSize: 32, fontWeight: 700 }}>{bestStreak}</div>
-              <div style={{ color: C.muted, fontSize: 12, textTransform: 'uppercase' }}>Best Streak</div>
-            </div>
-          </div>
-
-          {isNew && (
-            <div style={{ color: C.amber, fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-              <Star size={14} style={{ marginRight: 4 }} /> New High Score!
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button onClick={onBack} style={{ background: C.slate, color: C.muted, border: 'none', borderRadius: R.sm, padding: '12px 24px', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>
-              <ArrowLeft size={14} style={{ marginRight: 6 }} /> Exit
-            </button>
-            <button onClick={newGame} style={{ background: C.amber, color: C.obsidian, border: 'none', borderRadius: R.sm, padding: '12px 24px', fontSize: 14, cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <RotateCcw size={14} /> Play Again
-            </button>
-          </div>
-        </div>
+        <GameOverCard
+          score={score}
+          accent={C.amber}
+          stats={[
+            { label: 'Round', value: round },
+            { label: 'Best Streak', value: bestStreak, color: C.teal },
+          ]}
+          best={highScore}
+          isNewBest={isNew}
+          onReplay={newGame}
+          onHome={onBack}
+        />
       </div>
     );
   }

@@ -1,8 +1,9 @@
 import type React from 'react'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ArrowLeft, Heart, Clock, RotateCcw, Trophy, Zap, Building2, Eye, Hash, Palette, Brain } from 'lucide-react'
+import { ArrowLeft, Heart, Clock, Trophy, Zap, Building2, Eye, Hash, Palette, Brain } from 'lucide-react'
 import { sfxTap, sfxCorrect, sfxWrong, sfxLevelUp, sfxGameOver, sfxReveal } from '../lib/sfx'
 import { type Particle, type ScorePop, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx'
+import GameOverCard from '../components/GameOverCard'
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                     */
@@ -1353,63 +1354,20 @@ export default function FocusTower({ onBack, onGameEnd }: Props) {
             {renderTower(12)}
           </div>
 
-          <h1 style={{ fontSize: 28, fontWeight: 600, color: C.error }}>
-            Tower Collapsed!
-          </h1>
-          <p style={{ color: C.muted, fontSize: 14 }}>
-            You reached floor {floor + 1} and built {tower.length} floors
-          </p>
-
-          <div style={{
-            display: 'flex',
-            gap: 20,
-            marginTop: 8,
-          }}>
-            <div style={{
-              textAlign: 'center',
-              padding: '12px 20px',
-              background: C.card,
-              borderRadius: RADIUS,
-              ...GLASS,
-            }}>
-              <Zap size={20} color={C.amber} />
-              <p style={{ fontSize: 24, fontWeight: 600, color: C.text, marginTop: 4 }}>{score}</p>
-              <p style={{ fontSize: 11, color: C.muted }}>Score</p>
-            </div>
-            <div style={{
-              textAlign: 'center',
-              padding: '12px 20px',
-              background: C.card,
-              borderRadius: RADIUS,
-              ...GLASS,
-            }}>
-              <Trophy size={20} color={C.amber} />
-              <p style={{ fontSize: 24, fontWeight: 600, color: C.amber, marginTop: 4 }}>{highScore}</p>
-              <p style={{ fontSize: 11, color: C.muted }}>Best</p>
-            </div>
-          </div>
-
-          <button
-            onClick={startGame}
-            style={{
-              padding: '14px 48px',
-              background: C.accent,
-              color: C.ink,
-              border: 'none',
-              borderRadius: PILL,
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: 'pointer',
-              ...GLASS,
-              marginTop: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <RotateCcw size={18} />
-            Try Again
-          </button>
+          <GameOverCard
+            score={score}
+            title="Tower Collapsed"
+            accent={C.accent}
+            stats={[
+              { label: 'Floor', value: floor + 1 },
+              { label: 'Built', value: tower.length, color: C.accent },
+            ]}
+            best={highScore}
+            isNewBest={score >= highScore && score > 0}
+            onReplay={startGame}
+            onHome={onBack}
+            replayLabel="Try Again"
+          />
         </div>
       )}
       {/* VFX particles */}

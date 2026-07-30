@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { ArrowLeft, RotateCw, Play, ChevronDown, ChevronLeft, ChevronRight, ChevronsDown, Archive } from 'lucide-react';
 import { sfxTap, sfxScore, sfxLevelUp, sfxGameOver, sfxClick } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 interface Props {
   onBack: () => void;
@@ -967,15 +968,18 @@ export default function BlockFlow({ onBack, onGameEnd }: Props) {
               background: 'rgba(11,15,20,0.88)',
               borderRadius: 8,
             }}>
-              <div style={{ fontSize: 24, fontWeight: 600, color: COLORS.rose }}>Game Over</div>
-              <div style={{ fontSize: 14, color: COLORS.muted }}>Score: {displayScore}</div>
-              <div style={{ fontSize: 12, color: COLORS.dim }}>Level {displayLevel} -- {displayLines} lines</div>
-              {displayScore >= highScore && displayScore > 0 && (
-                <div style={{ fontSize: 12, color: COLORS.amber, fontWeight: 600 }}>New High Score!</div>
-              )}
-              <button onClick={startGame} style={btnStyle}>
-                <RotateCw size={18} /> Retry
-              </button>
+              <GameOverCard
+                score={displayScore}
+                accent={COLORS.emerald}
+                stats={[
+                  { label: 'Level', value: displayLevel },
+                  { label: 'Lines', value: displayLines, color: COLORS.teal },
+                ]}
+                best={highScore}
+                isNewBest={displayScore >= highScore && displayScore > 0}
+                onReplay={startGame}
+                onHome={onBack}
+              />
             </div>
           )}
           {particles.map(p => (

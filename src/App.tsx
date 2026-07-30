@@ -1,12 +1,14 @@
 import { useState, useRef, lazy, Suspense, useEffect, useCallback, type CSSProperties } from 'react'
 import {
   Brain, Heart,
-  Gamepad2, Trophy, ArrowLeft, Users, PartyPopper,
+  Trophy, ArrowLeft, Users, PartyPopper,
   Flame, Star, Target, Crown, Award, LogIn, UserPlus, Send,
   Calendar, TrendingUp, Bell, Coins, Gift, ShoppingBag,
   Download, X, Sparkles, Check, Trash2, Globe, Sun, Moon, Music,
   Edit3, Camera, ChevronRight, Share2, Link, Copy, Flag,
+  Clock, Search, Play, Radio,
 } from 'lucide-react'
+import { getGameArt, categoryGradient } from './lib/gameArt'
 import { RADIUS, MOTION, SHADOW, GLASS, TYPOGRAPHY, SPACING, premiumBtn } from './lib/design'
 import { BRAND } from './lib/brand'
 import { t, loadLang, saveLang, type Lang } from './lib/i18n'
@@ -1040,7 +1042,7 @@ export default function App() {
 /* ================================================================
    HOME SECTION
    ================================================================ */
-function HomeSection({ onPlay, P, isDark, gct }: {
+function HomeSection({ onPlay, P, isDark }: {
   onPlay: (id: string) => void
   P: PaletteType; isDark: boolean; gct: () => CSSProperties
 }) {
@@ -1054,97 +1056,175 @@ function HomeSection({ onPlay, P, isDark, gct }: {
   const displayGames = (selectedCat === 'all' ? GAMES : GAMES.filter(g => g.category === selectedCat))
     .filter(g => !needle || `${g.title} ${g.subtitle}`.toLowerCase().includes(needle))
 
+  const DIFF: Record<string, string> = {
+    beginner: P.emerald, intermediate: P.teal, advanced: P.amber, expert: P.rose,
+  }
+  const chips: { id: GameCategory | 'all'; label: string; count: number; grad: [string, string] }[] = [
+    { id: 'all', label: t('all_games'), count: GAMES.length, grad: ['#c9a96e', '#a88a5e'] },
+    ...categories.map(([key, meta]) => ({
+      id: key, label: meta.label,
+      count: GAMES.filter(g => g.category === key).length,
+      grad: categoryGradient(key),
+    })),
+  ]
+  // The flagship is spotlighted above the grid (default view only) — then pulled
+  // out of the grid so it isn't shown twice.
+  const spotlight = (selectedCat === 'all' && !needle) ? GAMES.find(g => g.id === 'tanzanite') ?? null : null
+  const gridGames = displayGames.filter(g => !spotlight || g.id !== spotlight.id)
+  const flag = spotlight ? getGameArt(spotlight) : null
+
   return (
-    <section style={{ padding: '100px 4vw 80px', maxWidth: 600, margin: '0 auto' }}>
+    <section style={{ padding: '86px 4vw 100px', maxWidth: 820, margin: '0 auto' }}>
       {/* Hero */}
-      <div className="fade-in" style={{ textAlign: 'center', marginBottom: 64 }}>
-        <Logo size={48} style={{ marginBottom: 32 }} textColor={P.text} mutedColor={P.textMuted} />
+      <div className="fade-in" style={{ textAlign: 'center', marginBottom: 30 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: P.textMuted, marginBottom: 14 }}>
+          Olympics of the Mind
+        </div>
         <h1 style={{
-          margin: 0, fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 600,
-          color: P.text, letterSpacing: '-0.02em', lineHeight: 1.1,
+          margin: 0, fontSize: 'clamp(30px, 6vw, 46px)', fontWeight: 700,
+          color: P.text, letterSpacing: '-0.03em', lineHeight: 1.04,
         }}>
           {t('what_will_you_play')}
         </h1>
+        <p style={{ margin: '13px auto 0', maxWidth: 440, fontSize: 14, color: P.textMuted, lineHeight: 1.6 }}>
+          {GAMES.length} premium games — train your mind, climb the ranks, and play live with the people you love.
+        </p>
       </div>
+
+      {/* Flagship spotlight */}
+      {spotlight && flag && (
+        <button
+          className="kg-flagship fade-in"
+          onClick={() => onPlay(spotlight.id)}
+          style={{
+            width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
+            borderRadius: 26, padding: '22px 22px', display: 'flex', alignItems: 'center', gap: 18,
+            background: `linear-gradient(135deg, ${flag.from}, ${flag.to})`,
+            boxShadow: `0 14px 40px ${flag.to}44, inset 0 1px 0 rgba(255,255,255,0.22)`,
+            color: '#fff', marginBottom: 24,
+          }}
+        >
+          <div style={{
+            width: 62, height: 62, borderRadius: 18, flexShrink: 0,
+            background: 'rgba(255,255,255,0.18)', display: 'grid', placeItems: 'center',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3)',
+          }}>
+            <flag.Icon size={30} color="#fff" strokeWidth={2} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.92, marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Sparkles size={11} /> Flagship
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{spotlight.title}</div>
+            <div style={{ fontSize: 12.5, opacity: 0.9, lineHeight: 1.45, marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {spotlight.description}
+            </div>
+          </div>
+          <div style={{
+            width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
+            background: 'rgba(255,255,255,0.22)', display: 'grid', placeItems: 'center',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)',
+          }}>
+            <Play size={20} color="#fff" fill="#fff" />
+          </div>
+        </button>
+      )}
 
       {/* Search over all games */}
-      <input
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        placeholder={t('search_games')}
-        aria-label={t('search_games')}
-        style={{
-          width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
-          color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
-          outline: 'none', marginBottom: 12, boxSizing: 'border-box',
-        } as CSSProperties}
-      />
-
-      {/* Category selector */}
-      <select
-        value={selectedCat}
-        onChange={e => setSelectedCat(e.target.value as GameCategory | 'all')}
-        style={{
-          width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
-          color: P.text, borderRadius: 16, padding: '14px 20px', fontSize: 15,
-          outline: 'none', cursor: 'pointer', appearance: 'none',
-          WebkitAppearance: 'none', MozAppearance: 'none',
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='${encodeURIComponent(isDark ? '#999' : '#666')}' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center',
-          boxSizing: 'border-box',
-        } as CSSProperties}
-      >
-        <option value="all">{t('all_games')}</option>
-        {categories.map(([key, meta]) => (
-          <option key={key} value={key}>{meta.label}</option>
-        ))}
-      </select>
-
-      {/* Game list */}
-      <div style={{ display: 'grid', gap: 14, marginTop: 24 }}>
-        {displayGames.map(game => (
-          <button
-            key={game.id}
-            onClick={() => onPlay(game.id)}
-            style={{
-              ...gct(), padding: '24px 28px', cursor: 'pointer',
-              textAlign: 'left', display: 'flex', alignItems: 'center', gap: 18,
-              border: `1px solid ${P.border}`,
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: P.text, marginBottom: 4 }}>
-                {game.title}
-              </div>
-              <div style={{ fontSize: 13, color: P.textMuted, lineHeight: 1.4 }}>
-                {game.subtitle}
-              </div>
-            </div>
-            <div style={{
-              width: 40, height: 40, borderRadius: 12,
-              background: P.sapphire, display: 'grid', placeItems: 'center',
-              flexShrink: 0,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px ${P.sapphire}30`,
-            }}>
-              <Gamepad2 size={18} color="#fff" />
-            </div>
-          </button>
-        ))}
-        {displayGames.length === 0 && (
-          <div style={{ textAlign: 'center', color: P.textMuted, padding: '40px 0', fontSize: 14 }}>{t('no_games_found')}</div>
-        )}
+      <div style={{ position: 'relative' }}>
+        <Search size={17} color={P.textDim} style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={t('search_games')}
+          aria-label={t('search_games')}
+          style={{
+            width: '100%', backgroundColor: P.card, border: `1px solid ${P.border}`,
+            color: P.text, borderRadius: 16, padding: '14px 20px 14px 46px', fontSize: 15,
+            outline: 'none', boxSizing: 'border-box',
+            boxShadow: isDark ? 'inset 0 1px 3px rgba(0,0,0,0.25)' : 'inset 0 1px 2px rgba(0,0,0,0.04)',
+          } as CSSProperties}
+        />
       </div>
 
-      {/* Play Now CTA — plays the first game in the current view */}
-      {displayGames.length > 0 && (
-        <div style={{ textAlign: 'center', marginTop: 48 }}>
-          <button
-            onClick={() => { const game = displayGames[0]; if (game) onPlay(game.id) }}
-            style={{ ...premiumBtn(P.sapphire), padding: '16px 48px', fontSize: 16 }}
-          >
-            <Gamepad2 size={18} /> {t('play_now')}
-          </button>
-        </div>
+      {/* Category pills */}
+      <div className="kg-chip-row" style={{ marginTop: 12 }}>
+        {chips.map(c => {
+          const active = selectedCat === c.id
+          return (
+            <button
+              key={c.id}
+              className="kg-chip"
+              onClick={() => setSelectedCat(c.id)}
+              style={{
+                padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${active ? 'transparent' : P.border}`,
+                background: active ? `linear-gradient(135deg, ${c.grad[0]}, ${c.grad[1]})` : P.card,
+                color: active ? '#fff' : P.textMuted,
+                boxShadow: active ? `0 4px 14px ${c.grad[1]}55` : 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                transition: `all ${MOTION.fast}`,
+              }}
+            >
+              {c.label}
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                background: active ? 'rgba(255,255,255,0.24)' : P.surface,
+                color: active ? '#fff' : P.textDim,
+                padding: '1px 6px', borderRadius: 999,
+              }}>{c.count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Game grid */}
+      <div className="kg-arcade-grid">
+        {gridGames.map((game, i) => {
+          const { Icon, from, to } = getGameArt(game)
+          return (
+            <button
+              key={game.id}
+              className="kg-game-card fade-in"
+              onClick={() => onPlay(game.id)}
+              style={{
+                background: P.card, border: `1px solid ${P.border}`,
+                boxShadow: isDark
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 18px rgba(0,0,0,0.28)'
+                  : '0 1px 3px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.05)',
+                animationDelay: `${Math.min(i, 11) * 32}ms`,
+                ['--accent' as string]: to,
+              } as CSSProperties}
+            >
+              <div className="kg-game-icon" style={{
+                width: 46, height: 46, borderRadius: 14, marginBottom: 13,
+                background: `linear-gradient(135deg, ${from}, ${to})`,
+                display: 'grid', placeItems: 'center',
+                boxShadow: `0 4px 14px ${to}55, inset 0 1px 0 rgba(255,255,255,0.28)`,
+              }}>
+                <Icon size={22} color="#fff" strokeWidth={2.2} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: P.text, letterSpacing: '-0.01em', lineHeight: 1.2, marginBottom: 4 }}>
+                {game.title}
+              </div>
+              <div style={{
+                fontSize: 12, color: P.textMuted, lineHeight: 1.4, marginBottom: 14,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                overflow: 'hidden', minHeight: 34,
+              }}>
+                {game.subtitle}
+              </div>
+              <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 9, fontSize: 10.5, color: P.textDim, fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={11} /> {game.duration}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Users size={11} /> {game.players}</span>
+                <span title={game.difficulty} style={{ marginLeft: 'auto', width: 8, height: 8, borderRadius: '50%', background: DIFF[game.difficulty], boxShadow: `0 0 8px ${DIFF[game.difficulty]}80` }} />
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      {displayGames.length === 0 && (
+        <div style={{ textAlign: 'center', color: P.textMuted, padding: '48px 0', fontSize: 14 }}>{t('no_games_found')}</div>
       )}
     </section>
   )
@@ -1516,13 +1596,17 @@ function ConnectionsSection({ profile, onPlay, onGoLive, onStartLive, onRejoinRo
       </div>
 
       {/* Live Room CTA — real-time online play */}
-      <button onClick={() => setShowLivePicker(true)} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${P.rose}40` }}>
-        <span style={{ fontSize: 30 }}>🔴</span>
+      <button onClick={() => setShowLivePicker(true)} style={{ ...gct(), width: '100%', padding: '18px 22px', marginBottom: 16, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 15, border: `1px solid ${P.rose}40` }}>
+        <span style={{ position: 'relative', width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: `linear-gradient(135deg, ${P.rose}, ${P.coral})`, display: 'grid', placeItems: 'center', boxShadow: `0 4px 16px ${P.rose}55, inset 0 1px 0 rgba(255,255,255,0.28)` }}>
+          <Radio size={22} color="#fff" strokeWidth={2.2} />
+          <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#fff', boxShadow: '0 0 6px #fff', animation: 'breathe 1.4s ease-in-out infinite' }} />
+        </span>
         <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.rose, marginBottom: 2 }}>● Live</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: P.text }}>Start a Live Game</div>
           <div style={{ fontSize: 12, color: P.textMuted, marginTop: 2 }}>Real-time on two devices — party games, Couples Quiz, Guess What. Share the link to invite.</div>
         </div>
-        <span style={{ fontSize: 20, color: P.rose }}>→</span>
+        <ChevronRight size={20} color={P.rose} />
       </button>
 
       {/* Start-a-live-game flow: category → game → invite */}
@@ -1923,14 +2007,24 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
 
   return (
     <div style={{ padding: '40px 4vw', maxWidth: 640 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <ShoppingBag size={24} color={P.violet} />
         <h2 style={{ margin: 0, ...TYPOGRAPHY.heading, color: P.text }}>{t('shop')}</h2>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
-        <Coins size={18} color={P.gold} />
-        <span style={{ fontSize: 22, fontWeight: 600, color: P.gold, fontVariantNumeric: 'tabular-nums' }}>{wallet.balance.toLocaleString()}</span>
-        <span style={{ fontSize: 13, color: P.textMuted }}>{t('tokens')}</span>
+      <div className="kg-flagship" style={{
+        display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24,
+        padding: '20px 24px', borderRadius: 22,
+        background: 'linear-gradient(135deg, #d9bd7e, #b8894e)',
+        boxShadow: `0 12px 34px ${P.gold}44, inset 0 1px 0 rgba(255,255,255,0.28)`,
+        color: '#fff',
+      }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)', flexShrink: 0 }}>
+          <Coins size={26} color="#fff" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.85 }}>{t('tokens')}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{wallet.balance.toLocaleString()}</div>
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {([['shop', t('items')], ['packs', t('buy_tokens')], ['history', t('history')]] as const).map(([tabKey, label]) => (
@@ -1944,9 +2038,9 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
             const owned = item.oneTime && purchased.includes(item.id)
             const canAfford = wallet.balance >= item.price
             return (
-              <div key={item.id} style={{ ...gct(), padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 44, height: 44, borderRadius: RADIUS.lg, background: item.color + '18', display: 'grid', placeItems: 'center' }}>
-                  <span style={{ fontSize: 20 }}>{item.icon === 'shield' ? '🛡️' : item.icon === 'zap' ? '⚡' : item.icon === 'heart' ? '❤️' : item.icon === 'clock' ? '⏱️' : item.icon === 'lightbulb' ? '💡' : item.icon === 'flame' ? '🔥' : item.icon === 'gem' ? '💎' : item.icon === 'crown' ? '👑' : item.icon === 'sparkles' ? '✨' : '🏳️'}</span>
+              <div key={item.id} style={{ ...gct(), padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 16, borderLeft: `3px solid ${item.color}` }}>
+                <div style={{ width: 46, height: 46, borderRadius: RADIUS.lg, background: `linear-gradient(135deg, ${item.color}33, ${item.color}14)`, border: `1px solid ${item.color}30`, display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12)` }}>
+                  <span style={{ fontSize: 21 }}>{item.icon === 'shield' ? '🛡️' : item.icon === 'zap' ? '⚡' : item.icon === 'heart' ? '❤️' : item.icon === 'clock' ? '⏱️' : item.icon === 'lightbulb' ? '💡' : item.icon === 'flame' ? '🔥' : item.icon === 'gem' ? '💎' : item.icon === 'crown' ? '👑' : item.icon === 'sparkles' ? '✨' : '🏳️'}</span>
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: P.text }}>{item.name}</div>
@@ -1964,12 +2058,14 @@ function ShopSection({ wallet, setWallet, P, isDark, cs, gct }: { wallet: TokenW
       {tab === 'packs' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
           {TOKEN_PACKS.map(pack => (
-            <button key={pack.id} onClick={() => { const w = purchaseTokens(pack.tokens, pack.label); setWallet(w) }} style={{ ...gct(), padding: '24px 20px', textAlign: 'center', cursor: 'pointer', border: pack.label === 'Best Value' ? `2px solid ${P.gold}50` : `1px solid ${P.border}`, boxShadow: pack.label === 'Best Value' ? (isDark ? `${GLASS.highlight}, ${SHADOW.glow(P.gold)}` : `0 2px 12px rgba(0,0,0,0.06), ${SHADOW.glow(P.gold)}`) : (isDark ? `${GLASS.highlight}, ${SHADOW.md}` : '0 1px 6px rgba(0,0,0,0.06)') }}>
-              {pack.label === 'Best Value' && <div style={{ ...TYPOGRAPHY.caption, color: P.gold, marginBottom: 10 }}>{t('best_value')}</div>}
-              <Coins size={28} color={P.gold} style={{ marginBottom: 10 }} />
-              <div style={{ fontSize: 26, fontWeight: 600, color: P.text }}>{pack.tokens.toLocaleString()}</div>
+            <button key={pack.id} onClick={() => { const w = purchaseTokens(pack.tokens, pack.label); setWallet(w) }} className="kg-game-card" style={{ ...gct(), padding: '24px 20px', textAlign: 'center', cursor: 'pointer', alignItems: 'center', ['--accent' as string]: P.gold, border: pack.label === 'Best Value' ? `2px solid ${P.gold}70` : `1px solid ${P.border}`, boxShadow: pack.label === 'Best Value' ? (isDark ? `${GLASS.highlight}, ${SHADOW.glow(P.gold)}` : `0 2px 12px rgba(0,0,0,0.06), ${SHADOW.glow(P.gold)}`) : (isDark ? `${GLASS.highlight}, ${SHADOW.md}` : '0 1px 6px rgba(0,0,0,0.06)') } as CSSProperties}>
+              {pack.label === 'Best Value' && <div style={{ ...TYPOGRAPHY.caption, color: P.gold, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}><Crown size={12} /> {t('best_value')}</div>}
+              <div style={{ width: 50, height: 50, borderRadius: '50%', margin: '0 auto 12px', background: 'linear-gradient(135deg, #d9bd7e, #b8894e)', display: 'grid', placeItems: 'center', boxShadow: `0 5px 16px ${P.gold}55, inset 0 1px 0 rgba(255,255,255,0.35)` }}>
+                <Coins size={23} color="#fff" />
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{pack.tokens.toLocaleString()}</div>
               {pack.bonus > 0 && <div style={{ fontSize: 11, color: P.emerald, fontWeight: 600, marginTop: 2 }}>+{pack.bonus} bonus</div>}
-              <div style={{ fontSize: 14, fontWeight: 600, color: P.gold, marginTop: 10 }}>TSh {pack.price.toLocaleString()}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: P.gold, marginTop: 10 }}>TSh {pack.price.toLocaleString()}</div>
             </button>
           ))}
         </div>
@@ -2114,10 +2210,13 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
   return (
     <div style={{ padding: '0 0 40px', maxWidth: 640 }}>
       {/* Cover header */}
-      <div style={{
-        background: coverColor, padding: '48px 24px 0', position: 'relative',
+      <div className="kg-flagship" style={{
+        background: coverColor,
+        backgroundImage: `radial-gradient(120% 160% at 82% -30%, ${rankColor}55 0%, transparent 46%), linear-gradient(155deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 34%, rgba(0,0,0,0.32) 100%)`,
+        padding: '48px 24px 0', position: 'relative',
         borderRadius: `0 0 ${RADIUS.xl}px ${RADIUS.xl}px`,
         marginBottom: 60,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.16), 0 12px 34px ${coverColor}44`,
       }}>
         <button
           onClick={() => setSheet('cover')}
@@ -2193,8 +2292,9 @@ function ProfileSection({ profile, setProfile, wallet, P, isDark, lang, theme, o
             { v: `${profile.streakDays}`, l: t('streak'), c: P.amber },
             { v: earnedBadges.length.toString(), l: t('badges'), c: P.violet },
           ].map((s, i) => (
-            <div key={i} style={{ ...gct(), padding: '16px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 21, fontWeight: 700, color: P.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{s.v}</div>
+            <div key={i} style={{ ...gct(), padding: '16px 8px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 30, height: 3, borderRadius: 3, background: s.c, boxShadow: `0 0 10px ${s.c}88` }} />
+              <div style={{ fontSize: 21, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{s.v}</div>
               <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.04em', color: P.textMuted, marginTop: 4, textTransform: 'uppercase' }}>{s.l}</div>
             </div>
           ))}
@@ -2575,7 +2675,7 @@ function XPBar({ xp, large, P }: { xp: number; large?: boolean; P: PaletteType }
   return (
     <div>
       <div style={{ height: h, background: P.border, borderRadius: h, overflow: 'hidden', marginTop: large ? 10 : 4, boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)' }}>
-        <div style={{ height: '100%', width: `${progress * 100}%`, background: P.sapphire, borderRadius: h, transition: `width ${MOTION.med}`, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.2), 0 0 8px ${P.sapphire}40` }} />
+        <div className={large ? 'kg-flagship' : undefined} style={{ position: 'relative', height: '100%', width: `${Math.max(progress * 100, 4)}%`, background: `linear-gradient(90deg, ${P.amber}, ${P.sapphire})`, borderRadius: h, transition: `width ${MOTION.slow}`, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), 0 0 10px ${P.sapphire}55` }} />
       </div>
       {large && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: P.textDim }}>
@@ -2616,9 +2716,11 @@ function MobileTab({ icon, label, active, onClick, P }: { icon: React.ReactNode;
 
 function LoadingView({ P }: { P: PaletteType }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 12, background: P.bg }}>
-      <Brain size={32} color={P.sapphire} style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
-      <span style={{ color: P.textMuted, fontSize: 14, fontWeight: 600 }}>{t('loading')}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: 16, background: P.bg }}>
+      <div style={{ width: 68, height: 68, borderRadius: 20, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${P.sapphire}, ${P.amber})`, boxShadow: `0 8px 28px ${P.sapphire}55, inset 0 1px 0 rgba(255,255,255,0.3)`, animation: 'pulse 1.6s ease-in-out infinite' }}>
+        <Brain size={32} color="#fff" />
+      </div>
+      <span style={{ color: P.textMuted, fontSize: 13, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase' }}>{t('loading')}</span>
     </div>
   )
 }

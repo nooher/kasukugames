@@ -11,6 +11,10 @@ import { type Particle, burstParticles, tickParticles, renderParticleStyle } fro
 import { loadProfile } from '../lib/rewards'
 import { pushHouse, fetchHouses, type HouseEntry } from '../lib/tanzaniteCloud'
 import {
+  Pickaxe, Package, ScrollText, Landmark, Trophy, Globe, Settings2, BookOpen, Store,
+  ChevronLeft, type LucideIcon,
+} from 'lucide-react'
+import {
   MINERAL, STRATA, BLOCKS, SHAPES, CODEX, RANKS, UPGRADE_META, TREAT_IDEAL, TROPHIES, TIER_COLOR,
   strataAt, digRough, bonusRough, geodeRough, rollMineEvent, rollMarketEvent, treat, cutStone, grade, certify,
   makeOffers, rankOf, upgradeCost, gemColor, colorGradeOf, clamp01, round2,
@@ -22,9 +26,9 @@ import {
 interface Props { onBack: () => void; onGameEnd?: (r: { score: number; accuracy: number; level: number; maxScore?: number; timeMs?: number }) => void }
 
 const C = {
-  bg: '#0b0a1e', bg2: '#141033', panel: 'rgba(30,24,66,0.72)',
-  line: 'rgba(150,140,220,0.18)', text: '#eae7ff', dim: '#a59fd0', faint: '#6f6aa0',
-  blue: '#4f5bd5', violet: '#7a5cf0', gold: '#d9b46a', good: '#5fd39a', bad: '#e06a7a',
+  bg: '#08071a', bg2: '#171040', panel: 'rgba(32,26,74,0.62)', panel2: 'rgba(46,37,98,0.55)',
+  line: 'rgba(150,140,220,0.16)', lineHi: 'rgba(174,162,244,0.34)', text: '#efecff', dim: '#a89fda', faint: '#6f6aa0',
+  blue: '#5b6bf0', violet: '#8b5cf0', gold: '#e2bd72', good: '#5fd39a', bad: '#e06a7a',
 }
 const SAVE_KEY = 'kg_tanzanite_v2'
 type Stage = 'hub' | 'mine' | 'bag' | 'treat' | 'cut' | 'grade' | 'certify' | 'market'
@@ -105,10 +109,22 @@ export default function Tanzanite({ onBack, onGameEnd }: Props) {
   if (!save.seenIntro) return <Intro onStart={() => patch(s => ({ ...s, seenIntro: true }))} />
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: `radial-gradient(1200px 700px at 50% -10%, ${C.bg2}, ${C.bg})`, color: C.text, fontFamily: 'system-ui, sans-serif', overflow: 'auto' }}>
-      <style>{`@keyframes tzspin{to{transform:rotateY(360deg) rotate(360deg)}}@keyframes tzpulse{0%,100%{opacity:.5}50%{opacity:1}}@keyframes tzpop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}@keyframes tzrise{0%{transform:translateY(20px);opacity:0}100%{transform:translateY(0);opacity:1}}`}</style>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', position: 'sticky', top: 0, zIndex: 5, background: 'linear-gradient(#0b0a1eee,#0b0a1e00)' }}>
-        <button onClick={stage === 'hub' ? back : () => setStage('hub')} style={btnGhost}>‹ {stage === 'hub' ? 'Exit' : 'Site'}</button>
+    <div className="tzroot" style={{ position: 'fixed', inset: 0, background: `radial-gradient(1100px 620px at 50% -12%, ${C.bg2}, ${C.bg} 62%), radial-gradient(900px 700px at 100% 100%, rgba(139,92,240,0.14), transparent 60%)`, color: C.text, fontFamily: "'DM Sans','Inter',system-ui,sans-serif", overflow: 'auto' }}>
+      <style>{`
+        @keyframes tzspin{0%{transform:perspective(600px) rotateY(-24deg) rotate(-3deg) translateY(0)}50%{transform:perspective(600px) rotateY(24deg) rotate(3deg) translateY(-8px)}100%{transform:perspective(600px) rotateY(-24deg) rotate(-3deg) translateY(0)}}
+        @keyframes tzpulse{0%,100%{opacity:.5}50%{opacity:1}}
+        @keyframes tzpop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+        @keyframes tzrise{0%{transform:translateY(20px);opacity:0}100%{transform:translateY(0);opacity:1}}
+        @keyframes tzsheen{0%,60%{left:-60%}100%{left:130%}}
+        .tzroot button{transition:transform .16s cubic-bezier(.2,.65,.3,.9), box-shadow .16s ease, filter .16s ease, border-color .16s ease}
+        @media (hover:hover){.tzroot button:not(:disabled):hover{transform:translateY(-2px);filter:brightness(1.06)}}
+        .tzroot button:not(:disabled):active{transform:translateY(0) scale(.98)}
+        .tzroot input[type=range]{height:6px}
+        .tzsheen{position:relative;overflow:hidden}
+        .tzsheen::after{content:'';position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-18deg);animation:tzsheen 5s ease-in-out infinite;pointer-events:none}
+      `}</style>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', position: 'sticky', top: 0, zIndex: 5, background: `linear-gradient(${C.bg}f2, ${C.bg}00)`, backdropFilter: 'blur(6px)' }}>
+        <button onClick={stage === 'hub' ? back : () => setStage('hub')} style={{ ...btnGhost, display: 'inline-flex', alignItems: 'center', gap: 4, paddingLeft: 10 }}><ChevronLeft size={15} /> {stage === 'hub' ? 'Exit' : 'Site'}</button>
         <div style={{ flex: 1 }} />
         <Chip label={rank.title} />
         <Chip label={`${fmt(save.tznite)} TzNITE`} gold />
@@ -141,7 +157,7 @@ export default function Tanzanite({ onBack, onGameEnd }: Props) {
 function Gem({ blue, orient = 1, size = 120, spin = false }: { blue: number; orient?: number; size?: number; spin?: boolean }) {
   const { face, glow } = gemColor(blue, orient); const s = size
   return (
-    <div style={{ width: s, height: s, position: 'relative', filter: `drop-shadow(0 0 ${s * 0.18}px ${glow})`, animation: spin ? 'tzspin 7s linear infinite' : undefined }}>
+    <div style={{ width: s, height: s, position: 'relative', filter: `drop-shadow(0 0 ${s * 0.2}px ${glow})`, animation: spin ? 'tzspin 6s ease-in-out infinite' : undefined }}>
       <svg viewBox="0 0 100 100" width={s} height={s}>
         <defs><linearGradient id={`tzg${size}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" stopOpacity="0.85" /><stop offset="0.28" stopColor={face} stopOpacity="0.95" /><stop offset="1" stopColor={face} /></linearGradient></defs>
         <polygon points="50,4 82,26 82,74 50,96 18,74 18,26" fill={`url(#tzg${size})`} stroke="rgba(255,255,255,0.35)" strokeWidth="0.8" />
@@ -166,7 +182,7 @@ function Intro({ onStart }: { onStart: () => void }) {
         <p style={{ color: C.dim, fontSize: 14, lineHeight: 1.7, margin: '18px 0' }}>
           On a small stretch of Tanzanian earth lies the only tanzanite on Earth — a gem <b style={{ color: C.text }}>1000× rarer than diamond</b>. Mine it, unlock its blue in the kiln, cut for its living colour, certify it, and trade it to build a great <b style={{ color: C.gold }}>Tanzanite House</b>. Sell less, for more.
         </p>
-        <button onClick={onStart} style={{ ...btnPrimary, padding: '14px 28px', fontSize: 16 }}>Begin ⛏</button>
+        <button onClick={onStart} style={{ ...btnPrimary, padding: '14px 30px', fontSize: 16, display: 'inline-flex', alignItems: 'center', gap: 9 }}><Pickaxe size={18} /> Begin</button>
         <div style={{ color: C.faint, fontSize: 11, marginTop: 14 }}>{MINERAL.formula} · discovered 1967 · named by {MINERAL.namedBy.split(' (')[0]}</div>
       </div>
     </div>
@@ -220,21 +236,21 @@ function Hub({ save, rank, netWorth, wip, go, resume }: any) {
           {resume && <button onClick={resume} style={{ ...btnPrimary, marginTop: 12, width: '100%' }}>{nextLabel[!treated ? 'treat' : treated.cracked ? 'market' : !cut ? 'cut' : !graded ? 'grade' : !cert ? 'certify' : 'market']} →</button>}
         </Panel>
       ) : save.inventory.length ? (
-        <button onClick={() => go('bag')} style={{ ...btnPrimary, padding: 15, fontSize: 15 }}>💼  Open the bag · {save.inventory.length} rough</button>
+        <button onClick={() => go('bag')} className="tzsheen" style={{ ...btnPrimary, padding: '16px 20px', fontSize: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><Package size={19} /> Open the bag · {save.inventory.length} rough</button>
       ) : (
-        <button onClick={() => go('mine')} style={{ ...btnPrimary, padding: 16, fontSize: 16 }}>⛏  Descend the mine</button>
+        <button onClick={() => go('mine')} className="tzsheen" style={{ ...btnPrimary, padding: '17px 20px', fontSize: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}><Pickaxe size={20} /> Descend the mine</button>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        <Tile icon="⛏" label="Mine" onClick={() => go('mine')} />
-        <Tile icon="💼" label={`Bag ${save.inventory.length}`} onClick={() => go('bag')} />
-        <Tile icon="◆" label="Commissions" onClick={() => go('contracts')} />
-        <Tile icon="🏛" label={`Vault ${save.vault.length}`} onClick={() => go('vault')} />
-        <Tile icon="🏆" label={`Trophies ${save.trophies.length}/${TROPHIES.length}`} onClick={() => go('trophies')} />
-        <Tile icon="🌍" label="House ranks" onClick={() => go('ranks')} />
-        <Tile icon="⚙" label="Upgrades" onClick={() => go('shop')} />
-        <Tile icon="📖" label={`Codex ${save.codex.length}/${CODEX.length}`} onClick={() => go('codex')} />
-        <Tile icon="💠" label="Market" onClick={() => go('market')} dim={!graded} />
+        <Tile Icon={Pickaxe} color={C.gold} label="Mine" onClick={() => go('mine')} />
+        <Tile Icon={Package} color={C.violet} label={`Bag ${save.inventory.length}`} onClick={() => go('bag')} />
+        <Tile Icon={ScrollText} color={C.gold} label="Commissions" onClick={() => go('contracts')} />
+        <Tile Icon={Landmark} color={C.blue} label={`Vault ${save.vault.length}`} onClick={() => go('vault')} />
+        <Tile Icon={Trophy} color={C.gold} label={`Trophies ${save.trophies.length}/${TROPHIES.length}`} onClick={() => go('trophies')} />
+        <Tile Icon={Globe} color="#6ea8e0" label="House ranks" onClick={() => go('ranks')} />
+        <Tile Icon={Settings2} color={C.violet} label="Upgrades" onClick={() => go('shop')} />
+        <Tile Icon={BookOpen} color={C.good} label={`Codex ${save.codex.length}/${CODEX.length}`} onClick={() => go('codex')} />
+        <Tile Icon={Store} color={graded ? C.good : C.faint} label="Market" onClick={() => go('market')} dim={!graded} />
       </div>
       <div style={{ textAlign: 'center', color: C.faint, fontSize: 11 }}>Blue gem zoisite · {MINERAL.formula} · found only at Merelani, Tanzania</div>
     </div>
@@ -301,7 +317,7 @@ function Mine({ save, patch, sfx, unlockCodex, earnTrophy, go, flash }: any) {
       <div style={{ position: 'relative', height: 176, borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.line}`, background: 'linear-gradient(180deg,#2a2140,#120e26)' }}>
         {STRATA.map((s, i) => { const top = Math.max(0, Math.min(100, (s.from - Math.max(0, depth - 90)) / 180 * 100)); const h = (s.to - s.from) / 180 * 100; return <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: `${top}%`, height: `${h}%`, background: i % 2 ? '#ffffff08' : '#00000022', borderTop: '1px solid #ffffff14' }}><span style={{ position: 'absolute', left: 8, top: 4, fontSize: 9.5, color: C.faint }}>{s.name}</span></div> })}
         {parts.map((p, i) => <div key={i} style={renderParticleStyle(p)} />)}
-        <div style={{ position: 'absolute', left: '50%', top: '46%', transform: 'translate(-50%,-50%)', fontSize: 30 }}>⛏</div>
+        <div style={{ position: 'absolute', left: '50%', top: '46%', transform: 'translate(-50%,-50%)', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))' }}><Pickaxe size={30} color="#fff" strokeWidth={2} /></div>
         <div style={{ position: 'absolute', right: 8, top: 6, fontSize: 11, color: C.dim }}>Bag {save.inventory.length}/{bag}</div>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>{Array.from({ length: maxStamina }).map((_, i) => <div key={i} style={{ flex: 1, height: 6, borderRadius: 4, background: i < stamina ? C.gold : '#ffffff18' }} />)}</div>
@@ -663,15 +679,20 @@ function Codex({ save }: any) {
 }
 
 /* ───────────────────────────  primitives  ─────────────────────────────── */
-const panelBase: React.CSSProperties = { background: C.panel, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14, width: '100%', color: C.text }
-function Panel({ children, accent }: { children: React.ReactNode; accent?: boolean }) { return <div style={{ ...panelBase, border: `1px solid ${accent ? 'rgba(150,120,240,0.5)' : C.line}`, boxShadow: accent ? '0 0 24px rgba(120,90,240,0.15)' : undefined }}>{children}</div> }
+const panelBase: React.CSSProperties = { background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 15, width: '100%', color: C.text, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 18px rgba(0,0,0,0.28)' }
+function Panel({ children, accent }: { children: React.ReactNode; accent?: boolean }) { return <div style={{ ...panelBase, background: accent ? `linear-gradient(150deg, rgba(72,54,150,0.5), ${C.panel})` : C.panel, border: `1px solid ${accent ? C.lineHi : C.line}`, boxShadow: accent ? `inset 0 1px 0 rgba(255,255,255,0.08), 0 0 28px rgba(139,92,240,0.18), 0 6px 22px rgba(0,0,0,0.32)` : panelBase.boxShadow }}>{children}</div> }
 function Row({ children }: { children: React.ReactNode }) { return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>{children}</div> }
-function H({ title, sub }: { title: string; sub?: string }) { return <div><h2 style={{ margin: '4px 0 2px', fontSize: 20, fontWeight: 800 }}>{title}</h2>{sub && <div style={{ color: C.dim, fontSize: 12.5, lineHeight: 1.5 }}>{sub}</div>}</div> }
+function H({ title, sub }: { title: string; sub?: string }) { return <div style={{ paddingLeft: 12, position: 'relative' }}><div style={{ position: 'absolute', left: 0, top: 4, bottom: sub ? 4 : 2, width: 3, borderRadius: 3, background: `linear-gradient(${C.blue},${C.violet})`, boxShadow: `0 0 10px ${C.violet}88` }} /><h2 style={{ margin: '2px 0 2px', fontSize: 21, fontWeight: 800, letterSpacing: '-0.02em' }}>{title}</h2>{sub && <div style={{ color: C.dim, fontSize: 12.5, lineHeight: 1.55 }}>{sub}</div>}</div> }
 function Hint({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 11.5, color: C.faint, fontStyle: 'italic', textAlign: 'center' }}>{children}</div> }
-function Chip({ label, gold }: { label: string; gold?: boolean }) { return <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 11px', borderRadius: 999, background: gold ? 'rgba(217,180,106,0.15)' : 'rgba(120,110,200,0.15)', color: gold ? C.gold : C.dim, border: `1px solid ${gold ? 'rgba(217,180,106,0.3)' : C.line}` }}>{label}</span> }
-function Tile({ icon, label, onClick, dim }: { icon: string; label: string; onClick: () => void; dim?: boolean }) { return <button onClick={onClick} disabled={dim} style={{ ...panelBase, cursor: dim ? 'default' : 'pointer', fontSize: 20, textAlign: 'center', padding: '13px 6px', opacity: dim ? 0.45 : 1 }}>{icon}<div style={{ fontSize: 11.5, color: C.dim, marginTop: 4, fontWeight: 600 }}>{label}</div></button> }
+function Chip({ label, gold }: { label: string; gold?: boolean }) { return <span style={{ fontSize: 12, fontWeight: 700, padding: '6px 13px', borderRadius: 999, background: gold ? 'rgba(226,189,114,0.16)' : 'rgba(139,92,240,0.16)', color: gold ? C.gold : '#c3bbee', border: `1px solid ${gold ? 'rgba(226,189,114,0.34)' : C.lineHi}`, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08)` }}>{label}</span> }
+function Tile({ Icon, color, label, onClick, dim }: { Icon: LucideIcon; color: string; label: string; onClick: () => void; dim?: boolean }) {
+  return <button onClick={onClick} disabled={dim} style={{ ...panelBase, cursor: dim ? 'default' : 'pointer', textAlign: 'center', padding: '14px 6px 12px', opacity: dim ? 0.5 : 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+    <span style={{ width: 40, height: 40, borderRadius: 12, display: 'grid', placeItems: 'center', background: `linear-gradient(140deg, ${color}, ${color}aa)`, boxShadow: `0 4px 14px ${color}44, inset 0 1px 0 rgba(255,255,255,0.28)` }}><Icon size={20} color="#fff" strokeWidth={2.1} /></span>
+    <span style={{ fontSize: 11.5, color: C.dim, fontWeight: 600 }}>{label}</span>
+  </button>
+}
 function Empty({ go }: { go: any }) { return <div style={{ textAlign: 'center', padding: 40 }}><div style={{ color: C.dim }}>No stone here.</div><button onClick={() => go('mine')} style={{ ...btnPrimary, marginTop: 14 }}>Go mine →</button></div> }
-const btnPrimary: React.CSSProperties = { background: `linear-gradient(90deg,${C.blue},${C.violet})`, color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: '11px 16px' }
-const btnGhost: React.CSSProperties = { background: 'transparent', color: C.dim, border: `1px solid ${C.line}`, borderRadius: 10, fontSize: 13, cursor: 'pointer', padding: '8px 14px' }
-const toastStyle: React.CSSProperties = { position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: '#2a2160ee', color: C.text, padding: '9px 16px', borderRadius: 999, fontSize: 13, border: `1px solid ${C.violet}`, boxShadow: '0 8px 30px #0008' }
+const btnPrimary: React.CSSProperties = { background: `linear-gradient(105deg,${C.blue},${C.violet} 62%,#9d68f2)`, color: '#fff', border: 'none', borderRadius: 13, fontWeight: 700, fontSize: 14, letterSpacing: '0.01em', cursor: 'pointer', padding: '12px 16px', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25), 0 6px 20px ${C.violet}44, 0 2px 6px rgba(0,0,0,0.3)` }
+const btnGhost: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', color: C.dim, border: `1px solid ${C.line}`, borderRadius: 11, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: '9px 15px' }
+const toastStyle: React.CSSProperties = { position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: 'rgba(42,33,96,0.94)', color: C.text, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, border: `1px solid ${C.lineHi}`, boxShadow: `0 10px 34px rgba(0,0,0,0.5), 0 0 22px ${C.violet}33`, backdropFilter: 'blur(8px)' }
 function fmt(n: number): string { return Math.round(n).toLocaleString('en-US') }

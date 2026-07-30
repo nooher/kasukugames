@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Heart, Zap, Trophy, RotateCcw, Clock, Flame } from 'lucide-react';
+import { ArrowLeft, Heart, Zap, Trophy, Clock, Flame } from 'lucide-react';
 import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -1350,32 +1351,19 @@ export default function SplitDecision({ onBack, onGameEnd }: Props) {
     return (
       <div ref={containerRef} style={{ ...containerStyle, ...screenShakeStyle(shakeIntensity) }}>
         {header(false)}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
-          <Trophy size={56} color={C.accent} />
-          <h1 style={{ color: C.text, fontSize: 26, margin: 0, fontWeight: 600 }}>
-            Game Over
-          </h1>
-          <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>
-            Reached round {round}
-          </p>
-          <p style={{ color: C.accent, fontSize: 40, fontWeight: 600, margin: 0 }}>
-            {score}
-          </p>
-          <p style={{ color: C.muted, fontSize: 12, margin: 0, letterSpacing: 1 }}>POINTS</p>
-          <div style={{ display: 'flex', gap: 24, marginTop: 8 }}>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ color: C.text, fontSize: 20, fontWeight: 600, margin: 0 }}>{accuracy}%</p>
-              <p style={{ color: C.muted, fontSize: 11, margin: '4px 0 0' }}>Accuracy</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ color: C.text, fontSize: 20, fontWeight: 600, margin: 0 }}>{correct}/{total}</p>
-              <p style={{ color: C.muted, fontSize: 11, margin: '4px 0 0' }}>Correct</p>
-            </div>
-          </div>
-          <button onClick={startGame} style={{ ...primaryBtnStyle, gap: 8, display: 'flex', alignItems: 'center', marginTop: 8 }}>
-            <RotateCcw size={18} />
-            Play Again
-          </button>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <GameOverCard
+            score={score}
+            scoreLabel="Points"
+            accent={C.accent}
+            stats={[
+              { label: 'Round', value: round },
+              { label: 'Accuracy', value: `${accuracy}%` },
+              { label: 'Correct', value: `${correct}/${total}` },
+            ]}
+            onReplay={startGame}
+            onHome={onBack}
+          />
         </div>
         {vfxOverlay}
       </div>

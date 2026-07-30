@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Heart, Zap, Trophy, RotateCcw, Clock, Brain, Star } from 'lucide-react';
+import { ArrowLeft, Heart, Zap, Clock, Brain, Star } from 'lucide-react';
 import { sfxTap, sfxCorrect, sfxWrong, sfxGameOver, sfxLevelUp, sfxCombo } from '../lib/sfx';
 import { type Particle, type ScorePop, correctBurst, wrongBurst, confettiBurst, tickParticles, renderParticleStyle, createScorePop, tickScorePops, scorePopStyle, screenShakeStyle, comboGlowStyle } from '../lib/vfx';
+import GameOverCard from '../components/GameOverCard';
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens                                                      */
@@ -1090,59 +1091,17 @@ export default function SequenceCollapse({ onBack, onGameEnd }: Props) {
             <ArrowLeft size={16} /> Back
           </button>
         </div>
-        <div style={{ ...card, textAlign: 'center' }}>
-          <Trophy size={56} color={C.amber} style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 28, fontWeight: 600, margin: '0 0 8px' }}>Game Over</h2>
-          <p style={{ color: C.muted, fontSize: 15, margin: '0 0 8px' }}>
-            You reached level {level}
-          </p>
-          <p style={{
-            fontSize: 40,
-            fontWeight: 600,
-            color: C.sapphire,
-            margin: '12px 0 20px',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {score}
-          </p>
-
-          {/* Stats row */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 20,
-            marginBottom: 28,
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 600, color: C.emerald }}>{correctRef.current}</div>
-              <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Correct</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 600, color: C.amber }}>{accuracy}%</div>
-              <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Accuracy</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 600, color: C.violet }}>
-                {Math.round((Date.now() - gameStartRef.current) / 1000)}s
-              </div>
-              <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>Time</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button style={bigBtn} onClick={startGame}>
-              <RotateCcw size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-              Play Again
-            </button>
-            <button
-              style={{ ...bigBtn, background: C.surface, color: C.muted }}
-              onClick={onBack}
-            >
-              Quit
-            </button>
-          </div>
-        </div>
+        <GameOverCard
+          score={score}
+          accent={C.sapphire}
+          stats={[
+            { label: 'Level', value: level },
+            { label: 'Accuracy', value: `${accuracy}%`, color: C.amber },
+            { label: 'Correct', value: correctRef.current, color: C.emerald },
+          ]}
+          onReplay={startGame}
+          onHome={onBack}
+        />
       </div>
     );
   }
